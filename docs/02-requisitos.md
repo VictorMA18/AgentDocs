@@ -29,7 +29,7 @@ Prioridad según MoSCoW: **M**ust, **S**hould, **C**ould. Cada requisito tiene u
 
 | ID | Categoría | Requisito | Métrica / criterio |
 |---|---|---|---|
-| RNF-01 | Seguridad | La API key solo vive en variables de entorno | Ninguna clave en el repo (revisión con búsqueda) |
+| RNF-01 | Seguridad | No hay credenciales en el repo; el LLM usa la sesión del CLI de Claude Code | Ninguna clave en el repo (revisión con búsqueda) |
 | RNF-02 | Seguridad | Los documentos se tratan como datos, no como instrucciones | Caso de inyección del dataset pasa |
 | RNF-03 | Seguridad | Validación de subidas: tipo, tamaño, nombre seguro | Rechaza `../x`, ejecutables y archivos > límite |
 | RNF-04 | Robustez | El bucle tiene tope de iteraciones | Nunca excede `MAX_AGENT_ITERATIONS` |
@@ -38,6 +38,6 @@ Prioridad según MoSCoW: **M**ust, **S**hould, **C**ould. Cada requisito tiene u
 | RNF-07 | Mantenibilidad | Núcleo desacoplado de FastAPI y MCP | `core/` y `rag/` no importan `api/` ni `mcp_server` |
 | RNF-08 | Mantenibilidad | Cobertura de tests de la lógica del núcleo | Tests de chunking, store, herramientas y bucle (con LLM simulado) |
 | RNF-09 | Rendimiento | Búsqueda sobre ≤ 10 000 fragmentos | < 200 ms (sin contar embedding de la consulta) |
-| RNF-10 | Costo | Embeddings locales, sin servicio de pago | No requiere otra API key |
+| RNF-10 | Costo | Embeddings locales, sin servicio de pago | No requiere API key adicional |
 | RNF-11 | Portabilidad | Se instala con `pip install -r requirements.txt` | Arranca en una máquina limpia siguiendo el README |
 | RNF-12 | Idioma | Responde en el idioma del usuario (español por defecto) | Caso de evaluación en español |

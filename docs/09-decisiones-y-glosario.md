@@ -6,7 +6,7 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 
 ### ADR-001 · Sin frameworks de agentes
 - **Contexto:** El objetivo es aprender y demostrar cómo funciona un agente.
-- **Decisión:** SDK oficial de Anthropic + bucle escrito a mano.
+- **Decisión:** bucle escrito a mano sobre un cliente LLM propio (SDK de Anthropic en el diseño original; sustituido por el CLI de Claude Code en ADR-008).
 - **Consecuencias:** más código inicial, pero control total y comprensión; migrar a un framework después es fácil.
 
 ### ADR-002 · RAG como herramienta, no como pipeline
@@ -37,7 +37,12 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 - **Decisión:** en cada fase se instalan solo las dependencias que esa fase necesita. `pyproject.toml` no declara `dependencies`; `requirements.txt` sigue siendo la fuente única.
 - **Consecuencias:** entorno ligero al principio; al empezar las Fases 2, 4, 5 y 6 hay que instalar sus dependencias. `pip install -r requirements.txt` sigue funcionando para instalar todo.
 
-*(Añade aquí: ADR-008…)*
+### ADR-008 · LLM mediante el CLI de Claude Code (sin API key)
+- **Contexto:** no se puede obtener una API key de Anthropic; sí hay acceso al CLI `claude` con sesión iniciada. Reemplaza al SDK de Anthropic de ADR-001.
+- **Decisión:** el LLM se invoca con `claude -p --model claude-haiku-5-5 --tools "" --no-session-persistence --output-format json`, detrás de una interfaz `LLMClient`. El bucle sigue siendo propio; las herramientas se piden con un protocolo JSON definido por nosotros (`--json-schema`) en vez de `tool_use` nativo.
+- **Consecuencias:** sin API key ni costo por token adicional (consume el uso de Claude Code); mayor latencia por proceso lanzado en cada llamada; sin control de `max_tokens` (se limita con `LLM_TIMEOUT_S`); el formato de herramientas depende de que el modelo respete el schema, por lo que hay que validarlo y tratar los fallos como errores recuperables; cambiar a la API o a otro modelo es implementar otro `LLMClient`. Se retiran `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `MAX_TOKENS` y la dependencia `anthropic`.
+
+*(Añade aquí: ADR-009…)*
 
 ## Tabla de experimentos (rellenar en Fases 4 y 7)
 

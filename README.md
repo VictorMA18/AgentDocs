@@ -22,13 +22,13 @@ El código se construye por fases siguiendo el roadmap (`docs/08-roadmap-fases.m
 
 ## Instalación
 
-Necesitas Python 3.11+ y una API key de Anthropic.
+Necesitas Python 3.11+ y el CLI `claude` (Claude Code) instalado y con sesión iniciada; no hace falta API key.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install anthropic python-dotenv pytest   # dependencias de las Fases 0-1
+pip install python-dotenv pytest             # dependencias de las Fases 0-1
 pip install -e .                             # instala el paquete en modo editable
-cp .env.example .env                         # y completa ANTHROPIC_API_KEY
+cp .env.example .env                         # modelo por defecto: claude-haiku-5-5
 pytest
 ```
 

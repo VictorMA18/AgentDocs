@@ -47,26 +47,27 @@ hacer y al final resume los conceptos clave.
 
 **Entregables**
 - `core/tools.py`: registro de herramientas (nombre, descripción, schema, función) y `dispatch()` que captura excepciones y devuelve `(texto, is_error)`.
+- `core/llm.py`: interfaz `LLMClient` + `ClaudeCliClient` (llama a `claude -p`, ver `docs/04`) y protocolo JSON de herramientas.
 - `core/agent.py`: bucle según `docs/04`, con tope de iteraciones y logging de cada paso.
 - `core/memory.py`: historial por `session_id`.
 - Dos herramientas de juguete: `obtener_hora` y `sumar(a, b)` (una que falle a propósito con un caso borde).
 - `cli.py`: chat por consola.
-- Tests con un **cliente LLM falso** (guion de respuestas) que verifican: respuesta directa, una herramienta, dos herramientas en un turno, herramienta que falla, y tope de iteraciones.
+- Tests con un **cliente LLM falso** (guion de respuestas) que verifican: respuesta directa, una herramienta, dos herramientas en un turno, herramienta que falla, JSON inválido del modelo y tope de iteraciones.
 
 **Aceptación**
 - En la consola: "¿qué hora es y cuánto es 17+25?" usa ambas herramientas y responde bien.
 - La herramienta que falla no rompe el bucle.
 - Se ve en `logs/` cada llamada con duración y tokens.
-- Tests pasan sin llamar a la API real.
+- Tests pasan sin ejecutar el CLI real.
 
 **Prompt para Claude Code**
 ```
 Ejecuta la Fase 1 de docs/08-roadmap-fases.md siguiendo docs/04-diseno-agente.md.
-Escribe el bucle del agente a mano con el SDK de Anthropic (sin frameworks). Inyecta el
-cliente LLM como dependencia para poder testear con un cliente falso. Antes de escribir
-código, explícame con un diagrama de texto el formato de los mensajes (assistant con
-tool_use, user con tool_result). Comprueba en la documentación vigente del SDK los
-nombres exactos de campos. Al final resume qué aprendí.
+Escribe el bucle del agente a mano (sin frameworks) usando el CLI de Claude Code como
+LLM (ADR-008). Inyecta el cliente LLM como dependencia para poder testear con un cliente
+falso. Antes de escribir código, explícame con un diagrama de texto el protocolo JSON de
+herramientas y el formato de los mensajes. Comprueba con `claude --help` los flags
+exactos. Al final resume qué aprendí.
 ```
 
 ---

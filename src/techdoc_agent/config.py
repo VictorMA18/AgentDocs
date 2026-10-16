@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -18,11 +18,10 @@ from dotenv import load_dotenv
 class Settings:
     """Configuración inmutable del agente, ya convertida a sus tipos."""
 
-    # --- Anthropic ---
-    # repr=False: la clave nunca aparece al imprimir o registrar la configuración.
-    anthropic_api_key: str = field(repr=False)
+    # --- LLM (CLI de Claude Code) ---
     model: str
-    max_tokens: int
+    claude_cli_path: str
+    llm_timeout_s: int
     max_agent_iterations: int
 
     # --- RAG ---
@@ -93,9 +92,9 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         env = os.environ
 
     return Settings(
-        anthropic_api_key=_get_str(env, "ANTHROPIC_API_KEY", ""),
-        model=_get_str(env, "ANTHROPIC_MODEL", "claude-sonnet-5-5"),
-        max_tokens=_get_int(env, "MAX_TOKENS", 2048),
+        model=_get_str(env, "LLM_MODEL", "claude-haiku-5-5"),
+        claude_cli_path=_get_str(env, "CLAUDE_CLI_PATH", "claude"),
+        llm_timeout_s=_get_int(env, "LLM_TIMEOUT_S", 120),
         max_agent_iterations=_get_int(env, "MAX_AGENT_ITERATIONS", 8),
         vector_store=_get_str(env, "VECTOR_STORE", "json"),
         embedding_model=_get_str(

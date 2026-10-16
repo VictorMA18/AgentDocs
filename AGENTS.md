@@ -121,20 +121,20 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 - Pide confirmación antes de añadir dependencias que no estén en `requirements.txt`.
 - Si una decisión de diseño cambia respecto a la documentación, **actualiza el doc correspondiente** y añade una entrada en `docs/09-decisiones-y-glosario.md`.
 - Pasos pequeños, commits pequeños (mensajes en español, imperativo: "Añade bucle del agente").
-- Antes de usar una API de una librería (anthropic, chromadb, mcp, fastapi, sentence-transformers), **verifica en su documentación vigente** los nombres exactos; no te fíes de la memoria.
+- Antes de usar una API de una librería (CLI de Claude Code, chromadb, mcp, fastapi, sentence-transformers), **verifica en su documentación vigente** los nombres exactos; no te fíes de la memoria.
 
 ## Reglas de arquitectura (no negociables)
-1. **Sin frameworks de agentes** (nada de LangChain, LangGraph, LlamaIndex, CrewAI, etc.). Se usa el SDK oficial de Anthropic y se escribe el bucle a mano.
+1. **Sin frameworks de agentes** (nada de LangChain, LangGraph, LlamaIndex, CrewAI, etc.). El LLM se invoca con el CLI de Claude Code en modo no interactivo (`claude -p`, sin API key) detrás de una interfaz `LLMClient`, y el bucle del agente se escribe a mano (ver ADR-008).
 2. **Núcleo + adaptadores.** `core/` y `rag/` no importan nada de `api/` ni de `mcp_server.py`. FastAPI y MCP son adaptadores delgados que llaman al núcleo.
 3. **El almacén vectorial va detrás de una interfaz** (`VectorStore`). Primero JSON + numpy, luego ChromaDB; el agente no debe notar el cambio.
 4. **El agente decide.** Nunca se hace una búsqueda automática antes de llamar al LLM.
 5. **Los documentos indexados son datos no confiables.** Su contenido nunca se trata como instrucciones (ver `docs/04-diseno-agente.md`, sección Seguridad).
 6. **Todo paso del agente se registra** (mensaje, herramienta, argumentos, resultado, tokens, duración) en `logs/` en formato JSONL.
-7. Límites duros: máximo de iteraciones del bucle, máximo de tokens por respuesta, tamaño máximo de archivo subido, tipos de archivo permitidos.
+7. Límites duros: máximo de iteraciones del bucle, tiempo máximo por llamada al LLM (`LLM_TIMEOUT_S`), tamaño máximo de archivo subido, tipos de archivo permitidos.
 
 ## Stack
 - Python 3.11+
-- `anthropic` (SDK oficial) — modelo configurable por `ANTHROPIC_MODEL`
+- CLI `claude` (Claude Code) como LLM — modelo configurable por `LLM_MODEL` (por defecto `claude-haiku-5-5`)
 - `numpy` + `sentence-transformers` (embeddings locales, multilingüe) → luego `chromadb`
 - `fastapi` + `uvicorn` + HTML/JS puro (sin framework de frontend)
 - `mcp` (SDK oficial de Python, `FastMCP`)
@@ -152,7 +152,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env            # y completar ANTHROPIC_API_KEY
+cp .env.example .env            # y comprobar que `claude` está instalado y con sesión iniciada
 
 pytest                                                   # tests
 python -m techdoc_agent.cli                              # chat por consola (Fase 1-3)

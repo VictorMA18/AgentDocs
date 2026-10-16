@@ -1,5 +1,4 @@
 # Fase 0-1
-anthropic
 python-dotenv
 pytest
 

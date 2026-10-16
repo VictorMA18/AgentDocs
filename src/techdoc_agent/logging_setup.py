@@ -4,7 +4,7 @@ Cada llamada a ``log_event`` añade una línea JSON a
 ``<LOGS_DIR>/agent-YYYYMMDD.jsonl`` (formato descrito en docs/04, sección 7).
 
 No registrar el contenido completo de documentos (solo tamaños y fuentes)
-ni la API key.
+ni credenciales.
 """
 
 from __future__ import annotations

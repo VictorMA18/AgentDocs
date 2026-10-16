@@ -30,7 +30,7 @@ flowchart TB
         VS["VectorStore<br/>(JSON → Chroma)"]
     end
 
-    LLM[("API de Anthropic")]
+    LLM[("CLI de Claude Code<br/>(claude -p)")]
     FS[("data/ · outputs/ · logs/")]
 
     WEB --> AG
@@ -105,7 +105,7 @@ flowchart LR
 | Frameworks de agentes | Ninguno | Entender el bucle; evitar cajas negras |
 | RAG | Herramienta del agente | El LLM decide cuándo y con qué consulta buscar |
 | Almacén vectorial | Interfaz `VectorStore`; JSON+numpy → Chroma | Aprender el mecanismo y luego usar una librería |
-| Embeddings | Locales, multilingües | Sin costo ni segunda API key; el contenido suele estar en español |
+| Embeddings | Locales, multilingües | Sin costo ni API key adicional; el contenido suele estar en español |
 | Memoria | En memoria por `session_id` (v1) | Simple; persistencia queda para después |
 | Frontend | HTML + JS puro | El foco es el agente, no el frontend |
 | Diagramas | El LLM escribe Mermaid; la herramienta valida | El feedback de errores permite que el agente se autocorrija |

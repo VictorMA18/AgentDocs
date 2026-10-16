@@ -74,8 +74,7 @@ Claude Desktop (`claude_desktop_config.json`), con rutas absolutas:
   "mcpServers": {
     "techdoc": {
       "command": "/ruta/al/proyecto/.venv/bin/python",
-      "args": ["-m", "techdoc_agent.mcp_server"],
-      "env": {"ANTHROPIC_API_KEY": "..."}
+      "args": ["-m", "techdoc_agent.mcp_server"]
     }
   }
 }

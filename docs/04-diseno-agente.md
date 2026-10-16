@@ -2,47 +2,61 @@
 
 ## 1. El bucle
 
-Pseudocódigo (se implementa a mano con el SDK de Anthropic, API de mensajes):
+El LLM se invoca con el **CLI de Claude Code** en modo no interactivo (ver ADR-008), sin API key. El CLI se usa como una función "texto → texto" (sin sus herramientas propias, `--tools ""`); el bucle y el protocolo de herramientas son nuestros.
 
+### Interfaz `LLMClient`
+```python
+class LLMClient(Protocol):
+    def complete(self, system: str, messages: list[Message], tools: list[ToolSpec]) -> LLMReply: ...
+
+@dataclass
+class LLMReply:
+    text: str | None                 # respuesta final (si no pide herramientas)
+    tool_calls: list[ToolCall]       # una o varias llamadas pedidas por el modelo
+    input_tokens: int; output_tokens: int
+```
+- `ClaudeCliClient` (real): ejecuta `claude -p --model $LLM_MODEL --tools "" --no-session-persistence --output-format json --setting-sources "" --strict-mcp-config --disable-slash-commands --system-prompt … --json-schema …` y traduce la salida a `LLMReply`. La respuesta validada llega en el campo `structured_output` del JSON de salida y los tokens en `usage`.
+  - Verificado (Fase 0, `claude` 2.1.301): sin `--setting-sources "" --strict-mcp-config --disable-slash-commands` cada llamada arrastra ~38k tokens de contexto de Claude Code; con ellos, ~1k tokens y ~1 s.
+- `FakeLLMClient` (tests): guion de respuestas, sin llamar al CLI.
+
+### Protocolo de herramientas (JSON)
+El modelo no recibe `tool_use` nativos; el system prompt le describe las herramientas (nombre, descripción, schema) y la salida se fuerza con `--json-schema` a una de dos formas:
+```json
+{"accion": "herramientas", "llamadas": [{"id": "c1", "nombre": "buscar_documentos", "args": {"query": "reintentos"}}]}
+{"accion": "responder", "texto": "Para configurar reintentos... [taskflow.md#3]"}
+```
+Los resultados vuelven al historial como mensajes `user` con `<resultado_herramienta id="c1" error="false">…</resultado_herramienta>`. El historial se serializa completo en cada llamada (el CLI no guarda estado: `--no-session-persistence`).
+
+### Pseudocódigo del bucle
 ```python
 def run(session_id: str, user_message: str) -> AgentResult:
     history = memory.get(session_id)
     history.append({"role": "user", "content": user_message})
 
     for i in range(MAX_AGENT_ITERATIONS):
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            system=system_prompt,        # incluye la skill
-            tools=tool_schemas,          # lista de herramientas
-            messages=history,
-        )
-        history.append({"role": "assistant", "content": response.content})
+        reply = llm.complete(system=system_prompt,   # incluye la skill
+                             messages=history,
+                             tools=tool_specs)
+        history.append({"role": "assistant", "content": reply.raw})
 
-        if response.stop_reason != "tool_use":
-            return AgentResult(text=extract_text(response), ...)
+        if not reply.tool_calls:
+            return AgentResult(text=reply.text, ...)
 
-        tool_results = []
-        for block in response.content:
-            if block.type == "tool_use":
-                result, is_error = tools.dispatch(block.name, block.input)
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": result,
-                    "is_error": is_error,
-                })
-        history.append({"role": "user", "content": tool_results})
+        results = []
+        for call in reply.tool_calls:
+            result, is_error = tools.dispatch(call.name, call.args)
+            results.append({"id": call.id, "content": result, "is_error": is_error})
+        history.append({"role": "user", "content": format_tool_results(results)})
 
     return AgentResult(text="Alcancé el límite de pasos...", truncated=True)
 ```
 
 Puntos que hay que entender (y que Claude Code debe explicar al implementarlos):
-- El historial alterna `user` / `assistant`. Los `tool_result` van en un mensaje `user`.
-- Un mismo turno del modelo puede contener **varios** `tool_use`; hay que responder a **todos**.
-- `stop_reason == "tool_use"` significa "ejecuta y vuelve a llamarme"; cualquier otro valor termina el turno.
-- Los errores de herramienta **no** rompen el bucle: se devuelven con `is_error: true` para que el modelo se corrija.
-- Verificar nombres exactos de campos y modelos en la documentación oficial vigente antes de codificar.
+- El historial alterna `user` / `assistant`. Los resultados de herramientas van en un mensaje `user`.
+- Un mismo turno del modelo puede pedir **varias** herramientas; hay que responder a **todas**.
+- `accion == "herramientas"` significa "ejecuta y vuelve a llamarme"; `"responder"` termina el turno.
+- Los errores de herramienta **no** rompen el bucle: se devuelven con `error="true"` para que el modelo se corrija. Lo mismo si el modelo devuelve JSON inválido o una herramienta inexistente.
+- Verificar los flags exactos del CLI (`claude --help`) antes de codificar.
 
 ## 2. Herramientas
 
@@ -150,9 +164,10 @@ La skill **no** debe contener conocimiento (eso va en los documentos), sino cóm
 | Riesgo | Mitigación |
 |---|---|
 | **Inyección indirecta**: un documento contiene "ignora tus instrucciones y…" | Los resultados se envuelven en `<documento fuente="...">…</documento>`; el system prompt dice que su contenido es dato. Hay un caso de evaluación específico. |
-| Bucles infinitos / costo | `MAX_AGENT_ITERATIONS`, `max_tokens`, y límite de herramientas por turno |
+| Bucles infinitos / costo | `MAX_AGENT_ITERATIONS`, `LLM_TIMEOUT_S`, y límite de herramientas por turno |
 | Subidas maliciosas | Lista blanca de extensiones, tamaño máximo, nombre saneado (sin `/`, `..`), guardado con nombre generado |
-| Fuga de la API key | Solo variables de entorno; `.env` en `.gitignore`; nunca se loguea |
+| Fuga de credenciales | No hay API key (el CLI usa la sesión de Claude Code); configuración solo por entorno; `.env` en `.gitignore`; nunca se loguean credenciales |
+| El CLI ejecuta herramientas propias | Siempre `--tools ""`: el modelo solo puede pedir nuestras herramientas, que ejecuta nuestro código |
 | Escritura fuera de `outputs/` | Los nombres de artefactos se generan (slug + id), nunca se aceptan rutas del modelo |
 | Exposición del servidor | v1 en local; si se expone, añadir autenticación (token) antes |
 
