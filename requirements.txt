@@ -1,0 +1,24 @@
+# Fase 0-1
+anthropic
+python-dotenv
+pytest
+
+# Fase 2
+numpy
+sentence-transformers
+pypdf
+
+# Fase 4
+chromadb
+
+# Fase 5
+fastapi
+uvicorn[standard]
+python-multipart
+httpx          # para TestClient
+
+# Fase 6
+mcp
+
+# Nota: cuando todo funcione, fija versiones exactas (pip freeze) para que el
+# proyecto sea reproducible, y anótalo en el README.
