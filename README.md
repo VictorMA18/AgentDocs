@@ -34,6 +34,22 @@ pytest
 
 Las dependencias se instalan por fases (ver ADR-007 en `docs/09`); `pip install -r requirements.txt` instala todas.
 
+## Chat por consola
+
+```bash
+python -m techdoc_agent.cli
+```
+Comandos: `/nuevo` reinicia la conversación y `/salir` termina. Por ahora el agente solo tiene dos herramientas de juguete (`obtener_hora`, `sumar`); prueba: *"¿qué hora es y cuánto es 17+25?"*. Tras cada respuesta se muestran las herramientas usadas, su duración y los tokens.
+
+## Estructura del núcleo (`src/techdoc_agent/core/`)
+
+| Módulo | Responsabilidad |
+|---|---|
+| `llm.py` | Interfaz `LLMClient` y `ClaudeCliClient` (llama a `claude -p`, protocolo JSON de herramientas) |
+| `tools.py` | Registro de herramientas y `dispatch()` que nunca lanza excepciones |
+| `memory.py` | Historial por `session_id` |
+| `agent.py` | Bucle del agente con tope de iteraciones y logging de cada paso |
+
 ## Configuración y logs
 
 - Toda la configuración se lee de variables de entorno (`.env`) en `techdoc_agent.config.settings`.
@@ -41,4 +57,4 @@ Las dependencias se instalan por fases (ver ADR-007 en `docs/09`); `pip install 
 
 ## Estado
 
-Fase 0 completada. Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.
+Fases 0 y 1 completadas. Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.

@@ -35,6 +35,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 |---|---|---|
 | Variables de entorno / configuración | `src/techdoc_agent/config.py` | Fase 0 |
 | Logging JSONL | `src/techdoc_agent/logging_setup.py` | Fase 0 |
+| Cliente LLM (`LLMClient`, CLI de Claude Code) y protocolo JSON de herramientas | `src/techdoc_agent/core/llm.py` | Fase 1 |
 | Bucle del agente | `src/techdoc_agent/core/agent.py` | Fase 1 |
 | Registro y despacho de herramientas | `src/techdoc_agent/core/tools.py` | Fase 1 |
 | Historial por sesión | `src/techdoc_agent/core/memory.py` | Fase 1 |

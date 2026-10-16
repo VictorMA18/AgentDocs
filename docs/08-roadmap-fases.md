@@ -3,7 +3,7 @@
 Estado (marca al terminar cada una):
 
 - [x] Fase 0 · Preparación
-- [ ] Fase 1 · Bucle del agente con herramienta falsa
+- [x] Fase 1 · Bucle del agente con herramienta falsa
 - [ ] Fase 2 · Ingesta + almacén JSON (sin agente)
 - [ ] Fase 3 · RAG como herramienta + skill
 - [ ] Fase 3b · Herramientas de diagramas y requisitos
