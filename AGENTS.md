@@ -47,7 +47,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Interfaz `VectorStore`, `Chunk`, `SearchHit` | `src/techdoc_agent/rag/store.py` | Fase 2 |
 | Almacén JSON + numpy | `src/techdoc_agent/rag/store_json.py` | Fase 2 |
 | Almacén ChromaDB | `src/techdoc_agent/rag/store_chroma.py` | Fase 4 |
-| Orquestación de la ingesta | `src/techdoc_agent/rag/ingest.py` | Fase 2 |
+| Orquestación de la ingesta y script de consola | `src/techdoc_agent/rag/ingest.py` | Fase 2 |
+| Recuperación (consulta de texto → fragmentos) | `src/techdoc_agent/rag/retrieval.py` | Fase 2 |
 | Herramientas `buscar_documentos` y `listar_documentos` (registro) | `src/techdoc_agent/core/tools.py` (o `core/tools_rag.py` si crece) | Fase 3 |
 | Validación y guardado de Mermaid | `src/techdoc_agent/outputs/diagrams.py` | Fase 3b |
 | Validación y render de requisitos | `src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
@@ -121,7 +122,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 - Trabaja **una fase a la vez**. No adelantes código de fases posteriores. Al terminar, ejecuta los criterios de aceptación de la fase y reporta cuáles pasan.
 - Pide confirmación antes de añadir dependencias que no estén en `requirements.txt`.
 - Si una decisión de diseño cambia respecto a la documentación, **actualiza el doc correspondiente** y añade una entrada en `docs/09-decisiones-y-glosario.md`.
-- Pasos pequeños, commits pequeños (mensajes en español, imperativo: "Añade bucle del agente").
+- Pasos pequeños, commits pequeños. Mensajes en **Conventional Commits** con descripción en español e imperativo: `tipo(ámbito): descripción` (p. ej. `feat(core): añade bucle del agente`). Tipos: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `build`.
+- **No hacer commits por iniciativa propia.** Al terminar una fase, proponer los commits en una tabla (hash o mensaje + nº de archivos) y esperar a que el autor lo pida. Tampoco `git push` sin que lo pida.
 - Antes de usar una API de una librería (CLI de Claude Code, chromadb, mcp, fastapi, sentence-transformers), **verifica en su documentación vigente** los nombres exactos; no te fíes de la memoria.
 
 ## Reglas de arquitectura (no negociables)
