@@ -12,6 +12,7 @@ from techdoc_agent.core.memory import Memory
 from techdoc_agent.core.prompts import build_system_prompt
 from techdoc_agent.core.skills import load_skill
 from techdoc_agent.core.tools import ToolRegistry
+from techdoc_agent.core.tools_outputs import output_tools
 from techdoc_agent.core.tools_rag import rag_tools
 from techdoc_agent.rag.embeddings import Embedder, SentenceTransformerEmbedder
 from techdoc_agent.rag.ingest import ingest_dir, ingest_file
@@ -24,7 +25,7 @@ AYUDA = "Comandos: /ingestar <ruta> (indexa un archivo o carpeta), /nuevo (reini
 def build_agent(llm: LLMClient, store: VectorStore, embedder: Embedder) -> Agent:
     """Une el LLM, las herramientas RAG y el system prompt (reglas fijas + skill activa)."""
     prompt = build_system_prompt(load_skill())
-    return Agent(llm, ToolRegistry(rag_tools(store, embedder)), Memory(), prompt)
+    return Agent(llm, ToolRegistry([*rag_tools(store, embedder), *output_tools()]), Memory(), prompt)
 
 
 def ingestar(ruta: str, store: VectorStore, embedder: Embedder) -> str:
