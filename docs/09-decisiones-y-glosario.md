@@ -42,19 +42,25 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 - **Decisión:** el LLM se invoca con `claude -p --model claude-haiku-5-5 --tools "" --no-session-persistence --output-format json`, detrás de una interfaz `LLMClient`. El bucle sigue siendo propio; las herramientas se piden con un protocolo JSON definido por nosotros (`--json-schema`) en vez de `tool_use` nativo.
 - **Consecuencias:** sin API key ni costo por token adicional (consume el uso de Claude Code); mayor latencia por proceso lanzado en cada llamada; sin control de `max_tokens` (se limita con `LLM_TIMEOUT_S`); el formato de herramientas depende de que el modelo respete el schema, por lo que hay que validarlo y tratar los fallos como errores recuperables; cambiar a la API o a otro modelo es implementar otro `LLMClient`. Se retiran `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `MAX_TOKENS` y la dependencia `anthropic`.
 
-*(Añade aquí: ADR-009…)*
+### ADR-009 · PyTorch solo CPU
+- **Contexto:** `sentence-transformers` depende de PyTorch, que en Linux se instala por defecto con CUDA (~4-5 GB). El modelo MiniLM multilingüe es pequeño y la indexación de documentación son pocos fragmentos.
+- **Decisión:** instalar `torch` desde el índice CPU de PyTorch (`--index-url https://download.pytorch.org/whl/cpu`) antes del resto de dependencias.
+- **Consecuencias:** entorno de ~1,4 GB y reproducible en máquinas sin GPU; indexar un documento corto tarda ~1 s tras cargar el modelo (~10 s la primera vez, con descarga).
+
+*(Añade aquí: ADR-010…)*
 
 ## Tabla de experimentos (rellenar en Fases 4 y 7)
 
 | Fecha | Cambio | Métrica afectada | Antes | Después | Conclusión |
 |---|---|---|---|---|---|
-| | | | | | |
+| 2026-10-16 | Línea base de recuperación (Fase 2, MiniLM multilingüe, chunk 700/100) | Score del mejor fragmento | — | "reintentos": 0,243 · "¿cuántos reintentos hace una tarea por defecto?": 0,591 · "concurrencia por defecto del worker": 0,739 · fuera de tema ("receta de pizza"): 0,209 | Las consultas de una palabra puntúan bajo y quedan por debajo de `MIN_SCORE=0,25`; revisar el umbral en la Fase 3 con el dataset de evaluación |
 
 ## Fallos encontrados y cómo se arreglaron (rellenar durante el desarrollo)
 
 | Fallo observado | Causa | Corrección | Caso añadido al dataset |
 |---|---|---|---|
-| | | | |
+| Con solape, un fragmento de párrafo largo superaba `chunk_size` | Cada trozo ocupaba todo el presupuesto y luego se le añadía la cola de solape | Partir el párrafo en trozos de `presupuesto − solape` (`tests/rag/test_chunking.py::test_long_paragraph_is_split_with_overlap`) | — (test unitario) |
+| La consulta "cómo integro TaskFlow con Kubernetes" puntúa 0,64 con el fragmento de portada | La búsqueda vectorial se deja llevar por el nombre del producto aunque el tema no esté en la documentación | Pendiente: lo debe resolver el agente leyendo los fragmentos (skill) y/o la búsqueda híbrida (Fase 8) | `fuera-alcance-k8s` (ya en `evals/dataset.example.jsonl`) |
 
 ## Glosario
 

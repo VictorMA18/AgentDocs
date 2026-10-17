@@ -27,6 +27,8 @@ Empezar simple y mejorar con evidencia (evaluaciones), no por intuición.
 - **Bloques de código dentro de Markdown:** no partirlos por la mitad; mantenerlos con el párrafo que los introduce.
 - Cada fragmento lleva el **encabezado de su sección** como prefijo (mejora mucho la recuperación).
 
+Los ids son `archivo#n` con **n desde 0** (`taskflow.md#0`, `#1`…). Si el tamaño exacto choca con un bloque de código atómico, gana el bloque: `chunk_size` es aproximado.
+
 Metadatos por fragmento:
 ```json
 {"id": "taskflow.md#3", "source": "taskflow.md", "chunk_index": 3,
@@ -82,6 +84,15 @@ class VectorStore(Protocol):
 Mismo conjunto de pruebas parametrizado para ambos almacenes (`@pytest.mark.parametrize`). Comparar resultados del dataset de evaluación antes y después y **anotarlo** en `docs/09` (buena historia de portafolio).
 
 ## Recuperación
+
+`rag/retrieval.py` expone `search(store, embedder, query, top_k, source)`: embebe la consulta y busca. No aplica umbral ni formato; eso lo hará la herramienta `buscar_documentos` (Fase 3).
+
+Prueba por consola (Fase 2):
+```bash
+python -m techdoc_agent.rag.ingest data/sample_docs --buscar "reintentos"   # indexa y busca
+python -m techdoc_agent.rag.ingest --buscar "reintentos" --top-k 3           # solo busca (usa el índice guardado)
+```
+El índice guarda la dimensión de los vectores; si cambias `EMBEDDING_MODEL` hay que reindexar (el almacén rechaza dimensiones distintas).
 
 - `top_k` por defecto 5; el agente puede pedir más.
 - Umbral mínimo de score configurable (`MIN_SCORE`, p. ej. 0.25). Por debajo, el fragmento se descarta; si no queda ninguno, `"Sin resultados relevantes"`.

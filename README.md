@@ -32,7 +32,12 @@ cp .env.example .env                         # modelo por defecto: claude-haiku-
 pytest
 ```
 
-Las dependencias se instalan por fases (ver ADR-007 en `docs/09`); `pip install -r requirements.txt` instala todas.
+Las dependencias se instalan por fases (ver ADR-007 en `docs/09`). Para la ingesta y el RAG (Fase 2), instala PyTorch **solo CPU** antes (ADR-009):
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install numpy sentence-transformers pypdf
+```
 
 ## Chat por consola
 
@@ -40,6 +45,14 @@ Las dependencias se instalan por fases (ver ADR-007 en `docs/09`); `pip install 
 python -m techdoc_agent.cli
 ```
 Comandos: `/nuevo` reinicia la conversación y `/salir` termina. Por ahora el agente solo tiene dos herramientas de juguete (`obtener_hora`, `sumar`); prueba: *"¿qué hora es y cuánto es 17+25?"*. Tras cada respuesta se muestran las herramientas usadas, su duración y los tokens.
+
+## Indexar y buscar documentos
+
+```bash
+python -m techdoc_agent.rag.ingest data/sample_docs --buscar "reintentos"   # indexa y busca
+python -m techdoc_agent.rag.ingest --buscar "reintentos" --top-k 3           # solo busca
+```
+La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `data/index/` (`index.json` + `vectors.npy`, ignorado por git).
 
 ## Estructura del núcleo (`src/techdoc_agent/core/`)
 
@@ -50,6 +63,16 @@ Comandos: `/nuevo` reinicia la conversación y `/salir` termina. Por ahora el ag
 | `memory.py` | Historial por `session_id` |
 | `agent.py` | Bucle del agente con tope de iteraciones y logging de cada paso |
 
+## Estructura del RAG (`src/techdoc_agent/rag/`)
+
+| Módulo | Responsabilidad |
+|---|---|
+| `loaders.py` | Lee `.md .txt .pdf` y código; valida tipo y tamaño |
+| `chunking.py` | Divide en fragmentos por secciones, sin partir bloques de código |
+| `embeddings.py` | Interfaz `Embedder` y modelo local multilingüe |
+| `store.py` / `store_json.py` | Interfaz `VectorStore` y almacén JSON + numpy |
+| `ingest.py` / `retrieval.py` | Orquesta la ingesta (y el script de consola) y consulta el índice |
+
 ## Configuración y logs
 
 - Toda la configuración se lee de variables de entorno (`.env`) en `techdoc_agent.config.settings`.
@@ -57,4 +80,4 @@ Comandos: `/nuevo` reinicia la conversación y `/salir` termina. Por ahora el ag
 
 ## Estado
 
-Fases 0 y 1 completadas. Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.
+Fases 0, 1 y 2 completadas. Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.

@@ -3,6 +3,8 @@ python-dotenv
 pytest
 
 # Fase 2
+# Para evitar ~4 GB de CUDA, instala antes PyTorch solo CPU:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
 numpy
 sentence-transformers
 pypdf
