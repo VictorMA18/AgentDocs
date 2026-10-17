@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
+
 from techdoc_agent.core.llm import LLMReply, Message, ToolCall
 from techdoc_agent.core.tools import ToolSpec
+from techdoc_agent.rag.embeddings import normalize
 
 
 def final(text: str, input_tokens: int = 10, output_tokens: int = 5) -> LLMReply:
@@ -42,3 +47,29 @@ class FakeLLMClient:
         if isinstance(step, Exception):
             raise step
         return step
+
+
+class HashingEmbedder:
+    """Embedder determinista sin modelo: bolsa de palabras con hash a ``dimension`` columnas.
+
+    Textos que comparten palabras tienen vectores parecidos; basta para probar
+    el almacén y la ingesta sin descargar nada.
+    """
+
+    def __init__(self, dimension: int = 64) -> None:
+        self.dimension = dimension
+
+    def _vector(self, text: str) -> np.ndarray:
+        vec = np.zeros(self.dimension, dtype=np.float32)
+        for word in re.findall(r"\w+", text.lower()):
+            digest = hashlib.md5(word.encode()).digest()  # noqa: S324 - no es criptografía
+            vec[int.from_bytes(digest[:4], "little") % self.dimension] += 1.0
+        return vec
+
+    def embed_documents(self, texts: list[str]) -> np.ndarray:
+        if not texts:
+            return np.zeros((0, self.dimension), dtype=np.float32)
+        return normalize(np.stack([self._vector(t) for t in texts]))
+
+    def embed_query(self, text: str) -> np.ndarray:
+        return self.embed_documents([text])[0]
