@@ -1,13 +1,13 @@
 """Tests del registro y despacho de herramientas."""
 
 import pytest
+from fakes import toy_tools
 
 from techdoc_agent.core.tools import (
     Tool,
     ToolRegistry,
     ToolResult,
     format_tool_results,
-    toy_tools,
 )
 
 

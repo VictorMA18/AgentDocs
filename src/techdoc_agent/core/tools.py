@@ -10,11 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
-
-# Rango aceptado por ``sumar``: caso borde que falla a propósito (solo Fase 1).
-_MAX_ABS = 1e12
 
 
 @dataclass(frozen=True)
@@ -78,42 +74,3 @@ def format_tool_results(results: list[ToolResult]) -> str:
         f"{r.content}</resultado_herramienta>"
         for r in results
     )
-
-
-# --- Herramientas de juguete (Fase 1; se retiran en la Fase 3) ---
-
-
-def obtener_hora() -> str:
-    return datetime.now().astimezone().isoformat(timespec="seconds")
-
-
-def sumar(a: float, b: float) -> float:
-    """Suma dos números. Rechaza no numéricos y valores fuera de rango."""
-    for valor in (a, b):
-        if isinstance(valor, bool) or not isinstance(valor, int | float):
-            raise ValueError(f"se esperaba un número, se recibió {valor!r}")
-        if abs(valor) > _MAX_ABS:
-            raise ValueError(f"{valor} fuera de rango (máximo {_MAX_ABS:g})")
-    return a + b
-
-
-def toy_tools() -> list[Tool]:
-    numero = {"type": "number"}
-    return [
-        Tool(
-            name="obtener_hora",
-            description="Devuelve la fecha y hora local actual en formato ISO 8601.",
-            input_schema={"type": "object", "properties": {}},
-            func=obtener_hora,
-        ),
-        Tool(
-            name="sumar",
-            description="Suma dos números. Los valores deben estar entre -1e12 y 1e12.",
-            input_schema={
-                "type": "object",
-                "properties": {"a": numero, "b": numero},
-                "required": ["a", "b"],
-            },
-            func=sumar,
-        ),
-    ]

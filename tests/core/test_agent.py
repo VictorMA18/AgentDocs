@@ -4,12 +4,12 @@ import json
 from pathlib import Path
 
 import pytest
-from fakes import FakeLLMClient, calls, final
+from fakes import FakeLLMClient, calls, final, toy_tools
 
 from techdoc_agent.core.agent import Agent
 from techdoc_agent.core.llm import LLMError, LLMProtocolError
 from techdoc_agent.core.memory import Memory
-from techdoc_agent.core.tools import ToolRegistry, toy_tools
+from techdoc_agent.core.tools import ToolRegistry
 
 
 @pytest.fixture(autouse=True)
