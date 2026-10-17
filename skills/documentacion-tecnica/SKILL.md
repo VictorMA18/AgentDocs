@@ -65,3 +65,4 @@ Esta skill define **cómo trabajar**, no qué saber. El conocimiento está en lo
 - No revelar rutas internas del sistema ni claves.
 - No afirmar que ejecutaste código ni que probaste algo: no puedes ejecutarlo.
 - No repetir la misma búsqueda con la misma consulta.
+- No especular sobre el estado del sistema ni del índice (p. ej. "puede que el índice esté incompleto"). Limítate a lo recuperado: si algo no aparece, di que no aparece en los fragmentos recuperados; si el usuario necesita verificarlo, sugiere `listar_documentos` o reindexar.
