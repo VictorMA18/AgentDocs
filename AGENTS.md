@@ -39,6 +39,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Bucle del agente | `src/techdoc_agent/core/agent.py` | Fase 1 |
 | Registro y despacho de herramientas | `src/techdoc_agent/core/tools.py` | Fase 1 |
 | Historial por sesión | `src/techdoc_agent/core/memory.py` | Fase 1 |
+| Resumen de turnos antiguos (recorte de memoria) | `src/techdoc_agent/core/summarizer.py` | tras Fase 3 (ADR-011) |
 | Construcción del system prompt | `src/techdoc_agent/core/prompts.py` | Fase 3 |
 | Carga de skills | `src/techdoc_agent/core/skills.py` | Fase 3 |
 | Lectura de archivos (.md/.txt/.pdf/código) | `src/techdoc_agent/rag/loaders.py` | Fase 2 |
@@ -52,6 +53,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Herramientas `buscar_documentos` y `listar_documentos` (registro) | `src/techdoc_agent/core/tools_rag.py` | Fase 3 |
 | Herramientas `generar_diagrama` y `generar_requisitos` (registro) | `src/techdoc_agent/core/tools_outputs.py` | Fase 3b |
 | Validación y guardado de Mermaid | `src/techdoc_agent/outputs/diagrams.py` | Fase 3b |
+| Nombres de archivo generados (slug + id) | `src/techdoc_agent/outputs/naming.py` | Fase 3b |
 | Validación y render de requisitos | `src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
 | API web (endpoints) | `src/techdoc_agent/api/main.py` | Fase 5 |
 | Interfaz HTML/JS | `src/techdoc_agent/api/static/index.html` | Fase 5 |
@@ -159,7 +161,7 @@ pip install -r requirements.txt
 cp .env.example .env            # y comprobar que `claude` está instalado y con sesión iniciada
 
 pytest                                                   # tests
-python -m techdoc_agent.cli                              # chat por consola (Fase 1-3)
+python -m techdoc_agent.cli                              # chat por consola (/ingestar <ruta>, /nuevo, /salir)
 uvicorn techdoc_agent.api.main:app --reload              # web (Fase 5)
 python -m techdoc_agent.mcp_server                       # MCP por stdio (Fase 6)
 python -m evals.run                                      # evaluaciones (Fase 7)
@@ -172,10 +174,11 @@ docs/                  # documentación del proyecto (01-09)
 skills/documentacion-tecnica/SKILL.md
 src/techdoc_agent/
   config.py  logging_setup.py  cli.py  mcp_server.py
-  core/      agent.py  tools.py  prompts.py  skills.py  memory.py
-  rag/       loaders.py  chunking.py  embeddings.py  store.py
+  core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  prompts.py  skills.py
+             memory.py  summarizer.py  llm.py
+  rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py
              store_json.py  store_chroma.py  ingest.py
-  outputs/   diagrams.py  requirements_doc.py
+  outputs/   diagrams.py  requirements_doc.py  naming.py
   api/       main.py  static/index.html
 tests/
 evals/       dataset.example.jsonl  dataset.jsonl  fixtures/  run.py  results/

@@ -13,7 +13,7 @@ El código se construye por fases siguiendo el roadmap (`docs/08-roadmap-fases.m
 | `AGENTS.md` | Reglas del proyecto y **mapa de ubicaciones** (dónde está cada cosa) |
 | `CLAUDE.md` | Importa `AGENTS.md`; es el archivo que Claude Code lee automáticamente |
 | `docs/01` … `docs/09` | Visión, requisitos, arquitectura, diseño del agente, RAG, API/MCP, evaluaciones, roadmap y decisiones |
-| `src/techdoc_agent/` | Código del paquete (`config.py`, `logging_setup.py`, …) |
+| `src/techdoc_agent/` | Código del paquete (`config.py`, `core/`, `rag/`, `outputs/`, `cli.py`, …) |
 | `tests/` | Tests con `pytest` |
 | `skills/documentacion-tecnica/SKILL.md` | La skill que se carga en el agente |
 | `evals/dataset.example.jsonl` | Casos de prueba de ejemplo |
@@ -60,8 +60,19 @@ La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `
 |---|---|
 | `llm.py` | Interfaz `LLMClient` y `ClaudeCliClient` (llama a `claude -p`, protocolo JSON de herramientas) |
 | `tools.py` | Registro de herramientas y `dispatch()` que nunca lanza excepciones |
-| `memory.py` | Historial por `session_id` |
-| `agent.py` | Bucle del agente con tope de iteraciones y logging de cada paso |
+| `tools_rag.py` | `buscar_documentos` y `listar_documentos`: umbral `MIN_SCORE` y resultados en `<documento>` |
+| `tools_outputs.py` | `generar_diagrama` y `generar_requisitos`: validan lo que escribe el modelo y guardan en `outputs/` |
+| `skills.py` / `prompts.py` | Carga de `SKILL.md` y construcción del system prompt (reglas fijas + skill + resumen) |
+| `memory.py` / `summarizer.py` | Historial por sesión y resumen de los turnos antiguos |
+| `agent.py` | Bucle del agente con tope de iteraciones, compactación de memoria y logging de cada paso |
+
+## Salidas (`src/techdoc_agent/outputs/`)
+
+| Módulo | Responsabilidad |
+|---|---|
+| `diagrams.py` | Validación heurística de Mermaid (por tipo) y guardado |
+| `requirements_doc.py` | Validación de requisitos (ids, prioridad MoSCoW, criterios), render a Markdown y guardado |
+| `naming.py` | Nombres de archivo generados (slug + id), nunca rutas del modelo |
 
 ## Estructura del RAG (`src/techdoc_agent/rag/`)
 
@@ -80,4 +91,4 @@ La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `
 
 ## Estado
 
-Fases 0, 1 y 2 completadas. Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.
+Fases 0, 1, 2, 3 y 3b completadas (RAG como herramienta, skill, memoria recortada, diagramas y requisitos). Siguiente: Fase 4 (ChromaDB). Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.
