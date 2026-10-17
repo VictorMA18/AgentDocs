@@ -5,13 +5,13 @@ Estado (marca al terminar cada una):
 - [x] Fase 0 · Preparación
 - [x] Fase 1 · Bucle del agente con herramienta falsa
 - [x] Fase 2 · Ingesta + almacén JSON (sin agente)
-- [ ] Fase 3 · RAG como herramienta + skill
+- [x] Fase 3 · RAG como herramienta + skill
 - [ ] Fase 3b · Herramientas de diagramas y requisitos
 - [ ] Fase 4 · Migración a ChromaDB
 - [ ] Fase 5 · FastAPI + HTML
 - [ ] Fase 6 · Servidor MCP
 - [ ] Fase 7 · Evaluaciones, logs y README final
-- [ ] Fase 8 · (Opcional) streaming, memoria recortada, agente revisor
+- [ ] Fase 8 · (Opcional) streaming, agente revisor (la memoria recortada ya se adelantó, ver ADR-011)
 
 **Cómo usar los prompts:** abre Claude Code en la raíz del proyecto y pega el prompt de la fase. Cuando termine, revisa los criterios de aceptación **tú mismo**, lee el código y pídele que te explique lo que no entiendas antes de pasar a la siguiente.
 
@@ -246,7 +246,7 @@ obtener la línea base. Muéstrame los fallos y propón (sin aplicar aún) mejor
 
 ## Fase 8 · Opcional
 - Streaming SSE en la web.
-- Recorte/resumen de historial por tokens.
+- ~~Recorte/resumen de historial~~ (hecho tras la Fase 3, ADR-011).
 - Skill con divulgación progresiva (`cargar_skill`).
 - Agente revisor que critique la respuesta del primero (workflow evaluador-optimizador).
 - Búsqueda híbrida y reranking, validados con las evaluaciones.

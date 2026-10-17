@@ -78,7 +78,7 @@ Cada herramienta tiene: nombre, **descripción** (lo más importante: el modelo 
   }
 }
 ```
-Resultado: texto con una entrada por fragmento: `[archivo#n | score 0.82]` + contenido. Si no hay resultados: `"Sin resultados relevantes para esa consulta."` (explícito, para que el modelo no alucine).
+Resultado: una etiqueta por fragmento, `<documento fuente="taskflow.md#3" seccion="Reintentos" score="0.82">…</documento>` (ver docs/05); el texto del fragmento neutraliza `</documento` para que un documento no pueda cerrar la etiqueta. Los fragmentos bajo `MIN_SCORE` se descartan. Argumentos inválidos (`query` vacía, `top_k` fuera de 1-10) devuelven un error al modelo. Implementada en `core/tools_rag.py`. Si no hay resultados: `"Sin resultados relevantes para esa consulta."` (explícito, para que el modelo no alucine).
 
 ### `listar_documentos`
 Sin parámetros. Devuelve archivos indexados con número de fragmentos. Sirve para que el agente sepa qué hay antes de buscar o para responder "¿qué documentos tengo?".
@@ -155,9 +155,13 @@ La skill **no** debe contener conocimiento (eso va en los documentos), sino cóm
 
 ## 5. Memoria
 
-- v1: `dict[session_id, list[message]]` en memoria.
-- Recorte: si el historial supera un umbral de tokens, conservar el system prompt, los últimos N turnos y un resumen de lo anterior (Fase 8, opcional).
-- Los `tool_result` largos pueden truncarse en turnos antiguos para ahorrar contexto.
+- `Memory` guarda por `session_id`: los mensajes, el índice donde empieza cada **turno** (un mensaje del usuario + todo lo que el agente hizo hasta responder) y un **resumen**.
+- **Recorte por resumen** (ADR-011). Al inicio de cada turno, si el historial estimado supera `MEMORY_MAX_TOKENS` y hay más de `MEMORY_KEEP_TURNS` turnos, los turnos antiguos se condensan con una llamada extra al LLM (`core/summarizer.py`) y se conservan íntegros los últimos N. El resumen es acumulativo.
+- El **umbral es una estimación** (`caracteres / 4`): el CLI solo informa los tokens *después* de llamar, así que no se pueden medir antes.
+- El resumen viaja en el **system prompt** (`<resumen_conversacion>…</resumen_conversacion>`), de modo que los roles `user`/`assistant` siguen alternando y el prompt base y las reglas fijas nunca se pierden.
+- **El resumen no sustituye al RAG:** el resumidor solo guarda temas, intención del usuario, nombres de documentos consultados y preferencias (sin valores, parámetros ni código), no ve el contenido de los resultados de herramientas, y una regla fija obliga a volver a buscar cualquier dato técnico.
+- Si la llamada de resumen falla, el turno continúa sin recorte (evento `memory_compact_error`) y se reintenta en el siguiente. Evento de éxito: `memory_compacted`.
+- `/nuevo` borra mensajes, turnos y resumen. No hay persistencia en disco.
 
 ## 6. Seguridad
 

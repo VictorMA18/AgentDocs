@@ -47,13 +47,25 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 - **Decisión:** instalar `torch` desde el índice CPU de PyTorch (`--index-url https://download.pytorch.org/whl/cpu`) antes del resto de dependencias.
 - **Consecuencias:** entorno de ~1,4 GB y reproducible en máquinas sin GPU; indexar un documento corto tarda ~1 s tras cargar el modelo (~10 s la primera vez, con descarga).
 
-*(Añade aquí: ADR-010…)*
+### ADR-010 · Resultado de búsqueda en etiquetas `<documento>` con cierre neutralizado
+- **Contexto:** los documentos indexados son datos no confiables; un documento podría contener `</documento>` seguido de instrucciones para escapar de la etiqueta. docs/04 describía dos formatos distintos para el resultado.
+- **Decisión:** `buscar_documentos` devuelve `<documento fuente="archivo#n" seccion="…" score="0.82">texto</documento>` por fragmento, cambia `</documento` por `<\/documento` dentro del texto y el system prompt (reglas fijas, no modificables por la skill) declara ese contenido como dato. Las herramientas de juguete de la Fase 1 pasan a `tests/fakes.py`.
+- **Consecuencias:** la defensa es de mejor esfuerzo (el modelo podría seguir obedeciendo texto malicioso dentro de la etiqueta); se medirá con el caso de documento envenenado de la Fase 7. `MIN_SCORE` sigue en 0,25.
+
+### ADR-011 · Memoria recortada con resumen de los turnos antiguos
+- **Contexto:** el CLI no guarda estado, así que cada llamada reenvía todo el historial; con búsquedas, cada pregunta añade miles de tokens y la conversación se encarece y se alarga sin límite.
+- **Decisión:** al superar un umbral estimado (`MEMORY_MAX_TOKENS`, caracteres/4) se resumen los turnos antiguos con el propio LLM y se conservan los últimos `MEMORY_KEEP_TURNS`; el resumen va en el system prompt y se prohíbe que contenga datos técnicos (deben volver a buscarse en el RAG). Adelanta un punto de la Fase 8.
+- **Consecuencias:** una llamada extra al LLM (~4 s) cada vez que se compacta; el resumen puede perder matices (se mitiga porque lo técnico se busca de nuevo); la estimación de tokens es aproximada; un fallo del resumidor no rompe el turno.
+
+*(Añade aquí: ADR-012…)*
 
 ## Tabla de experimentos (rellenar en Fases 4 y 7)
 
 | Fecha | Cambio | Métrica afectada | Antes | Después | Conclusión |
 |---|---|---|---|---|---|
 | 2026-10-16 | Línea base de recuperación (Fase 2, MiniLM multilingüe, chunk 700/100) | Score del mejor fragmento | — | "reintentos": 0,243 · "¿cuántos reintentos hace una tarea por defecto?": 0,591 · "concurrencia por defecto del worker": 0,739 · fuera de tema ("receta de pizza"): 0,209 | Las consultas de una palabra puntúan bajo y quedan por debajo de `MIN_SCORE=0,25`; revisar el umbral en la Fase 3 con el dataset de evaluación |
+| 2026-10-17 | Aceptación de la Fase 3 (Haiku 5.5 + MiniLM, `MIN_SCORE=0,25`) | Comportamiento del agente | — | "hola": 0 búsquedas · concurrencia del worker: 1 búsqueda, respuesta "4" con cita [taskflow.md#4] · Kubernetes+Helm: 2 búsquedas, dice que la documentación no lo cubre y marca lo general como tal · pregunta compuesta: 2 búsquedas · regla extra en una copia de `SKILL.md`: respuesta cambia de formato sin tocar código | Cumple los 5 criterios; el umbral 0,25 se mantiene hasta tener dataset (Fase 7) |
+| 2026-10-17 | Memoria recortada (`MEMORY_MAX_TOKENS=1500`, `KEEP_TURNS=2`, 5 preguntas) | Tokens de entrada por pregunta | 10.097 → 12.807 → 15.923 (crece sin recorte) | 16.845 → 17.278 con compactación (2 compactaciones, ~4 s cada una) | El crecimiento se frena; el resumen no contiene valores técnicos y la pregunta repetida volvió a usar `buscar_documentos` |
 
 ## Fallos encontrados y cómo se arreglaron (rellenar durante el desarrollo)
 
@@ -82,6 +94,7 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 - **MCP (Model Context Protocol):** estándar para exponer herramientas/recursos a clientes de IA.
 - **stdio:** transporte MCP donde el cliente lanza el servidor como subproceso y habla por entrada/salida estándar.
 - **SSE (Server-Sent Events):** flujo unidireccional servidor→navegador, útil para streaming de tokens.
+- **Compactación de memoria:** sustituir los turnos antiguos del historial por un resumen para limitar el contexto enviado al modelo.
 - **Mermaid:** lenguaje de texto para describir diagramas.
 - **MoSCoW:** priorización Must/Should/Could/Won't.
 - **Groundedness:** grado en que una respuesta está respaldada por las fuentes.

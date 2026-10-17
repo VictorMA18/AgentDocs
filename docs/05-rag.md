@@ -85,7 +85,7 @@ Mismo conjunto de pruebas parametrizado para ambos almacenes (`@pytest.mark.para
 
 ## Recuperación
 
-`rag/retrieval.py` expone `search(store, embedder, query, top_k, source)`: embebe la consulta y busca. No aplica umbral ni formato; eso lo hará la herramienta `buscar_documentos` (Fase 3).
+`rag/retrieval.py` expone `search(store, embedder, query, top_k, source)`: embebe la consulta y busca. No aplica umbral ni formato; eso lo hace la herramienta `buscar_documentos` (`core/tools_rag.py`, Fase 3).
 
 Prueba por consola (Fase 2):
 ```bash
@@ -98,7 +98,7 @@ El índice guarda la dimensión de los vectores; si cambias `EMBEDDING_MODEL` ha
 - Umbral mínimo de score configurable (`MIN_SCORE`, p. ej. 0.25). Por debajo, el fragmento se descarta; si no queda ninguno, `"Sin resultados relevantes"`.
 - Cada resultado se formatea como:
 ```
-<documento fuente="taskflow.md" fragmento="3" seccion="Reintentos" score="0.82">
+<documento fuente="taskflow.md#3" seccion="Reintentos" score="0.82">
 ...texto...
 </documento>
 ```

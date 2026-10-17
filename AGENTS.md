@@ -49,7 +49,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Almacén ChromaDB | `src/techdoc_agent/rag/store_chroma.py` | Fase 4 |
 | Orquestación de la ingesta y script de consola | `src/techdoc_agent/rag/ingest.py` | Fase 2 |
 | Recuperación (consulta de texto → fragmentos) | `src/techdoc_agent/rag/retrieval.py` | Fase 2 |
-| Herramientas `buscar_documentos` y `listar_documentos` (registro) | `src/techdoc_agent/core/tools.py` (o `core/tools_rag.py` si crece) | Fase 3 |
+| Herramientas `buscar_documentos` y `listar_documentos` (registro) | `src/techdoc_agent/core/tools_rag.py` | Fase 3 |
 | Validación y guardado de Mermaid | `src/techdoc_agent/outputs/diagrams.py` | Fase 3b |
 | Validación y render de requisitos | `src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
 | API web (endpoints) | `src/techdoc_agent/api/main.py` | Fase 5 |

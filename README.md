@@ -44,7 +44,7 @@ pip install numpy sentence-transformers pypdf
 ```bash
 python -m techdoc_agent.cli
 ```
-Comandos: `/nuevo` reinicia la conversación y `/salir` termina. Por ahora el agente solo tiene dos herramientas de juguete (`obtener_hora`, `sumar`); prueba: *"¿qué hora es y cuánto es 17+25?"*. Tras cada respuesta se muestran las herramientas usadas, su duración y los tokens.
+Al arrancar carga el modelo de embeddings (unos segundos). Comandos: `/ingestar <ruta>` indexa un archivo o carpeta (p. ej. `/ingestar data/sample_docs`), `/nuevo` reinicia la conversación y `/salir` termina. El agente tiene dos herramientas, `buscar_documentos` y `listar_documentos`, y decide cuándo usarlas según el system prompt (reglas fijas + `skills/documentacion-tecnica/SKILL.md`; editar la skill cambia su comportamiento sin tocar código). Prueba: *"hola"* (sin búsqueda), *"¿Cuál es la concurrencia por defecto del worker?"* (una búsqueda y cita). Para conversaciones largas, la memoria resume los turnos antiguos (`MEMORY_MAX_TOKENS`, `MEMORY_KEEP_TURNS` en `.env`) y conserva los últimos íntegros. Tras cada respuesta se muestran las herramientas usadas, su duración y los tokens.
 
 ## Indexar y buscar documentos
 
