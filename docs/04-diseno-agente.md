@@ -99,7 +99,7 @@ Sin parámetros. Devuelve archivos indexados con número de fragmentos. Sirve pa
   }
 }
 ```
-Validación v1 (heurística): no vacío; primera línea coherente con `tipo` (`classDiagram`, `sequenceDiagram`, `flowchart`/`graph`, `erDiagram`, `stateDiagram-v2`); corchetes/paréntesis/llaves balanceados; sin bloque ```. Validación v2 (opcional): `mermaid-cli` (`mmdc`) para parsear de verdad.
+Validación v1 (heurística): no vacío; primera línea coherente con `tipo` (`classDiagram`, `sequenceDiagram`, `flowchart`/`graph`, `erDiagram`, `stateDiagram-v2`); corchetes/paréntesis/llaves balanceados; sin bloque ```; elemento mínimo según el tipo (flecha en secuencia, conexión en flujo, transición en estados); título no vacío (≤ 100 caracteres) y código ≤ 20.000 caracteres. Los textos entre comillas y el texto de los mensajes (secuencia, ER) no cuentan para los corchetes. Se devuelven **todos** los errores a la vez, con el número de línea. Implementada en `outputs/diagrams.py`. Los archivos se guardan como `diagrama-<slug>-<id>.mmd` (nombre generado, `outputs/naming.py`) y la herramienta solo devuelve el nombre. Validación v2 (opcional): `mermaid-cli` (`mmdc`) para parsear de verdad.
 
 ### `generar_requisitos`
 ```json
@@ -128,7 +128,7 @@ Validación v1 (heurística): no vacío; primera línea coherente con `tipo` (`c
   }
 }
 ```
-La herramienta rechaza ids duplicados y descripciones vacías (error al modelo) y advierte de requisitos sin fuente.
+Implementada en `outputs/requirements_doc.py` (render a tablas Markdown, guardado como `requisitos-<slug>-<id>.md`). La herramienta rechaza ids duplicados y descripciones vacías (error al modelo) y advierte de requisitos sin fuente.
 
 ## 3. System prompt (estructura)
 

@@ -41,7 +41,8 @@ Esta skill define **cómo trabajar**, no qué saber. El conocimiento está en lo
    | Ciclo de vida | `estados` | `stateDiagram-v2` |
 3. Llama a `generar_diagrama` con el código Mermaid **sin** delimitadores ```.
 4. Si la herramienta devuelve errores, corrígelos y vuelve a llamarla (máximo 3 intentos).
-5. En tu respuesta, resume qué muestra el diagrama y qué partes provienen de la documentación y cuáles son supuestos.
+   - **Excepción:** si el usuario te dio el código ya escrito y pidió guardarlo *tal cual*, no lo modifiques por tu cuenta. Muestra los errores que devolvió la herramienta, propón la versión corregida y pregunta si la guardas.
+5. En tu respuesta, indica el **nombre del archivo guardado**, incluye el código Mermaid en un bloque ```mermaid y resume qué muestra el diagrama y qué partes provienen de la documentación y cuáles son supuestos.
 6. Buenas prácticas: máximo ~15 nodos por diagrama (divide si hay más); etiquetas cortas; identificadores sin espacios ni acentos; texto con caracteres especiales entre comillas.
 
 ## Requisitos
@@ -52,7 +53,7 @@ Esta skill define **cómo trabajar**, no qué saber. El conocimiento está en lo
 3. Asigna prioridad MoSCoW (`M`, `S`, `C`, `W`) y un **criterio de aceptación** concreto.
 4. Identificadores: `RF-01`, `RF-02`… y `RNF-01`… sin repetir.
 5. Indica en `fuente` el documento/fragmento del que deduces el requisito. Si es una suposición tuya, déjalo vacío y menciónalo.
-6. Llama a `generar_requisitos`; si devuelve errores o advertencias, corrige o explícalas al usuario.
+6. Llama a `generar_requisitos`; si devuelve errores, corrígelos y vuelve a llamar; si devuelve advertencias, explícalas al usuario. Indica el **nombre del archivo guardado** y resume los requisitos.
 7. No inventes requisitos que no se deduzcan de la información; pregunta o márcalos como "propuesto".
 
 ## Tono y estilo

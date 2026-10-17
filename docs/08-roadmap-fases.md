@@ -6,7 +6,7 @@ Estado (marca al terminar cada una):
 - [x] Fase 1 · Bucle del agente con herramienta falsa
 - [x] Fase 2 · Ingesta + almacén JSON (sin agente)
 - [x] Fase 3 · RAG como herramienta + skill
-- [ ] Fase 3b · Herramientas de diagramas y requisitos
+- [x] Fase 3b · Herramientas de diagramas y requisitos
 - [ ] Fase 4 · Migración a ChromaDB
 - [ ] Fase 5 · FastAPI + HTML
 - [ ] Fase 6 · Servidor MCP

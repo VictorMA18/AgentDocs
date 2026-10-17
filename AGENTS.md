@@ -50,6 +50,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Orquestación de la ingesta y script de consola | `src/techdoc_agent/rag/ingest.py` | Fase 2 |
 | Recuperación (consulta de texto → fragmentos) | `src/techdoc_agent/rag/retrieval.py` | Fase 2 |
 | Herramientas `buscar_documentos` y `listar_documentos` (registro) | `src/techdoc_agent/core/tools_rag.py` | Fase 3 |
+| Herramientas `generar_diagrama` y `generar_requisitos` (registro) | `src/techdoc_agent/core/tools_outputs.py` | Fase 3b |
 | Validación y guardado de Mermaid | `src/techdoc_agent/outputs/diagrams.py` | Fase 3b |
 | Validación y render de requisitos | `src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
 | API web (endpoints) | `src/techdoc_agent/api/main.py` | Fase 5 |

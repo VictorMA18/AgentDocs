@@ -57,7 +57,12 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 - **Decisión:** al superar un umbral estimado (`MEMORY_MAX_TOKENS`, caracteres/4) se resumen los turnos antiguos con el propio LLM y se conservan los últimos `MEMORY_KEEP_TURNS`; el resumen va en el system prompt y se prohíbe que contenga datos técnicos (deben volver a buscarse en el RAG). Adelanta un punto de la Fase 8.
 - **Consecuencias:** una llamada extra al LLM (~4 s) cada vez que se compacta; el resumen puede perder matices (se mitiga porque lo técnico se busca de nuevo); la estimación de tokens es aproximada; un fallo del resumidor no rompe el turno.
 
-*(Añade aquí: ADR-012…)*
+### ADR-012 · Herramientas de salida que validan y devuelven feedback (validación heurística v1)
+- **Contexto:** el agente debe producir diagramas Mermaid y documentos de requisitos fiables, sin que nuestro código genere contenido con IA ni acepte rutas del modelo.
+- **Decisión:** `generar_diagrama` y `generar_requisitos` validan con reglas propias (cabecera acorde al tipo, corchetes balanceados, ids únicos, prioridad MoSCoW, criterio/métrica presentes), devuelven todos los errores a la vez como `is_error` y solo guardan si todo es válido. Los nombres de archivo son `prefijo-slug-id` generados por el sistema (`outputs/naming.py`, creación exclusiva) y al modelo solo se le devuelve el nombre.
+- **Consecuencias:** el modelo se autocorrige sin intervención humana (cubierto con cliente falso; no apareció de forma natural en las pruebas reales); la validación no garantiza que Mermaid renderice (v2 con `mermaid-cli` en la Fase 8); los avisos (requisito sin fuente) no bloquean.
+
+*(Añade aquí: ADR-013…)*
 
 ## Tabla de experimentos (rellenar en Fases 4 y 7)
 
@@ -66,12 +71,14 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 | 2026-10-16 | Línea base de recuperación (Fase 2, MiniLM multilingüe, chunk 700/100) | Score del mejor fragmento | — | "reintentos": 0,243 · "¿cuántos reintentos hace una tarea por defecto?": 0,591 · "concurrencia por defecto del worker": 0,739 · fuera de tema ("receta de pizza"): 0,209 | Las consultas de una palabra puntúan bajo y quedan por debajo de `MIN_SCORE=0,25`; revisar el umbral en la Fase 3 con el dataset de evaluación |
 | 2026-10-17 | Aceptación de la Fase 3 (Haiku 5.5 + MiniLM, `MIN_SCORE=0,25`) | Comportamiento del agente | — | "hola": 0 búsquedas · concurrencia del worker: 1 búsqueda, respuesta "4" con cita [taskflow.md#4] · Kubernetes+Helm: 2 búsquedas, dice que la documentación no lo cubre y marca lo general como tal · pregunta compuesta: 2 búsquedas · regla extra en una copia de `SKILL.md`: respuesta cambia de formato sin tocar código | Cumple los 5 criterios; el umbral 0,25 se mantiene hasta tener dataset (Fase 7) |
 | 2026-10-17 | Memoria recortada (`MEMORY_MAX_TOKENS=1500`, `KEEP_TURNS=2`, 5 preguntas) | Tokens de entrada por pregunta | 10.097 → 12.807 → 15.923 (crece sin recorte) | 16.845 → 17.278 con compactación (2 compactaciones, ~4 s cada una) | El crecimiento se frena; el resumen no contiene valores técnicos y la pregunta repetida volvió a usar `buscar_documentos` |
+| 2026-10-17 | Aceptación de la Fase 3b (Haiku 5.5) | Comportamiento del agente | — | Secuencia "encolar y procesar": 2 búsquedas + `generar_diagrama` (ok a la primera) · estados: 1 búsqueda + diagrama · requisitos de reintentos: 1 búsqueda + 5 RF con fuente y criterio, sin avisos · en los 3 casos citas y supuestos marcados | Cumple; la autocorrección ante Mermaid inválido solo se ha visto con el cliente falso |
 
 ## Fallos encontrados y cómo se arreglaron (rellenar durante el desarrollo)
 
 | Fallo observado | Causa | Corrección | Caso añadido al dataset |
 |---|---|---|---|
 | Con solape, un fragmento de párrafo largo superaba `chunk_size` | Cada trozo ocupaba todo el presupuesto y luego se le añadía la cola de solape | Partir el párrafo en trozos de `presupuesto − solape` (`tests/rag/test_chunking.py::test_long_paragraph_is_split_with_overlap`) | — (test unitario) |
+| `.gitignore` con `outputs/` ignoraba también `src/techdoc_agent/outputs/` y `tests/outputs/` (el código nuevo no aparecía en `git status`) | La regla sin `/` inicial coincide con cualquier carpeta de ese nombre | Cambiar a `/outputs/` (solo la carpeta raíz de artefactos) | — (config de git) |
 | La consulta "cómo integro TaskFlow con Kubernetes" puntúa 0,64 con el fragmento de portada | La búsqueda vectorial se deja llevar por el nombre del producto aunque el tema no esté en la documentación | Pendiente: lo debe resolver el agente leyendo los fragmentos (skill) y/o la búsqueda híbrida (Fase 8) | `fuera-alcance-k8s` (ya en `evals/dataset.example.jsonl`) |
 
 ## Glosario
