@@ -14,6 +14,8 @@ from typing import Any
 from techdoc_agent import config
 from techdoc_agent.core.llm import LLMClient, LLMError, LLMProtocolError
 from techdoc_agent.core.memory import Memory
+from techdoc_agent.core.prompts import with_summary
+from techdoc_agent.core.summarizer import summarize
 from techdoc_agent.core.tools import ToolRegistry, ToolResult, format_tool_results
 from techdoc_agent.logging_setup import log_event
 
@@ -63,9 +65,32 @@ class Agent:
         self.system_prompt = system_prompt
         self.max_iterations = max_iterations or config.settings.max_agent_iterations
 
+    def _maybe_compact(self, session_id: str) -> None:
+        """Si el historial es grande, resume los turnos antiguos (no rompe el turno si falla)."""
+        keep = config.settings.memory_keep_turns
+        if (self.memory.turn_count(session_id) <= keep
+                or self.memory.estimated_tokens(session_id) <= config.settings.memory_max_tokens):
+            return
+        started = perf_counter()
+        old = self.memory.old_messages(session_id, keep)
+        chars_before = sum(len(m["content"]) for m in self.memory.get(session_id))
+        try:
+            summary = summarize(self.llm, self.memory.summary(session_id), old)
+        except LLMError as exc:  # se reintenta en el siguiente turno
+            log_event(session=session_id, event="memory_compact_error", error=str(exc))
+            return
+        turns_before = self.memory.turn_count(session_id)
+        self.memory.compact(session_id, summary, keep)
+        chars_after = sum(len(m["content"]) for m in self.memory.get(session_id))
+        log_event(session=session_id, event="memory_compacted",
+                  turns_summarized=turns_before - self.memory.turn_count(session_id),
+                  chars_before=chars_before, chars_after=chars_after,
+                  summary_chars=len(summary), duration_ms=_ms(started))
+
     def run(self, session_id: str, user_message: str) -> AgentResult:
+        self._maybe_compact(session_id)
         history = self.memory.get(session_id)
-        turn_start = len(history)  # para deshacer el turno si el LLM falla
+        self.memory.mark_turn(session_id)
         history.append({"role": "user", "content": user_message})
         log_event(session=session_id, event="user_message", chars=len(user_message))
 
@@ -74,7 +99,8 @@ class Agent:
             result.iterations = iteration
             started = perf_counter()
             try:
-                reply = self.llm.complete(self.system_prompt, history, self.tools.specs())
+                system = with_summary(self.system_prompt, self.memory.summary(session_id))
+                reply = self.llm.complete(system, history, self.tools.specs())
             except LLMProtocolError as exc:
                 # Recuperable: se lo devolvemos al modelo para que se corrija.
                 log_event(session=session_id, iter=iteration, event="llm_protocol_error",
@@ -87,7 +113,7 @@ class Agent:
             except LLMError as exc:
                 # No recuperable: deshacemos el turno para no dejar dos 'user' seguidos.
                 log_event(session=session_id, iter=iteration, event="llm_error", error=str(exc))
-                del history[turn_start:]
+                self.memory.drop_last_turn(session_id)
                 raise
 
             result.input_tokens += reply.input_tokens

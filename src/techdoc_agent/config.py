@@ -23,6 +23,8 @@ class Settings:
     claude_cli_path: str
     llm_timeout_s: int
     max_agent_iterations: int
+    memory_max_tokens: int
+    memory_keep_turns: int
 
     # --- RAG ---
     vector_store: str
@@ -96,6 +98,8 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         claude_cli_path=_get_str(env, "CLAUDE_CLI_PATH", "claude"),
         llm_timeout_s=_get_int(env, "LLM_TIMEOUT_S", 120),
         max_agent_iterations=_get_int(env, "MAX_AGENT_ITERATIONS", 8),
+        memory_max_tokens=_get_int(env, "MEMORY_MAX_TOKENS", 8000),
+        memory_keep_turns=_get_int(env, "MEMORY_KEEP_TURNS", 3),
         vector_store=_get_str(env, "VECTOR_STORE", "json"),
         embedding_model=_get_str(
             env, "EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2"

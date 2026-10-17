@@ -13,6 +13,7 @@ def test_defaults_when_env_is_empty() -> None:
     assert s.claude_cli_path == "claude"
     assert s.llm_timeout_s == 120
     assert s.max_agent_iterations == 8
+    assert s.memory_max_tokens == 8000 and s.memory_keep_turns == 3
     assert s.vector_store == "json"
     assert s.min_score == pytest.approx(0.25)
     assert s.logs_dir == Path("./logs")
