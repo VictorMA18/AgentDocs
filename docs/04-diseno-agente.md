@@ -167,7 +167,9 @@ La skill **no** debe contener conocimiento (eso va en los documentos), sino cóm
 - El resumen viaja en el **system prompt** (`<resumen_conversacion>…</resumen_conversacion>`), de modo que los roles `user`/`assistant` siguen alternando y el prompt base y las reglas fijas nunca se pierden.
 - **El resumen no sustituye al RAG:** el resumidor solo guarda temas, intención del usuario, nombres de documentos consultados y preferencias (sin valores, parámetros ni código), no ve el contenido de los resultados de herramientas, y una regla fija obliga a volver a buscar cualquier dato técnico.
 - Si la llamada de resumen falla, el turno continúa sin recorte (evento `memory_compact_error`) y se reintenta en el siguiente. Evento de éxito: `memory_compacted`.
-- `/nuevo` borra mensajes, turnos y resumen. No hay persistencia en disco.
+- `/nuevo` borra mensajes, turnos y resumen (y su archivo, si la memoria es persistente).
+- **Persistencia opcional (ADR-015).** `Memory(storage_dir)` guarda cada sesión como `<session_id>.memory.json` (`version`, `messages`, `turn_starts`, `summary`) con escritura atómica y la carga de forma perezosa al pedirla tras un reinicio. `Agent.run` guarda siempre al terminar, también tras un error del LLM (ya sin el turno deshecho) o al agotar las iteraciones; si el disco falla, la conversación sigue en RAM (`memory_save_error`). Un archivo ilegible o con forma inválida se aparta como `.corrupt` y la sesión empieza vacía. Sin carpeta (la CLI), todo sigue en RAM. El `session_id` se valida (`^[A-Za-z0-9_-]{1,64}$`) antes de usarse en una ruta.
+- **Transcripciones** (`core/transcripts.py`): aparte de la memoria, `<session_id>.turns.json` guarda cada turno tal como lo muestra la página (pregunta, respuesta, herramientas, artefactos, tokens). Es necesaria porque la memoria se recorta con resúmenes y su formato es el del protocolo interno.
 
 ## 6. Seguridad
 
@@ -179,6 +181,7 @@ La skill **no** debe contener conocimiento (eso va en los documentos), sino cóm
 | Fuga de credenciales | No hay API key (el CLI usa la sesión de Claude Code); configuración solo por entorno; `.env` en `.gitignore`; nunca se loguean credenciales |
 | El CLI ejecuta herramientas propias | Siempre `--tools ""`: el modelo solo puede pedir nuestras herramientas, que ejecuta nuestro código |
 | Escritura fuera de `outputs/` | Los nombres de artefactos se generan (slug + id), nunca se aceptan rutas del modelo |
+| Conversaciones en disco | A diferencia de los logs (solo tamaños), `data/conversations/` contiene el texto de las conversaciones y fragmentos de documentos. Está en `.gitignore`; se borra desde la página ("Quitar") o eliminando la carpeta. Los ids se validan antes de formar rutas |
 | Exposición del servidor | v1 en local; si se expone, añadir autenticación (token) antes |
 
 ## 7. Registro (logs)

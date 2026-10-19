@@ -53,7 +53,7 @@ Al arrancar carga el modelo de embeddings (unos segundos). Comandos: `/ingestar 
 pip install fastapi python-multipart uvicorn   # dependencias de la Fase 5
 uvicorn techdoc_agent.api.main:app --reload    # http://127.0.0.1:8000
 ```
-Una sola página con tres zonas: documentos (subir, listar y quitar), conversación (respuestas en Markdown saneado, con botón para copiar el código) y **pasos del agente** (qué herramientas usó cada respuesta, con argumentos y duración). Los diagramas que genera el agente se dibujan con Mermaid y los artefactos se pueden descargar. La API (`src/techdoc_agent/api/`) solo valida la entrada y llama al núcleo: rechaza extensiones no permitidas, archivos mayores que `MAX_UPLOAD_MB` y nombres con rutas. Detalle de endpoints y seguridad en `docs/06-api-y-mcp.md`. Las librerías de la página se cargan desde un CDN, así que hace falta conexión la primera vez.
+Una sola página con tres zonas: documentos (subir, listar y quitar), conversación (respuestas en Markdown saneado, con botón para copiar el código) y **pasos del agente** (qué herramientas usó cada respuesta, con argumentos y duración). Los diagramas que genera el agente se dibujan con Mermaid y los artefactos se pueden descargar. La API (`src/techdoc_agent/api/`) solo valida la entrada y llama al núcleo: rechaza extensiones no permitidas, archivos mayores que `MAX_UPLOAD_MB` y nombres con rutas. Detalle de endpoints y seguridad en `docs/06-api-y-mcp.md`. Las conversaciones se guardan solas en `data/conversations/` (ignorado por git): aparecen en el panel izquierdo, se pueden reabrir o quitar, y el agente conserva su contexto aunque reinicies el servidor. Esos archivos contienen el texto de lo hablado; bórralos desde la página o eliminando la carpeta. Las librerías de la página se cargan desde un CDN, así que hace falta conexión la primera vez.
 
 ## Indexar y buscar documentos
 
@@ -72,7 +72,8 @@ La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `
 | `tools_rag.py` | `buscar_documentos` y `listar_documentos`: umbral `MIN_SCORE` y resultados en `<documento>` |
 | `tools_outputs.py` | `generar_diagrama` y `generar_requisitos`: validan lo que escribe el modelo y guardan en `outputs/` |
 | `skills.py` / `prompts.py` | Carga de `SKILL.md` y construcción del system prompt (reglas fijas + skill + resumen) |
-| `memory.py` / `summarizer.py` | Historial por sesión y resumen de los turnos antiguos |
+| `memory.py` / `summarizer.py` | Historial por sesión (opcionalmente en disco) y resumen de los turnos antiguos |
+| `transcripts.py` / `storage.py` | Transcripción de cada conversación para la web y utilidades de archivos JSON seguros |
 | `bootstrap.py` (en `src/techdoc_agent/`) | Ensambla el agente con sus herramientas y su skill; lo comparten la CLI y la API |
 | `agent.py` | Bucle del agente con tope de iteraciones, compactación de memoria y logging de cada paso |
 

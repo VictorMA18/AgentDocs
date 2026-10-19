@@ -13,6 +13,9 @@ Ambos son **adaptadores delgados**: validan entrada, llaman al núcleo, formatea
 | POST | `/api/documents` | Subida `multipart/form-data` (campo `file`) |
 | GET | `/api/documents` | Lista de documentos indexados |
 | DELETE | `/api/documents/{source}` | Elimina un documento del índice |
+| GET | `/api/conversations` | Conversaciones guardadas (`id`, `title`, `updated`, `turns`), las más recientes primero |
+| GET | `/api/conversations/{id}` | Conversación completa con todos sus turnos |
+| DELETE | `/api/conversations/{id}` | Borra la transcripción y la memoria del agente (en RAM y en disco) |
 | GET | `/api/artifacts` | Lista de artefactos generados |
 | GET | `/api/artifacts/{name}` | Descarga un artefacto (nombre validado) |
 
@@ -40,14 +43,16 @@ Ambos son **adaptadores delgados**: validan entrada, llaman al núcleo, formatea
 }
 ```
 
+Cada chat correcto se guarda en la transcripción de su `session_id` (`message` y los mismos campos que la respuesta, más `ts`); uno fallido (422, 502) no crea nada. El id de las rutas de conversaciones debe cumplir `^[A-Za-z0-9_-]{8,64}$` (400 si no) y una conversación inexistente da 404. La memoria del agente también se guarda, así que tras reiniciar el servidor el siguiente mensaje continúa con el contexto.
+
 `artifacts` lista los archivos que `generar_diagrama` y `generar_requisitos` guardaron **en ese turno**: el nombre sale del resultado de la herramienta (`ToolTrace.result`), el título de sus argumentos y el tipo de la extensión (`.mmd` → `mermaid`, `.md` → `requirements`). `GET /api/artifacts` devuelve `name`, `type`, `size` y `modified` de todos los archivos válidos de `outputs/`.
 
 ### Interfaz (`static/`)
 Una sola página (`index.html`, con `app.js` y `app.css` propios: sin scripts inline para poder usar una CSP estricta), JS puro con `fetch`:
-- Panel izquierdo: subir documento, lista de documentos (con botón eliminar).
+- Panel izquierdo: **conversaciones guardadas** (abrir, quitar; la actual se marca) y, debajo, subir documento y lista de documentos (con botón eliminar).
 - Centro: chat. Los bloques de código con botón "copiar". Los artefactos Mermaid se **renderizan** con la librería `mermaid` (cargada por CDN con versión fija).
 - Panel derecho (plegable): "Qué hizo el agente" → herramientas y argumentos del turno.
-- `session_id` aleatorio guardado en `sessionStorage`.
+- `session_id` aleatorio guardado en `localStorage`: al recargar o reabrir la pestaña vuelve a la última conversación. "Nueva conversación" crea un id nuevo; nada se guarda hasta el primer mensaje.
 - Markdown renderizado con una librería pequeña (p. ej. `marked`) **sanitizando** el HTML (p. ej. `DOMPurify`) — la salida del modelo no es confiable.
 
 ### Reglas
