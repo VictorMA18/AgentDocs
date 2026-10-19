@@ -57,7 +57,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Nombres de archivo generados (slug + id) | `src/techdoc_agent/outputs/naming.py` | Fase 3b |
 | Validación y render de requisitos | `src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
 | API web (endpoints) | `src/techdoc_agent/api/main.py` | Fase 5 |
-| Interfaz HTML/JS | `src/techdoc_agent/api/static/index.html` | Fase 5 |
+| Interfaz HTML/JS/CSS | `src/techdoc_agent/api/static/` (`index.html`, `app.js`, `app.css`) | Fase 5 |
+| Ensamblado del agente (CLI y API) | `src/techdoc_agent/bootstrap.py` | Fase 5 |
 | Servidor MCP | `src/techdoc_agent/mcp_server.py` | Fase 6 |
 | Chat por consola | `src/techdoc_agent/cli.py` | Fase 1 |
 
@@ -174,13 +175,13 @@ AGENTS.md  CLAUDE.md  README.md  requirements.txt  pyproject.toml  .env.example
 docs/                  # documentación del proyecto (01-09)
 skills/documentacion-tecnica/SKILL.md
 src/techdoc_agent/
-  config.py  logging_setup.py  cli.py  mcp_server.py
+  config.py  logging_setup.py  bootstrap.py  cli.py  mcp_server.py
   core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  prompts.py  skills.py
              memory.py  summarizer.py  llm.py
   rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py
              store_json.py  store_chroma.py  factory.py  ingest.py
   outputs/   diagrams.py  requirements_doc.py  naming.py
-  api/       main.py  static/index.html
+  api/       main.py  static/index.html  static/app.js  static/app.css
 tests/
 evals/       dataset.example.jsonl  dataset.jsonl  fixtures/  run.py  results/
 data/        sample_docs/  documents/  index/

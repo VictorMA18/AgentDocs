@@ -47,6 +47,14 @@ python -m techdoc_agent.cli
 ```
 Al arrancar carga el modelo de embeddings (unos segundos). Comandos: `/ingestar <ruta>` indexa un archivo o carpeta (p. ej. `/ingestar data/sample_docs`), `/nuevo` reinicia la conversación y `/salir` termina. El agente tiene dos herramientas, `buscar_documentos` y `listar_documentos`, y decide cuándo usarlas según el system prompt (reglas fijas + `skills/documentacion-tecnica/SKILL.md`; editar la skill cambia su comportamiento sin tocar código). Prueba: *"hola"* (sin búsqueda), *"¿Cuál es la concurrencia por defecto del worker?"* (una búsqueda y cita). Para conversaciones largas, la memoria resume los turnos antiguos (`MEMORY_MAX_TOKENS`, `MEMORY_KEEP_TURNS` en `.env`) y conserva los últimos íntegros. Para diagramas y requisitos, el agente usa `generar_diagrama` y `generar_requisitos`: validan lo que escribe el modelo (si hay errores se los devuelven para que se corrija) y guardan el resultado en `outputs/` con un nombre generado (prueba: *"Haz un diagrama de secuencia de encolar y procesar un trabajo"*). Tras cada respuesta se muestran las herramientas usadas, su duración y los tokens.
 
+## Interfaz web
+
+```bash
+pip install fastapi python-multipart uvicorn   # dependencias de la Fase 5
+uvicorn techdoc_agent.api.main:app --reload    # http://127.0.0.1:8000
+```
+Una sola página con tres zonas: documentos (subir, listar y quitar), conversación (respuestas en Markdown saneado, con botón para copiar el código) y **pasos del agente** (qué herramientas usó cada respuesta, con argumentos y duración). Los diagramas que genera el agente se dibujan con Mermaid y los artefactos se pueden descargar. La API (`src/techdoc_agent/api/`) solo valida la entrada y llama al núcleo: rechaza extensiones no permitidas, archivos mayores que `MAX_UPLOAD_MB` y nombres con rutas. Detalle de endpoints y seguridad en `docs/06-api-y-mcp.md`. Las librerías de la página se cargan desde un CDN, así que hace falta conexión la primera vez.
+
 ## Indexar y buscar documentos
 
 ```bash
@@ -65,6 +73,7 @@ La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `
 | `tools_outputs.py` | `generar_diagrama` y `generar_requisitos`: validan lo que escribe el modelo y guardan en `outputs/` |
 | `skills.py` / `prompts.py` | Carga de `SKILL.md` y construcción del system prompt (reglas fijas + skill + resumen) |
 | `memory.py` / `summarizer.py` | Historial por sesión y resumen de los turnos antiguos |
+| `bootstrap.py` (en `src/techdoc_agent/`) | Ensambla el agente con sus herramientas y su skill; lo comparten la CLI y la API |
 | `agent.py` | Bucle del agente con tope de iteraciones, compactación de memoria y logging de cada paso |
 
 ## Salidas (`src/techdoc_agent/outputs/`)
@@ -93,4 +102,4 @@ La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `
 
 ## Estado
 
-Fases 0, 1, 2, 3, 3b y 4 completadas (RAG como herramienta, skill, memoria recortada, diagramas y requisitos, almacén ChromaDB seleccionable). Siguiente: Fase 5 (FastAPI + HTML). Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.
+Fases 0, 1, 2, 3, 3b, 4 y 5 completadas (RAG como herramienta, skill, memoria recortada, diagramas y requisitos, almacén ChromaDB seleccionable, API web y página de chat). Siguiente: Fase 6 (servidor MCP). Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.

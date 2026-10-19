@@ -27,6 +27,8 @@ El modelo no recibe `tool_use` nativos; el system prompt le describe las herrami
 ```
 Los resultados vuelven al historial como mensajes `user` con `<resultado_herramienta id="c1" error="false">…</resultado_herramienta>`. El historial se serializa completo en cada llamada (el CLI no guarda estado: `--no-session-persistence`).
 
+`AgentResult` devuelve el texto final, las herramientas ejecutadas (`ToolTrace`: nombre, argumentos, `is_error`, duración y el **texto que devolvió la herramienta**, que usan los adaptadores, p. ej. para localizar los artefactos de un turno), las iteraciones, `truncated` y los tokens.
+
 ### Pseudocódigo del bucle
 ```python
 def run(session_id: str, user_message: str) -> AgentResult:

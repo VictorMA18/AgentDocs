@@ -16,6 +16,17 @@ Ambos son **adaptadores delgados**: validan entrada, llaman al núcleo, formatea
 | GET | `/api/artifacts` | Lista de artefactos generados |
 | GET | `/api/artifacts/{name}` | Descarga un artefacto (nombre validado) |
 
+### Códigos de estado
+| Código | Cuándo |
+|---|---|
+| 201 | Documento subido e indexado (`{"source", "chunks", "warnings"}`) |
+| 400 | Nombre no válido, archivo vacío o sin contenido indexable, nombre de artefacto o de documento con formato incorrecto |
+| 404 | Documento o artefacto inexistente (también rutas con `..` o enlaces simbólicos que salen de `outputs/`) |
+| 413 | Archivo mayor que `MAX_UPLOAD_MB` |
+| 415 | Extensión fuera de `ALLOWED_EXTENSIONS` |
+| 422 | Cuerpo de `/api/chat` inválido (`session_id` con `^[A-Za-z0-9_-]{8,64}$`, mensaje de 1 a 8.000 caracteres) |
+| 502 | El LLM falló; el mensaje es genérico y el detalle va al log |
+
 ### Respuesta de `/api/chat`
 ```json
 {
@@ -23,14 +34,16 @@ Ambos son **adaptadores delgados**: validan entrada, llaman al núcleo, formatea
   "tool_calls": [
     {"tool": "buscar_documentos", "args": {"query": "configurar reintentos"}, "is_error": false, "duration_ms": 41}
   ],
-  "artifacts": [{"name": "diagrama-secuencia-3f2a.mmd", "type": "mermaid", "title": "Encolar y procesar"}],
+  "artifacts": [{"name": "diagrama-encolar-3f2a.mmd", "type": "mermaid", "title": "Encolar y procesar"}],
   "usage": {"input_tokens": 2410, "output_tokens": 312},
   "truncated": false
 }
 ```
 
-### Interfaz (`static/index.html`)
-Una sola página, JS puro con `fetch`:
+`artifacts` lista los archivos que `generar_diagrama` y `generar_requisitos` guardaron **en ese turno**: el nombre sale del resultado de la herramienta (`ToolTrace.result`), el título de sus argumentos y el tipo de la extensión (`.mmd` → `mermaid`, `.md` → `requirements`). `GET /api/artifacts` devuelve `name`, `type`, `size` y `modified` de todos los archivos válidos de `outputs/`.
+
+### Interfaz (`static/`)
+Una sola página (`index.html`, con `app.js` y `app.css` propios: sin scripts inline para poder usar una CSP estricta), JS puro con `fetch`:
 - Panel izquierdo: subir documento, lista de documentos (con botón eliminar).
 - Centro: chat. Los bloques de código con botón "copiar". Los artefactos Mermaid se **renderizan** con la librería `mermaid` (cargada por CDN con versión fija).
 - Panel derecho (plegable): "Qué hizo el agente" → herramientas y argumentos del turno.
@@ -38,11 +51,18 @@ Una sola página, JS puro con `fetch`:
 - Markdown renderizado con una librería pequeña (p. ej. `marked`) **sanitizando** el HTML (p. ej. `DOMPurify`) — la salida del modelo no es confiable.
 
 ### Reglas
-- Límite de tamaño de subida (`MAX_UPLOAD_MB`) y lista blanca de extensiones.
-- Nombre de archivo guardado = generado; el original solo se conserva como metadato.
-- `GET /api/artifacts/{name}`: aceptar solo `^[a-z0-9._-]+$` y resolver dentro de `outputs/`.
-- CORS cerrado por defecto (mismo origen).
+- Límite de tamaño de subida (`MAX_UPLOAD_MB`) y lista blanca de extensiones. Se rechaza antes de leer el cuerpo si `Content-Length` ya lo supera (mejor esfuerzo: sin esa cabecera, el servidor puede haber recibido parte del archivo) y se aborta durante la lectura al pasar el límite.
+- Nombre de archivo **saneado** (ADR-014): sin carpetas, solo `[A-Za-z0-9._-]`, sin punto inicial, hasta 100 caracteres. No se genera uno nuevo porque ese nombre es la fuente de las citas (`[archivo#n]`); subir el mismo nombre reemplaza el documento. Se guarda en `data/documents/`.
+- `GET /api/artifacts/{name}`: solo `^[a-z0-9][a-z0-9._-]*$` con extensión `.mmd` o `.md`, sin `..`, resuelto dentro de `outputs/` (un enlace simbólico que salga se rechaza). Se sirve como `text/plain` con `Content-Disposition: attachment`.
+- CORS cerrado por defecto (mismo origen). Cabeceras en todas las respuestas: `Content-Security-Policy` (scripts solo propios y de `cdn.jsdelivr.net`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. `/docs`, `/redoc` y `/openapi.json` están desactivados.
+- Un único candado serializa chat, subida y borrado (la memoria y el almacén JSON no son seguros ante hilos). Pensado para un usuario local; con varios usuarios habría que usar un candado por sesión.
 - (Opcional Fase 8) `POST /api/chat/stream` con SSE.
+
+### Cómo arrancar
+```bash
+uvicorn techdoc_agent.api.main:app --reload     # http://127.0.0.1:8000
+```
+Al arrancar carga el modelo de embeddings y abre el almacén según `VECTOR_STORE`. `create_app(agent, store, embedder)` permite inyectar un núcleo falso en los tests (`tests/api/`).
 
 ## B. Servidor MCP
 
