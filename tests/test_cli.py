@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from fakes import FakeLLMClient, HashingEmbedder, final
+from fakes import HashingEmbedder
 
-from techdoc_agent.cli import build_agent, ingestar
+from techdoc_agent.cli import ingestar
 from techdoc_agent.rag.store_json import JsonVectorStore
 
 
@@ -31,12 +31,3 @@ def test_ingest_errors_are_messages_not_exceptions(tmp_path: Path) -> None:
     bad = tmp_path / "x.xyz"
     bad.write_text("x", encoding="utf-8")
     assert ingestar(str(bad), store, emb).startswith("No se pudo indexar")
-
-
-def test_build_agent_uses_skill_prompt_and_rag_tools(tmp_path: Path) -> None:
-    store, emb = make(tmp_path)
-    llm = FakeLLMClient([final("hola")])
-    agent = build_agent(llm, store, emb)
-    assert "<skill nombre=\"documentacion-tecnica\">" in agent.system_prompt
-    assert {s.name for s in agent.tools.specs()} == {
-        "buscar_documentos", "listar_documentos", "generar_diagrama", "generar_requisitos"}

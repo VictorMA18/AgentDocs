@@ -35,6 +35,7 @@ def test_single_tool_call_then_answer() -> None:
     result = agent.run("s1", "¿cuánto es 17+25?")
     assert result.text == "Son 42." and result.iterations == 2
     assert [(t.name, t.is_error) for t in result.tool_calls] == [("sumar", False)]
+    assert result.tool_calls[0].result  # conserva el texto que devolvió la herramienta
     # el modelo ve el resultado en un mensaje 'user'
     last = llm.seen[1][-1]
     assert last["role"] == "user"

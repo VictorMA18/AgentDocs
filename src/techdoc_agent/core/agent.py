@@ -34,6 +34,7 @@ class ToolTrace:
     args: dict[str, Any]
     is_error: bool
     duration_ms: int
+    result: str = ""  # texto que devolvió la herramienta (lo usan los adaptadores, p. ej. para artefactos)
 
 
 @dataclass
@@ -134,7 +135,7 @@ class Agent:
                 content, is_error = self.tools.dispatch(call.name, call.args)
                 duration = _ms(tool_started)
                 tool_results.append(ToolResult(call.id, content, is_error))
-                result.tool_calls.append(ToolTrace(call.name, call.args, is_error, duration))
+                result.tool_calls.append(ToolTrace(call.name, call.args, is_error, duration, content))
                 log_event(session=session_id, iter=iteration, event="tool_call", tool=call.name,
                           args=call.args, duration_ms=duration, is_error=is_error,
                           result_chars=len(content))
