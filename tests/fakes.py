@@ -10,10 +10,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+import pytest
 
 from techdoc_agent.core.llm import LLMReply, Message, ToolCall
 from techdoc_agent.core.tools import Tool, ToolSpec
 from techdoc_agent.rag.embeddings import normalize
+from techdoc_agent.rag.store import VectorStore
+from techdoc_agent.rag.store_json import JsonVectorStore
 
 
 def final(text: str, input_tokens: int = 10, output_tokens: int = 5) -> LLMReply:
@@ -118,3 +121,15 @@ def toy_tools() -> list[Tool]:
             func=sumar,
         ),
     ]
+
+
+STORE_KINDS = ["json", "chroma"]  # almacenes que cumplen ``VectorStore`` (parametrizan los tests)
+
+
+def make_store(kind: str, index_dir: Any) -> VectorStore:
+    """Crea un almacén del tipo pedido; el de Chroma se omite si no está instalado."""
+    if kind == "json":
+        return JsonVectorStore(index_dir)
+    pytest.importorskip("chromadb")
+    store_chroma = pytest.importorskip("techdoc_agent.rag.store_chroma")
+    return store_chroma.ChromaVectorStore(index_dir)
