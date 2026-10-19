@@ -19,19 +19,29 @@
 </head>
 <body>
   <div class="app">
-    <details class="side docs" id="docs-panel" open>
-      <summary>Documentos</summary>
-      <div class="side-body">
-        <label class="drop" id="drop" for="file-input">
-          <span class="drop-title">Subir documento</span>
-          <span class="drop-hint" id="drop-hint">Arrastra un archivo o haz clic</span>
-          <input type="file" id="file-input">
-        </label>
-        <p class="status" id="doc-status" role="status" aria-live="polite"></p>
-        <ul class="doc-list" id="doc-list" aria-label="Documentos indexados"></ul>
-        <p class="empty" id="doc-empty" hidden>Aún no hay documentos indexados.</p>
-      </div>
-    </details>
+    <div class="left">
+      <details class="side" id="conv-panel" open>
+        <summary>Conversaciones</summary>
+        <div class="side-body">
+          <p class="status" id="conv-status" role="status" aria-live="polite"></p>
+          <ul class="conv-list" id="conv-list" aria-label="Conversaciones guardadas"></ul>
+          <p class="empty" id="conv-empty" hidden>Aún no hay conversaciones guardadas. Se guardan solas al enviar el primer mensaje.</p>
+        </div>
+      </details>
+      <details class="side" id="docs-panel" open>
+        <summary>Documentos</summary>
+        <div class="side-body">
+          <label class="drop" id="drop" for="file-input">
+            <span class="drop-title">Subir documento</span>
+            <span class="drop-hint" id="drop-hint">Arrastra un archivo o haz clic</span>
+            <input type="file" id="file-input">
+          </label>
+          <p class="status" id="doc-status" role="status" aria-live="polite"></p>
+          <ul class="doc-list" id="doc-list" aria-label="Documentos indexados"></ul>
+          <p class="empty" id="doc-empty" hidden>Aún no hay documentos indexados.</p>
+        </div>
+      </details>
+    </div>
 
     <main class="chat">
       <header class="chat-head">

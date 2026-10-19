@@ -9,27 +9,27 @@ const els = {
   send: $("send"), newChat: $("new-chat"), docList: $("doc-list"), docEmpty: $("doc-empty"),
   docStatus: $("doc-status"), fileInput: $("file-input"), drop: $("drop"), dropHint: $("drop-hint"),
   turns: $("turns"), traceEmpty: $("trace-empty"), docsPanel: $("docs-panel"), tracePanel: $("trace-panel"),
+  convPanel: $("conv-panel"), convList: $("conv-list"), convEmpty: $("conv-empty"), convStatus: $("conv-status"),
 };
 
 let turnCount = 0;
 let mermaidCount = 0;
 let busy = false;
 
-// --- sesión ---
+// --- sesión: el id de la conversación actual se recuerda para volver a ella al recargar ---
 
 function newSessionId() {
   return crypto.randomUUID().replaceAll("-", "");
 }
 function sessionId() {
   try {
-    let id = sessionStorage.getItem("session_id");
-    if (!id) { id = newSessionId(); sessionStorage.setItem("session_id", id); }
+    let id = localStorage.getItem("conversation_id");
+    if (!id) { id = newSessionId(); localStorage.setItem("conversation_id", id); }
     return id;
   } catch { return (sessionId.fallback ||= newSessionId()); }
 }
-function resetSession() {
-  const id = newSessionId();
-  try { sessionStorage.setItem("session_id", id); } catch { sessionId.fallback = id; }
+function setSession(id) {
+  try { localStorage.setItem("conversation_id", id); } catch { sessionId.fallback = id; }
 }
 
 // --- utilidades ---
@@ -86,6 +86,8 @@ function addCopyButtons(container) {
   });
 }
 
+function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+
 function scrollToEnd() { els.messages.scrollTop = els.messages.scrollHeight; }
 
 function setStatus(text, isError = false) {
@@ -105,7 +107,7 @@ async function loadDocuments() {
 
 function docItem(doc) {
   const item = el("li");
-  item.append(el("span", "doc-name", doc.source), el("span", "doc-meta", doc.chunks + " fragmentos"));
+  item.append(el("span", "doc-name", doc.source), el("span", "doc-meta", plural(doc.chunks, "fragmento", "fragmentos")));
   const remove = el("button", "link-btn", "Quitar");
   remove.type = "button";
   remove.setAttribute("aria-label", "Quitar " + doc.source);
@@ -177,6 +179,7 @@ async function addArtifact(box, artifact) {
   box.append(card);
   try {
     const response = await fetch(link.href);
+    if (response.status === 404) throw new Error("El archivo de este artefacto ya no está disponible.");
     if (!response.ok) throw new Error("No se pudo leer el artefacto (" + response.status + ")");
     const text = await response.text();
     if (artifact.type === "mermaid" && window.mermaid) await renderMermaid(body, text);
@@ -224,6 +227,12 @@ function addTurn(data) {
   els.tracePanel.scrollTop = els.tracePanel.scrollHeight;
 }
 
+async function showAgentTurn(data) {
+  const box = addAgentMessage(data.reply);
+  addTurn(data);
+  for (const artifact of data.artifacts) await addArtifact(box, artifact);
+}
+
 async function sendMessage(text) {
   busy = true;
   els.send.disabled = true;
@@ -237,9 +246,8 @@ async function sendMessage(text) {
       body: JSON.stringify({ session_id: sessionId(), message: text }),
     });
     waiting.remove();
-    const box = addAgentMessage(data.reply);
-    addTurn(data);
-    for (const artifact of data.artifacts) await addArtifact(box, artifact);
+    await showAgentTurn(data);
+    loadConversations();
   } catch (error) {
     waiting.replaceWith(el("div", "msg-error", error.message));
   } finally {
@@ -260,15 +268,79 @@ els.form.addEventListener("submit", (event) => {
 els.input.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); els.form.requestSubmit(); }
 });
-els.newChat.addEventListener("click", () => {
-  if (busy) return;
-  resetSession();
+function clearChat() {
   turnCount = 0;
   els.messages.replaceChildren(els.chatEmpty);
   els.chatEmpty.hidden = false;
   els.turns.replaceChildren();
   els.traceEmpty.hidden = false;
+}
+
+els.newChat.addEventListener("click", () => {
+  if (busy) return;
+  setSession(newSessionId());
+  clearChat();
+  loadConversations();
+  els.input.focus();
 });
+
+// --- conversaciones guardadas ---
+
+function setConvStatus(text, isError = false) {
+  els.convStatus.textContent = text;
+  els.convStatus.classList.toggle("error", isError);
+}
+
+async function loadConversations() {
+  try {
+    const list = await api("/api/conversations");
+    const current = sessionId();
+    els.convList.replaceChildren(...list.map((conv) => convItem(conv, conv.id === current)));
+    els.convEmpty.hidden = list.length > 0;
+    return list;
+  } catch (error) { setConvStatus(error.message, true); return []; }
+}
+
+function convItem(conv, isCurrent) {
+  const item = el("li");
+  if (isCurrent) item.setAttribute("aria-current", "true");
+  const open = el("button", "conv-open");
+  open.type = "button";
+  const when = new Date(conv.updated).toLocaleString("es", { dateStyle: "short", timeStyle: "short" });
+  open.append(el("span", "conv-title", conv.title), el("span", "conv-meta", plural(conv.turns, "pregunta", "preguntas") + " · " + when));
+  open.addEventListener("click", () => openConversation(conv.id));
+  const remove = el("button", "link-btn", "Quitar");
+  remove.type = "button";
+  remove.setAttribute("aria-label", "Quitar la conversación " + conv.title);
+  remove.addEventListener("click", () => removeConversation(conv.id, conv.title));
+  item.append(open, remove);
+  return item;
+}
+
+async function openConversation(id) {
+  if (busy) return;
+  try {
+    const conv = await api("/api/conversations/" + encodeURIComponent(id));
+    setSession(id);
+    clearChat();
+    for (const turn of conv.turns) {
+      addUserMessage(turn.message);
+      await showAgentTurn(turn);
+    }
+    setConvStatus("");
+    loadConversations();
+  } catch (error) { setConvStatus(error.message, true); }
+}
+
+async function removeConversation(id, title) {
+  if (busy || !confirm("¿Quitar la conversación «" + title + "»?")) return;
+  try {
+    await api("/api/conversations/" + encodeURIComponent(id), { method: "DELETE" });
+    if (id === sessionId()) { setSession(newSessionId()); clearChat(); }
+    setConvStatus("Conversación quitada.");
+  } catch (error) { setConvStatus(error.message, true); }
+  loadConversations();
+}
 
 // --- arranque ---
 
@@ -277,9 +349,12 @@ function init() {
   if (window.mermaid) mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default" });
   if (!LIBS_OK || !window.mermaid) setStatus("No se cargaron las librerías de la página (¿sin conexión?). Las respuestas se verán como texto plano.", true);
   if (window.matchMedia("(max-width: 900px)").matches) {
+    els.convPanel.open = false;
     els.docsPanel.open = false;
     els.tracePanel.open = false;
   }
   loadDocuments();
+  // Si la conversación recordada existe en el servidor, se reabre (sobrevive a recargas y reinicios).
+  loadConversations().then((list) => { if (list.some((c) => c.id === sessionId())) openConversation(sessionId()); });
 }
 init();

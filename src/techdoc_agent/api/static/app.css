@@ -37,7 +37,9 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(
 
 /* --- paneles laterales --- */
 .side { background: var(--panel); overflow-y: auto; min-height: 0; }
-.docs { border-right: 1px solid var(--rule); }
+.left { background: var(--panel); border-right: 1px solid var(--rule); overflow-y: auto; min-height: 0; }
+.left .side { overflow: visible; border-bottom: 1px solid var(--rule); }
+.left .side:last-child { border-bottom: none; }
 .trace { border-left: 1px solid var(--rule); }
 .side > summary { cursor: pointer; padding: 1rem 1.1rem; font-weight: 600; list-style: none; border-bottom: 1px solid var(--rule); }
 .side > summary::-webkit-details-marker { display: none; }
@@ -54,7 +56,17 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(
 .drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .status { min-height: 1.4rem; font-size: .88rem; color: var(--muted); margin: .6rem 0 .2rem; }
 .status.error { color: var(--danger); }
+.status:empty { min-height: 0; margin: 0; }  /* sin texto no ocupa espacio (sigue siendo una región viva) */
 
+.conv-list { list-style: none; margin: 0; padding: 0; }
+.conv-list li:first-child { border-top: none; }
+.conv-list li { display: flex; align-items: baseline; gap: .5rem; padding: .45rem 0; border-top: 1px solid var(--rule); }
+.conv-open { flex: 1; min-width: 0; text-align: left; background: none; border: none; color: inherit; padding: 0; border-radius: 0; }
+.conv-open:hover .conv-title { text-decoration: underline; }
+.conv-title { display: block; overflow-wrap: anywhere; }
+.conv-meta { display: block; color: var(--muted); font-size: .78rem; }
+.conv-list li[aria-current="true"] { border-left: 3px solid var(--accent); padding-left: .5rem; margin-left: -.5rem; }
+.conv-list li[aria-current="true"] .conv-title { font-weight: 600; }
 .doc-list { list-style: none; margin: .4rem 0 0; padding: 0; }
 .doc-list li { display: flex; align-items: baseline; gap: .5rem; padding: .5rem 0; border-top: 1px solid var(--rule); }
 .doc-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -118,7 +130,7 @@ a.download { font-size: .82rem; color: var(--accent); }
 @media (max-width: 900px) {
   body { height: auto; }
   .app { display: flex; flex-direction: column; height: auto; min-height: 100%; }
-  .docs, .trace { border: none; border-bottom: 1px solid var(--rule); overflow: visible; }
+  .left, .trace { border: none; border-bottom: 1px solid var(--rule); overflow: visible; }
   .chat { min-height: 70vh; }
   .messages { padding: 1rem; }
   .composer { flex-direction: column; padding: .8rem 1rem 1rem; }
