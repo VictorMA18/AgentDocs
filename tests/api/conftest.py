@@ -13,6 +13,7 @@ from techdoc_agent import config
 from techdoc_agent.api.main import create_app
 from techdoc_agent.bootstrap import build_agent
 from techdoc_agent.core.llm import LLMReply
+from techdoc_agent.core.memory import Memory
 from techdoc_agent.rag.store_json import JsonVectorStore
 
 
@@ -31,6 +32,10 @@ class Api:
     def outputs_dir(self) -> Path:
         return self.root / "outputs"
 
+    @property
+    def conversations_dir(self) -> Path:
+        return self.root / "data" / "conversations"
+
 
 @pytest.fixture
 def make_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[..., Api]:
@@ -42,7 +47,8 @@ def make_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[..., A
     def make(script: list[LLMReply | Exception] | None = None) -> Api:
         llm = FakeLLMClient(script or [])
         store, embedder = JsonVectorStore(tmp_path / "idx"), HashingEmbedder()
-        app = create_app(build_agent(llm, store, embedder), store, embedder)
+        memory = Memory(settings.data_dir / "conversations")
+        app = create_app(build_agent(llm, store, embedder, memory), store, embedder)
         return Api(TestClient(app), llm, store, tmp_path)
 
     return make

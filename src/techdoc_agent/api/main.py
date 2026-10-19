@@ -26,6 +26,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from techdoc_agent import config
 from techdoc_agent.core.agent import Agent, ToolTrace
 from techdoc_agent.core.llm import LLMError
+from techdoc_agent.core.memory import Memory
+from techdoc_agent.core.transcripts import Transcripts
+from techdoc_agent.logging_setup import log_event
 from techdoc_agent.rag.embeddings import Embedder
 from techdoc_agent.rag.ingest import ingest_file
 from techdoc_agent.rag.store import VectorStore
@@ -35,6 +38,7 @@ MAX_MESSAGE_CHARS = 8000
 UPLOAD_CHUNK = 1024 * 1024
 MULTIPART_OVERHEAD = 64 * 1024  # margen de cabeceras del multipart al comparar con Content-Length
 
+CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 SOURCE_NAME = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 ARTIFACT_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 ARTIFACT_TYPES = {".mmd": "mermaid", ".md": "requirements"}
@@ -56,6 +60,7 @@ class Core:
     agent: Agent
     store: VectorStore
     embedder: Embedder
+    transcripts: Transcripts
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
@@ -74,7 +79,8 @@ def _build_core() -> Core:
     from techdoc_agent.rag.factory import build_store
 
     embedder, store = SentenceTransformerEmbedder(), build_store()
-    return Core(build_agent(ClaudeCliClient(), store, embedder), store, embedder)
+    agent = build_agent(ClaudeCliClient(), store, embedder, Memory(_conversations_dir()))
+    return Core(agent, store, embedder, Transcripts(_conversations_dir()))
 
 
 # --- validación de nombres ---
@@ -90,6 +96,16 @@ def safe_filename(raw: str | None) -> str:
 
 def _documents_dir() -> Path:
     return config.settings.data_dir / "documents"
+
+
+def _conversations_dir() -> Path:
+    return config.settings.data_dir / "conversations"
+
+
+def _valid_conversation_id(conversation_id: str) -> str:
+    if not CONVERSATION_ID.fullmatch(conversation_id):
+        raise HTTPException(400, "Identificador de conversación no válido")
+    return conversation_id
 
 
 def _artifact_path(name: str) -> Path:
@@ -139,7 +155,8 @@ def create_app(
         yield
 
     app = FastAPI(title="TechDoc Agent", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-    app.state.core = Core(agent, store, embedder) if agent is not None and store is not None and embedder is not None else None
+    injected = agent is not None and store is not None and embedder is not None
+    app.state.core = Core(agent, store, embedder, Transcripts(_conversations_dir())) if injected else None
 
     def core_of(request: Request) -> Core:
         return request.app.state.core
@@ -184,16 +201,44 @@ def create_app(
                 result = core.agent.run(body.session_id, body.message)
             except LLMError:  # el detalle ya está en el log; al cliente, un mensaje genérico
                 raise HTTPException(502, "El modelo no respondió correctamente. Inténtalo de nuevo.") from None
-        return {
-            "reply": result.text,
-            "tool_calls": [
-                {"tool": t.name, "args": t.args, "is_error": t.is_error, "duration_ms": t.duration_ms}
-                for t in result.tool_calls
-            ],
-            "artifacts": _turn_artifacts(result.tool_calls),
-            "usage": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
-            "truncated": result.truncated,
-        }
+            response = {
+                "reply": result.text,
+                "tool_calls": [
+                    {"tool": t.name, "args": t.args, "is_error": t.is_error, "duration_ms": t.duration_ms}
+                    for t in result.tool_calls
+                ],
+                "artifacts": _turn_artifacts(result.tool_calls),
+                "usage": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
+                "truncated": result.truncated,
+            }
+            try:
+                core.transcripts.append(body.session_id, {"message": body.message, **response})
+            except OSError as exc:  # la respuesta ya existe: no se pierde por un fallo de disco
+                log_event(session=body.session_id, event="transcript_save_error", error=str(exc))
+        return response
+
+    # --- conversaciones guardadas ---
+
+    @app.get("/api/conversations")
+    def list_conversations(request: Request) -> list[dict[str, Any]]:
+        return core_of(request).transcripts.list()
+
+    @app.get("/api/conversations/{conversation_id}")
+    def get_conversation(conversation_id: str, request: Request) -> dict[str, Any]:
+        conversation = core_of(request).transcripts.get(_valid_conversation_id(conversation_id))
+        if conversation is None:
+            raise HTTPException(404, "Conversación no encontrada")
+        return conversation
+
+    @app.delete("/api/conversations/{conversation_id}")
+    def delete_conversation(conversation_id: str, request: Request) -> dict[str, Any]:
+        core = core_of(request)
+        with core.lock:
+            existed = core.transcripts.delete(_valid_conversation_id(conversation_id))
+            core.agent.memory.clear(conversation_id)  # la memoria del agente, en RAM y en disco
+        if not existed:
+            raise HTTPException(404, "Conversación no encontrada")
+        return {"id": conversation_id}
 
     # --- documentos ---
 
