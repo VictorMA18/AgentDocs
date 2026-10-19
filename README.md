@@ -37,6 +37,7 @@ Las dependencias se instalan por fases (ver ADR-007 en `docs/09`). Para la inges
 ```bash
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install numpy sentence-transformers pypdf
+pip install chromadb                         # solo si usas VECTOR_STORE=chroma (Fase 4)
 ```
 
 ## Chat por consola
@@ -81,7 +82,8 @@ La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `
 | `loaders.py` | Lee `.md .txt .pdf` y código; valida tipo y tamaño |
 | `chunking.py` | Divide en fragmentos por secciones, sin partir bloques de código |
 | `embeddings.py` | Interfaz `Embedder` y modelo local multilingüe |
-| `store.py` / `store_json.py` | Interfaz `VectorStore` y almacén JSON + numpy |
+| `store.py` / `store_json.py` / `store_chroma.py` | Interfaz `VectorStore` y sus dos almacenes: JSON + numpy y ChromaDB |
+| `factory.py` | Elige el almacén según `VECTOR_STORE` (`json` por defecto, o `chroma`) |
 | `ingest.py` / `retrieval.py` | Orquesta la ingesta (y el script de consola) y consulta el índice |
 
 ## Configuración y logs
@@ -91,4 +93,4 @@ La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `
 
 ## Estado
 
-Fases 0, 1, 2, 3 y 3b completadas (RAG como herramienta, skill, memoria recortada, diagramas y requisitos). Siguiente: Fase 4 (ChromaDB). Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.
+Fases 0, 1, 2, 3, 3b y 4 completadas (RAG como herramienta, skill, memoria recortada, diagramas y requisitos, almacén ChromaDB seleccionable). Siguiente: Fase 5 (FastAPI + HTML). Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.

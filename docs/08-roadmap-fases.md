@@ -7,7 +7,7 @@ Estado (marca al terminar cada una):
 - [x] Fase 2 · Ingesta + almacén JSON (sin agente)
 - [x] Fase 3 · RAG como herramienta + skill
 - [x] Fase 3b · Herramientas de diagramas y requisitos
-- [ ] Fase 4 · Migración a ChromaDB
+- [x] Fase 4 · Migración a ChromaDB
 - [ ] Fase 5 · FastAPI + HTML
 - [ ] Fase 6 · Servidor MCP
 - [ ] Fase 7 · Evaluaciones, logs y README final

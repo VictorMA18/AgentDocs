@@ -62,9 +62,14 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 - **Decisión:** `generar_diagrama` y `generar_requisitos` validan con reglas propias (cabecera acorde al tipo, corchetes balanceados, ids únicos, prioridad MoSCoW, criterio/métrica presentes), devuelven todos los errores a la vez como `is_error` y solo guardan si todo es válido. Los nombres de archivo son `prefijo-slug-id` generados por el sistema (`outputs/naming.py`, creación exclusiva) y al modelo solo se le devuelve el nombre.
 - **Consecuencias:** el modelo se autocorrige sin intervención humana (cubierto con cliente falso y confirmado en real al forzarlo con un Mermaid roto; no apareció de forma natural en las pruebas de aceptación); la validación no garantiza que Mermaid renderice (v2 con `mermaid-cli` en la Fase 8); los avisos (requisito sin fuente) no bloquean.
 
-*(Añade aquí: ADR-013…)*
+### ADR-013 · ChromaDB como segundo almacén seleccionable (JSON sigue por defecto)
+- **Contexto:** Fase 4. La interfaz `VectorStore` ya aislaba al resto del código; había que comprobar que una base vectorial real encaja sin tocar el agente y medir si compensa.
+- **Decisión:** `ChromaVectorStore` (HNSW con coseno, vectores de nuestro `Embedder`, `upsert`, `score = 1 - distancia`) convive con `JsonVectorStore`; `VECTOR_STORE=json|chroma` y `rag/factory.py` eligen cuál. El valor por defecto sigue siendo `json`.
+- **Consecuencias:** mismos resultados en ambos (mismos fragmentos, scores con diferencia ≤ 2·10⁻⁷). Con este tamaño de corpus el JSON es más rápido en búsqueda (hasta 20.000 fragmentos no hay punto de cruce), usa menos disco (2-3×) y es más simple; Chroma gana en la reingesta de un documento sobre un índice grande (el JSON reescribe todo el índice) y en no cargar todo en memoria. Chroma añade una dependencia pesada (`onnxruntime`, etc.), y filtrar por fuente le cuesta más. Cambiar de almacén obliga a reindexar. Recomendación: JSON mientras el corpus sea de miles de fragmentos; Chroma si se espera crecer o ingestar con frecuencia.
 
-## Tabla de experimentos (rellenar en Fases 4 y 7)
+*(Añade aquí: ADR-014…)*
+
+## Tabla de experimentos (rellenar en Fase 7)
 
 | Fecha | Cambio | Métrica afectada | Antes | Después | Conclusión |
 |---|---|---|---|---|---|
@@ -73,6 +78,26 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 | 2026-10-17 | Memoria recortada (`MEMORY_MAX_TOKENS=1500`, `KEEP_TURNS=2`, 5 preguntas) | Tokens de entrada por pregunta | 10.097 → 12.807 → 15.923 (crece sin recorte) | 16.845 → 17.278 con compactación (2 compactaciones, ~4 s cada una) | El crecimiento se frena; el resumen no contiene valores técnicos y la pregunta repetida volvió a usar `buscar_documentos` |
 | 2026-10-17 | Aceptación de la Fase 3b (Haiku 5.5) | Comportamiento del agente | — | Secuencia "encolar y procesar": 2 búsquedas + `generar_diagrama` (ok a la primera) · estados: 1 búsqueda + diagrama · requisitos de reintentos: 1 búsqueda + 5 RF con fuente y criterio, sin avisos · en los 3 casos citas y supuestos marcados | Cumple; la autocorrección no apareció de forma natural (ver fila siguiente) |
 | 2026-10-18 | Autocorrección forzada y diagrama "tal cual" (Haiku 5.5) | Comportamiento ante Mermaid inválido | — | Mermaid roto: la herramienta lo rechazó con la lista de errores y el modelo lo corrigió y guardó en la siguiente llamada · código del usuario "tal cual": el modelo lo corregía en silencio; con la excepción añadida a la skill muestra los errores, propone la versión corregida y pregunta | La autocorrección funciona en real; el caso "tal cual" se arregló en la skill (ver tabla de fallos) |
+| 2026-10-18 | Migración a ChromaDB (Fase 4, MiniLM real) | Resultados y scores de `search` | JSON | Chroma | Mismos 3 fragmentos y orden en 5 consultas; diferencia máxima de score 1,8·10⁻⁷. Agente real (Haiku) con `VECTOR_STORE=chroma`: concurrencia del worker con cita [taskflow.md#4] y Kubernetes "no está cubierto" | Equivalentes; latencias y tamaños en la tabla de comparación (ADR-013) |
+
+### Comparación JSON vs Chroma (Fase 4)
+
+Medido con MiniLM real (384 dimensiones), CPU, 100 repeticiones por búsqueda (`top_k=5`, sin contar el cálculo del embedding de la consulta). Los corpus de 500 fragmentos o más son sintéticos: el sample duplicado con ruido pequeño y 50 fuentes distintas.
+
+| Fragmentos | Almacén | Indexar (s) | Reabrir (ms) | Búsqueda (ms) | Búsqueda con `source` (ms) | Disco (MB) |
+|---|---|---|---|---|---|---|
+| 8 (real) | JSON | 0,00 | 0,3 | 0,01 | 0,01 | 0,02 |
+| 8 (real) | Chroma | 0,05 | 18,6 | 1,65 | 1,78 | 0,41 |
+| 500 | JSON | 0,00 | 1,5 | 0,03 | 0,04 | 1,01 |
+| 500 | Chroma | 0,22 | 19,2 | 1,87 | 2,07 | 3,48 |
+| 5.000 | JSON | 0,14 | 12,9 | 0,37 | 0,53 | 10,14 |
+| 5.000 | Chroma | 2,25 | 21,8 | 2,47 | 4,75 | 25,67 |
+| 20.000 | JSON | 2,28 | 60,3 | 2,29 | 2,69 | 40,60 |
+| 20.000 | Chroma | 10,63 | 27,8 | 5,36 | 12,95 | 92,82 |
+
+Reingesta de un documento de 8 fragmentos (borrar + añadir) sobre un índice existente: con 5.000 fragmentos, JSON 17,8 ms y Chroma 10,2 ms; con 20.000, JSON 58,6 ms y Chroma 14,5 ms (el JSON reescribe el índice completo en cada `add`).
+
+Resultados con el sample real (5 consultas, top-3): mismos ids en el mismo orden en ambos almacenes y diferencia máxima de score de 1,8·10⁻⁷.
 
 ## Fallos encontrados y cómo se arreglaron (rellenar durante el desarrollo)
 
@@ -80,7 +105,7 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 |---|---|---|---|
 | Con solape, un fragmento de párrafo largo superaba `chunk_size` | Cada trozo ocupaba todo el presupuesto y luego se le añadía la cola de solape | Partir el párrafo en trozos de `presupuesto − solape` (`tests/rag/test_chunking.py::test_long_paragraph_is_split_with_overlap`) | — (test unitario) |
 | `.gitignore` con `outputs/` ignoraba también `src/techdoc_agent/outputs/` y `tests/outputs/` (el código nuevo no aparecía en `git status`) | La regla sin `/` inicial coincide con cualquier carpeta de ese nombre | Cambiar a `/outputs/` (solo la carpeta raíz de artefactos) | — (config de git) |
-| La consulta "cómo integro TaskFlow con Kubernetes" puntúa 0,64 con el fragmento de portada | La búsqueda vectorial se deja llevar por el nombre del producto aunque el tema no esté en la documentación | Mitigado en la skill ("evalúa la evidencia"): en la aceptación de la Fase 3 el agente declaró que la documentación no lo cubre. El retriever sigue devolviendo la portada con 0,64. Una sola ejecución, no una medida | `fuera-alcance-k8s` (ya en `evals/dataset.example.jsonl`); se mide en la Fase 7 y la búsqueda híbrida (Fase 8) solo se justifica si la tasa de acierto es baja |
+| La consulta "cómo integro TaskFlow con Kubernetes" puntúa 0,58-0,64 con el fragmento de portada (0,5775 medido en la Fase 4, idéntico en JSON y Chroma) | La búsqueda vectorial se deja llevar por el nombre del producto aunque el tema no esté en la documentación | Mitigado en la skill ("evalúa la evidencia"): en la aceptación de la Fase 3 el agente declaró que la documentación no lo cubre. El retriever sigue devolviendo la portada con ~0,58 (también con Chroma, donde el agente respondió igual de bien). Una sola ejecución, no una medida | `fuera-alcance-k8s` (ya en `evals/dataset.example.jsonl`); se mide en la Fase 7 y la búsqueda híbrida (Fase 8) solo se justifica si la tasa de acierto es baja |
 | El modelo conjeturó que "el índice puede estar incompleto" ante una respuesta sin resultados | Sin regla que lo prohíba, rellena el hueco con una hipótesis sobre el sistema | Regla en `SKILL.md` ("No especular sobre el estado del sistema ni del índice") | — (pendiente de dataset, Fase 7) |
 | Con un diagrama Mermaid roto que el usuario pidió guardar "tal cual", el modelo lo corrigió en silencio | La skill pedía corregir los errores de la herramienta sin distinguir el código aportado por el usuario | Excepción en `SKILL.md` (diagramas, paso 4): mostrar errores, proponer la versión corregida y preguntar | — (pendiente de dataset, Fase 7) |
 

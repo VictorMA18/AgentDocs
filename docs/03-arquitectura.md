@@ -117,7 +117,7 @@ Ver `AGENTS.md`, secciones "Mapa de ubicaciones" y "Estructura objetivo".
 ```
 data/
   documents/      # archivos originales subidos
-  index/          # índice vectorial (index.json o chroma/)
+  index/          # índice vectorial (index.json + vectors.npy, o chroma/ según VECTOR_STORE)
 outputs/          # diagramas y documentos de requisitos generados
 logs/             # agent-YYYYMMDD.jsonl
 ```

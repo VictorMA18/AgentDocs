@@ -75,13 +75,19 @@ class VectorStore(Protocol):
 - Límite práctico: decenas de miles de fragmentos.
 
 ### Opción B · ChromaDB (Fase 4)
-- `PersistentClient(path="data/index/chroma")`, una colección, `metric: cosine`.
-- Se le pasan los embeddings calculados por nuestro `Embedder`.
-- Filtro por fuente con `where={"source": ...}`. Recordar que Chroma devuelve **distancias**; convertir a score (`1 - distancia` en coseno).
-- Verificar la API vigente en la documentación de Chroma antes de codificar.
+`rag/store_chroma.py` → `ChromaVectorStore(index_dir)`; API verificada con `chromadb` 1.5.9:
+- `chromadb.PersistentClient(path=…, settings=Settings(anonymized_telemetry=False))` y una colección `chunks` creada con `get_or_create_collection(name, configuration={"hnsw": {"space": "cosine"}}, embedding_function=None)`: se le pasan **siempre** los vectores de nuestro `Embedder` (el embedding por defecto de Chroma es solo inglés).
+- Guardado con `upsert(ids, embeddings, documents, metadatas)`. `add` ignora en silencio los ids repetidos; `upsert` los reemplaza (como el almacén JSON). Se trocea según `client.get_max_batch_size()`.
+- El origen viaja en los metadatos (`source`) para poder filtrar con `where={"source": …}`; al reconstruir el `Chunk` se retira, así `chunk.metadata` es idéntico al del JSON. Los metadatos de Chroma solo admiten str/int/float/bool.
+- Chroma devuelve **distancias**; con coseno, `score = 1 - distancia` (misma escala que el producto punto del JSON; diferencia medida ≤ 2·10⁻⁷). `n_results` mayor que el número de elementos se recorta solo.
+- Una dimensión distinta lanza `InvalidArgumentError`; el almacén la traduce al mismo `ValueError` ("Reindexa los documentos") que el JSON.
+- Ruta: `data/index/chroma/` (convive con `index.json` + `vectors.npy`).
+
+### Selección del almacén (`rag/factory.py`)
+`build_store()` lee `VECTOR_STORE` (`json` por defecto, o `chroma`) y devuelve un `VectorStore`. `cli.py` e `ingest.py` lo usan; el agente y las herramientas solo ven la interfaz. `chromadb` se importa únicamente si se elige Chroma. **No hay migración automática**: al cambiar de almacén (como al cambiar de modelo de embeddings) hay que reindexar con `/ingestar`.
 
 ### Migración (Fase 4)
-Mismo conjunto de pruebas parametrizado para ambos almacenes (`@pytest.mark.parametrize`). Comparar resultados del dataset de evaluación antes y después y **anotarlo** en `docs/09` (buena historia de portafolio).
+Los tests del almacén son un contrato parametrizado (`tests/rag/test_store_contract.py`) que corre contra ambas implementaciones; además hay un test de paridad (mismo corpus → mismos fragmentos y scores). La comparación medida (resultados, latencia, tamaño) está en `docs/09` (ADR-013).
 
 ## Recuperación
 

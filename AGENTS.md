@@ -48,6 +48,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Interfaz `VectorStore`, `Chunk`, `SearchHit` | `src/techdoc_agent/rag/store.py` | Fase 2 |
 | Almacén JSON + numpy | `src/techdoc_agent/rag/store_json.py` | Fase 2 |
 | Almacén ChromaDB | `src/techdoc_agent/rag/store_chroma.py` | Fase 4 |
+| Selección del almacén (`VECTOR_STORE`) | `src/techdoc_agent/rag/factory.py` | Fase 4 |
 | Orquestación de la ingesta y script de consola | `src/techdoc_agent/rag/ingest.py` | Fase 2 |
 | Recuperación (consulta de texto → fragmentos) | `src/techdoc_agent/rag/retrieval.py` | Fase 2 |
 | Herramientas `buscar_documentos` y `listar_documentos` (registro) | `src/techdoc_agent/core/tools_rag.py` | Fase 3 |
@@ -177,7 +178,7 @@ src/techdoc_agent/
   core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  prompts.py  skills.py
              memory.py  summarizer.py  llm.py
   rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py
-             store_json.py  store_chroma.py  ingest.py
+             store_json.py  store_chroma.py  factory.py  ingest.py
   outputs/   diagrams.py  requirements_doc.py  naming.py
   api/       main.py  static/index.html
 tests/
