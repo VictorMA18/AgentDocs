@@ -20,7 +20,7 @@ from techdoc_agent.rag.embeddings import Embedder
 from techdoc_agent.rag.loaders import load_file
 from techdoc_agent.rag.retrieval import search
 from techdoc_agent.rag.store import VectorStore
-from techdoc_agent.rag.store_json import JsonVectorStore
+from techdoc_agent.rag.factory import build_store
 
 
 @dataclass
@@ -111,7 +111,7 @@ def main(argv: list[str] | None = None, *, embedder: Embedder | None = None) -> 
 
         print(f"Cargando modelo {config.settings.embedding_model} (la primera vez se descarga)...")
         embedder = SentenceTransformerEmbedder()
-    store = JsonVectorStore(config.settings.data_dir / "index")
+    store = build_store()
 
     if args.ruta:
         _print_ingest(Path(args.ruta), store, embedder)

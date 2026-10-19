@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from techdoc_agent import config
 from techdoc_agent.core.agent import Agent, AgentResult
 from techdoc_agent.core.llm import ClaudeCliClient, LLMClient, LLMError
 from techdoc_agent.core.memory import Memory
@@ -17,7 +16,7 @@ from techdoc_agent.core.tools_rag import rag_tools
 from techdoc_agent.rag.embeddings import Embedder, SentenceTransformerEmbedder
 from techdoc_agent.rag.ingest import ingest_dir, ingest_file
 from techdoc_agent.rag.store import VectorStore
-from techdoc_agent.rag.store_json import JsonVectorStore
+from techdoc_agent.rag.factory import build_store
 
 AYUDA = "Comandos: /ingestar <ruta> (indexa un archivo o carpeta), /nuevo (reinicia), /salir"
 
@@ -62,7 +61,7 @@ def mostrar(result: AgentResult) -> None:
 def main() -> None:
     print("Cargando modelo de embeddings…")
     embedder = SentenceTransformerEmbedder()
-    store = JsonVectorStore(config.settings.data_dir / "index")
+    store = build_store()
     agent = build_agent(ClaudeCliClient(), store, embedder)
     session_id = uuid.uuid4().hex[:8]
     print(f"TechDoc Agent (sesión {session_id}). {AYUDA}")
