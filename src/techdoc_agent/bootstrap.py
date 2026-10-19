@@ -14,7 +14,13 @@ from techdoc_agent.rag.embeddings import Embedder
 from techdoc_agent.rag.store import VectorStore
 
 
-def build_agent(llm: LLMClient, store: VectorStore, embedder: Embedder) -> Agent:
-    """Une el LLM, las herramientas RAG y de salida y el system prompt (reglas fijas + skill activa)."""
+def build_agent(
+    llm: LLMClient, store: VectorStore, embedder: Embedder, memory: Memory | None = None
+) -> Agent:
+    """Une el LLM, las herramientas RAG y de salida y el system prompt (reglas fijas + skill activa).
+
+    ``memory`` por defecto vive en RAM; un adaptador puede pasar una ``Memory`` con carpeta.
+    """
     prompt = build_system_prompt(load_skill())
-    return Agent(llm, ToolRegistry([*rag_tools(store, embedder), *output_tools()]), Memory(), prompt)
+    tools = ToolRegistry([*rag_tools(store, embedder), *output_tools()])
+    return Agent(llm, tools, memory if memory is not None else Memory(), prompt)

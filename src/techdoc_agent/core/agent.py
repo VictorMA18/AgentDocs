@@ -89,6 +89,19 @@ class Agent:
                   summary_chars=len(summary), duration_ms=_ms(started))
 
     def run(self, session_id: str, user_message: str) -> AgentResult:
+        try:
+            return self._run(session_id, user_message)
+        finally:  # también tras un error o el tope de iteraciones: el disco refleja el estado final
+            self._persist(session_id)
+
+    def _persist(self, session_id: str) -> None:
+        """Guarda la memoria; si el disco falla, la conversación sigue en RAM."""
+        try:
+            self.memory.save(session_id)
+        except OSError as exc:
+            log_event(session=session_id, event="memory_save_error", error=str(exc))
+
+    def _run(self, session_id: str, user_message: str) -> AgentResult:
         self._maybe_compact(session_id)
         history = self.memory.get(session_id)
         self.memory.mark_turn(session_id)
