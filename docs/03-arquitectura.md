@@ -106,7 +106,7 @@ flowchart LR
 | RAG | Herramienta del agente | El LLM decide cuándo y con qué consulta buscar |
 | Almacén vectorial | Interfaz `VectorStore`; JSON+numpy → Chroma | Aprender el mecanismo y luego usar una librería |
 | Embeddings | Locales, multilingües | Sin costo ni API key adicional; el contenido suele estar en español |
-| Memoria | En memoria por `session_id`; los turnos antiguos se resumen (ADR-011) | Controla el contexto enviado en cada llamada; la persistencia queda para después |
+| Memoria | Por `session_id`; los turnos antiguos se resumen (ADR-011); en disco si el adaptador lo pide (la web, ADR-015) | Controla el contexto enviado en cada llamada y permite retomar una conversación tras reiniciar |
 | Frontend | HTML + JS puro | El foco es el agente, no el frontend |
 | Diagramas | El LLM escribe Mermaid; la herramienta valida | El feedback de errores permite que el agente se autocorrija |
 
@@ -117,6 +117,7 @@ Ver `AGENTS.md`, secciones "Mapa de ubicaciones" y "Estructura objetivo".
 ```
 data/
   documents/      # archivos originales subidos
+  conversations/  # <id>.memory.json (memoria del agente) y <id>.turns.json (lo que muestra la página)
   index/          # índice vectorial (index.json + vectors.npy, o chroma/ según VECTOR_STORE)
 outputs/          # diagramas y documentos de requisitos generados
 logs/             # agent-YYYYMMDD.jsonl

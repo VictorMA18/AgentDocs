@@ -40,6 +40,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Registro y despacho de herramientas | `src/techdoc_agent/core/tools.py` | Fase 1 |
 | Historial por sesión | `src/techdoc_agent/core/memory.py` | Fase 1 |
 | Resumen de turnos antiguos (recorte de memoria) | `src/techdoc_agent/core/summarizer.py` | tras Fase 3 (ADR-011) |
+| Transcripciones de conversaciones y archivos JSON por sesión | `src/techdoc_agent/core/transcripts.py`, `core/storage.py` | Fase 5 (ADR-015) |
 | Construcción del system prompt | `src/techdoc_agent/core/prompts.py` | Fase 3 |
 | Carga de skills | `src/techdoc_agent/core/skills.py` | Fase 3 |
 | Lectura de archivos (.md/.txt/.pdf/código) | `src/techdoc_agent/rag/loaders.py` | Fase 2 |
@@ -57,7 +58,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Nombres de archivo generados (slug + id) | `src/techdoc_agent/outputs/naming.py` | Fase 3b |
 | Validación y render de requisitos | `src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
 | API web (endpoints) | `src/techdoc_agent/api/main.py` | Fase 5 |
-| Interfaz HTML/JS | `src/techdoc_agent/api/static/index.html` | Fase 5 |
+| Interfaz HTML/JS/CSS | `src/techdoc_agent/api/static/` (`index.html`, `app.js`, `app.css`) | Fase 5 |
+| Ensamblado del agente (CLI y API) | `src/techdoc_agent/bootstrap.py` | Fase 5 |
 | Servidor MCP | `src/techdoc_agent/mcp_server.py` | Fase 6 |
 | Chat por consola | `src/techdoc_agent/cli.py` | Fase 1 |
 
@@ -68,7 +70,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | **Skill del agente** (método y formatos de salida) | `skills/documentacion-tecnica/SKILL.md` | Se inserta en el system prompt. Cambiar el comportamiento del agente = editar este archivo. **No** es documentación del proyecto. |
 | Skill activa | variable `ACTIVE_SKILL` en `.env` | |
 | Documentos de ejemplo para probar el RAG | `data/sample_docs/taskflow.md` | Documentación ficticia, versionada en git |
-| Documentos subidos por el usuario | `data/documents/` | En `.gitignore`; nombres generados por el sistema |
+| Documentos subidos por el usuario | `data/documents/` | En `.gitignore`; nombres saneados por el sistema (ADR-014) |
+| Conversaciones guardadas (web) | `data/conversations/` | En `.gitignore`; contienen texto de las conversaciones |
 | Índice vectorial | `data/index/` (`index.json` + `vectors.npy`, o `chroma/`) | En `.gitignore` |
 | Artefactos generados (diagramas `.mmd`, requisitos `.md`) | `outputs/` | En `.gitignore`; nombres generados (slug + id) |
 | Logs del agente | `logs/agent-YYYYMMDD.jsonl` | En `.gitignore` |
@@ -174,16 +177,16 @@ AGENTS.md  CLAUDE.md  README.md  requirements.txt  pyproject.toml  .env.example
 docs/                  # documentación del proyecto (01-09)
 skills/documentacion-tecnica/SKILL.md
 src/techdoc_agent/
-  config.py  logging_setup.py  cli.py  mcp_server.py
+  config.py  logging_setup.py  bootstrap.py  cli.py  mcp_server.py
   core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  prompts.py  skills.py
-             memory.py  summarizer.py  llm.py
+             memory.py  summarizer.py  transcripts.py  storage.py  llm.py
   rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py
              store_json.py  store_chroma.py  factory.py  ingest.py
   outputs/   diagrams.py  requirements_doc.py  naming.py
-  api/       main.py  static/index.html
+  api/       main.py  static/index.html  static/app.js  static/app.css
 tests/
 evals/       dataset.example.jsonl  dataset.jsonl  fixtures/  run.py  results/
-data/        sample_docs/  documents/  index/
+data/        sample_docs/  documents/  index/  conversations/
 outputs/     # artefactos generados (runtime)
 logs/        # JSONL (runtime)
 ```

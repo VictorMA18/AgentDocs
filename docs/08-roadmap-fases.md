@@ -8,7 +8,7 @@ Estado (marca al terminar cada una):
 - [x] Fase 3 · RAG como herramienta + skill
 - [x] Fase 3b · Herramientas de diagramas y requisitos
 - [x] Fase 4 · Migración a ChromaDB
-- [ ] Fase 5 · FastAPI + HTML
+- [x] Fase 5 · FastAPI + HTML
 - [ ] Fase 6 · Servidor MCP
 - [ ] Fase 7 · Evaluaciones, logs y README final
 - [ ] Fase 8 · (Opcional) streaming, agente revisor (la memoria recortada ya se adelantó, ver ADR-011)

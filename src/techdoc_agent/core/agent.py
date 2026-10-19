@@ -34,6 +34,7 @@ class ToolTrace:
     args: dict[str, Any]
     is_error: bool
     duration_ms: int
+    result: str = ""  # texto que devolvió la herramienta (lo usan los adaptadores, p. ej. para artefactos)
 
 
 @dataclass
@@ -88,6 +89,19 @@ class Agent:
                   summary_chars=len(summary), duration_ms=_ms(started))
 
     def run(self, session_id: str, user_message: str) -> AgentResult:
+        try:
+            return self._run(session_id, user_message)
+        finally:  # también tras un error o el tope de iteraciones: el disco refleja el estado final
+            self._persist(session_id)
+
+    def _persist(self, session_id: str) -> None:
+        """Guarda la memoria; si el disco falla, la conversación sigue en RAM."""
+        try:
+            self.memory.save(session_id)
+        except OSError as exc:
+            log_event(session=session_id, event="memory_save_error", error=str(exc))
+
+    def _run(self, session_id: str, user_message: str) -> AgentResult:
         self._maybe_compact(session_id)
         history = self.memory.get(session_id)
         self.memory.mark_turn(session_id)
@@ -134,7 +148,7 @@ class Agent:
                 content, is_error = self.tools.dispatch(call.name, call.args)
                 duration = _ms(tool_started)
                 tool_results.append(ToolResult(call.id, content, is_error))
-                result.tool_calls.append(ToolTrace(call.name, call.args, is_error, duration))
+                result.tool_calls.append(ToolTrace(call.name, call.args, is_error, duration, content))
                 log_event(session=session_id, iter=iteration, event="tool_call", tool=call.name,
                           args=call.args, duration_ms=duration, is_error=is_error,
                           result_chars=len(content))
