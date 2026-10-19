@@ -64,12 +64,12 @@ sequenceDiagram
     A->>AG: run(session_id, mensaje)
     loop hasta respuesta final o tope de iteraciones
         AG->>L: mensajes + herramientas + system prompt
-        alt stop_reason = tool_use
-            L-->>AG: tool_use(buscar_documentos, query)
+        alt accion = herramientas
+            L-->>AG: llamadas(buscar_documentos, query)
             AG->>T: ejecutar(args)
             T-->>AG: resultado o error
-            AG->>AG: añade tool_result al historial
-        else stop_reason = end_turn
+            AG->>AG: añade resultado_herramienta al historial
+        else accion = responder
             L-->>AG: texto final
         end
     end

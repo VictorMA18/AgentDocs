@@ -60,7 +60,7 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 ### ADR-012 · Herramientas de salida que validan y devuelven feedback (validación heurística v1)
 - **Contexto:** el agente debe producir diagramas Mermaid y documentos de requisitos fiables, sin que nuestro código genere contenido con IA ni acepte rutas del modelo.
 - **Decisión:** `generar_diagrama` y `generar_requisitos` validan con reglas propias (cabecera acorde al tipo, corchetes balanceados, ids únicos, prioridad MoSCoW, criterio/métrica presentes), devuelven todos los errores a la vez como `is_error` y solo guardan si todo es válido. Los nombres de archivo son `prefijo-slug-id` generados por el sistema (`outputs/naming.py`, creación exclusiva) y al modelo solo se le devuelve el nombre.
-- **Consecuencias:** el modelo se autocorrige sin intervención humana (cubierto con cliente falso; no apareció de forma natural en las pruebas reales); la validación no garantiza que Mermaid renderice (v2 con `mermaid-cli` en la Fase 8); los avisos (requisito sin fuente) no bloquean.
+- **Consecuencias:** el modelo se autocorrige sin intervención humana (cubierto con cliente falso y confirmado en real al forzarlo con un Mermaid roto; no apareció de forma natural en las pruebas de aceptación); la validación no garantiza que Mermaid renderice (v2 con `mermaid-cli` en la Fase 8); los avisos (requisito sin fuente) no bloquean.
 
 *(Añade aquí: ADR-013…)*
 
@@ -71,7 +71,8 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 | 2026-10-16 | Línea base de recuperación (Fase 2, MiniLM multilingüe, chunk 700/100) | Score del mejor fragmento | — | "reintentos": 0,243 · "¿cuántos reintentos hace una tarea por defecto?": 0,591 · "concurrencia por defecto del worker": 0,739 · fuera de tema ("receta de pizza"): 0,209 | Las consultas de una palabra puntúan bajo y quedan por debajo de `MIN_SCORE=0,25`; revisar el umbral en la Fase 3 con el dataset de evaluación |
 | 2026-10-17 | Aceptación de la Fase 3 (Haiku 5.5 + MiniLM, `MIN_SCORE=0,25`) | Comportamiento del agente | — | "hola": 0 búsquedas · concurrencia del worker: 1 búsqueda, respuesta "4" con cita [taskflow.md#4] · Kubernetes+Helm: 2 búsquedas, dice que la documentación no lo cubre y marca lo general como tal · pregunta compuesta: 2 búsquedas · regla extra en una copia de `SKILL.md`: respuesta cambia de formato sin tocar código | Cumple los 5 criterios; el umbral 0,25 se mantiene hasta tener dataset (Fase 7) |
 | 2026-10-17 | Memoria recortada (`MEMORY_MAX_TOKENS=1500`, `KEEP_TURNS=2`, 5 preguntas) | Tokens de entrada por pregunta | 10.097 → 12.807 → 15.923 (crece sin recorte) | 16.845 → 17.278 con compactación (2 compactaciones, ~4 s cada una) | El crecimiento se frena; el resumen no contiene valores técnicos y la pregunta repetida volvió a usar `buscar_documentos` |
-| 2026-10-17 | Aceptación de la Fase 3b (Haiku 5.5) | Comportamiento del agente | — | Secuencia "encolar y procesar": 2 búsquedas + `generar_diagrama` (ok a la primera) · estados: 1 búsqueda + diagrama · requisitos de reintentos: 1 búsqueda + 5 RF con fuente y criterio, sin avisos · en los 3 casos citas y supuestos marcados | Cumple; la autocorrección ante Mermaid inválido solo se ha visto con el cliente falso |
+| 2026-10-17 | Aceptación de la Fase 3b (Haiku 5.5) | Comportamiento del agente | — | Secuencia "encolar y procesar": 2 búsquedas + `generar_diagrama` (ok a la primera) · estados: 1 búsqueda + diagrama · requisitos de reintentos: 1 búsqueda + 5 RF con fuente y criterio, sin avisos · en los 3 casos citas y supuestos marcados | Cumple; la autocorrección no apareció de forma natural (ver fila siguiente) |
+| 2026-10-18 | Autocorrección forzada y diagrama "tal cual" (Haiku 5.5) | Comportamiento ante Mermaid inválido | — | Mermaid roto: la herramienta lo rechazó con la lista de errores y el modelo lo corrigió y guardó en la siguiente llamada · código del usuario "tal cual": el modelo lo corregía en silencio; con la excepción añadida a la skill muestra los errores, propone la versión corregida y pregunta | La autocorrección funciona en real; el caso "tal cual" se arregló en la skill (ver tabla de fallos) |
 
 ## Fallos encontrados y cómo se arreglaron (rellenar durante el desarrollo)
 
@@ -79,15 +80,17 @@ Formato: contexto → decisión → consecuencias. Añade una entrada cada vez q
 |---|---|---|---|
 | Con solape, un fragmento de párrafo largo superaba `chunk_size` | Cada trozo ocupaba todo el presupuesto y luego se le añadía la cola de solape | Partir el párrafo en trozos de `presupuesto − solape` (`tests/rag/test_chunking.py::test_long_paragraph_is_split_with_overlap`) | — (test unitario) |
 | `.gitignore` con `outputs/` ignoraba también `src/techdoc_agent/outputs/` y `tests/outputs/` (el código nuevo no aparecía en `git status`) | La regla sin `/` inicial coincide con cualquier carpeta de ese nombre | Cambiar a `/outputs/` (solo la carpeta raíz de artefactos) | — (config de git) |
-| La consulta "cómo integro TaskFlow con Kubernetes" puntúa 0,64 con el fragmento de portada | La búsqueda vectorial se deja llevar por el nombre del producto aunque el tema no esté en la documentación | Pendiente: lo debe resolver el agente leyendo los fragmentos (skill) y/o la búsqueda híbrida (Fase 8) | `fuera-alcance-k8s` (ya en `evals/dataset.example.jsonl`) |
+| La consulta "cómo integro TaskFlow con Kubernetes" puntúa 0,64 con el fragmento de portada | La búsqueda vectorial se deja llevar por el nombre del producto aunque el tema no esté en la documentación | Mitigado en la skill ("evalúa la evidencia"): en la aceptación de la Fase 3 el agente declaró que la documentación no lo cubre. El retriever sigue devolviendo la portada con 0,64. Una sola ejecución, no una medida | `fuera-alcance-k8s` (ya en `evals/dataset.example.jsonl`); se mide en la Fase 7 y la búsqueda híbrida (Fase 8) solo se justifica si la tasa de acierto es baja |
+| El modelo conjeturó que "el índice puede estar incompleto" ante una respuesta sin resultados | Sin regla que lo prohíba, rellena el hueco con una hipótesis sobre el sistema | Regla en `SKILL.md` ("No especular sobre el estado del sistema ni del índice") | — (pendiente de dataset, Fase 7) |
+| Con un diagrama Mermaid roto que el usuario pidió guardar "tal cual", el modelo lo corrigió en silencio | La skill pedía corregir los errores de la herramienta sin distinguir el código aportado por el usuario | Excepción en `SKILL.md` (diagramas, paso 4): mostrar errores, proponer la versión corregida y preguntar | — (pendiente de dataset, Fase 7) |
 
 ## Glosario
 
 - **Agente:** sistema donde el LLM decide, en un bucle, qué herramientas usar y cuándo terminar.
 - **Workflow:** flujo de pasos predefinido por código que usa LLMs en algunos pasos.
 - **Tool use / function calling:** capacidad del modelo de pedir la ejecución de una función con argumentos estructurados.
-- **`tool_use` / `tool_result`:** bloques de mensaje: el modelo pide una herramienta; tu código responde con el resultado.
-- **`stop_reason`:** por qué el modelo dejó de generar (`tool_use`, `end_turn`, `max_tokens`…).
+- **`tool_use` / `tool_result`:** bloques de mensaje de la API nativa: el modelo pide una herramienta; tu código responde con el resultado. Aquí no se usan (ADR-008): el equivalente es el protocolo JSON `accion: herramientas|responder` y los mensajes `<resultado_herramienta>`.
+- **`stop_reason`:** en la API nativa, por qué el modelo dejó de generar (`tool_use`, `end_turn`, `max_tokens`…). Aquí el bucle decide por el campo `accion` de la respuesta.
 - **RAG:** generación aumentada por recuperación; el modelo responde apoyándose en fragmentos recuperados.
 - **Embedding:** representación vectorial del significado de un texto.
 - **Similitud coseno:** medida de cercanía entre vectores.
