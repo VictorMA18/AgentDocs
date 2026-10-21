@@ -54,7 +54,8 @@ def test_core_and_rag_do_not_import_the_api() -> None:
     """RNF-07: el núcleo no depende de los adaptadores."""
     for package in ("core", "rag", "outputs"):
         for file in (SRC / package).rglob("*.py"):
-            assert "techdoc_agent.api" not in file.read_text(encoding="utf-8"), file
+            text = file.read_text(encoding="utf-8")
+            assert "techdoc_agent.api" not in text and "mcp_server" not in text, file
 
 
 def test_api_only_touches_the_core_through_its_public_entry_points() -> None:

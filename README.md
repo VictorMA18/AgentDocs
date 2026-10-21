@@ -55,6 +55,17 @@ uvicorn techdoc_agent.api.main:app --reload    # http://127.0.0.1:8000
 ```
 Una sola página con tres zonas: documentos (subir, listar y quitar), conversación (respuestas en Markdown saneado, con botón para copiar el código) y **pasos del agente** (qué herramientas usó cada respuesta, con argumentos y duración). Los diagramas que genera el agente se dibujan con Mermaid y los artefactos se pueden descargar. La API (`src/techdoc_agent/api/`) solo valida la entrada y llama al núcleo: rechaza extensiones no permitidas, archivos mayores que `MAX_UPLOAD_MB` y nombres con rutas. Detalle de endpoints y seguridad en `docs/06-api-y-mcp.md`. Las conversaciones se guardan solas en `data/conversations/` (ignorado por git): aparecen en el panel izquierdo, se pueden reabrir o quitar, y el agente conserva su contexto aunque reinicies el servidor. Esos archivos contienen el texto de lo hablado; bórralos desde la página o eliminando la carpeta. Las librerías de la página se cargan desde un CDN, así que hace falta conexión la primera vez.
 
+## Servidor MCP
+
+El proyecto también se puede usar desde otros clientes (Claude Code, Claude Desktop) mediante el protocolo MCP, por stdio. Expone cuatro herramientas: `buscar_documentos` y `listar_documentos` (el modelo del cliente razona con tu RAG), `ingestar_documento` (solo archivos dentro de `ALLOWED_INGEST_DIR`, indicando su nombre) y `preguntar_agente` (el agente completo con sus citas, que tarda más).
+
+```bash
+# Claude Code (usa rutas absolutas; las opciones van antes de --)
+claude mcp add --transport stdio techdoc -- /ruta/al/proyecto/.venv/bin/python -m techdoc_agent.mcp_server
+claude mcp list
+```
+Para Claude Desktop (macOS/Windows) y el resto de la configuración, ver `docs/06-api-y-mcp.md`. Después, en Claude Code: *"lista mis documentos"* usa tu servidor. El modelo de embeddings se carga en la primera búsqueda, no al arrancar. `mcp_server.py` es un adaptador delgado: valida y delega en el núcleo.
+
 ## Indexar y buscar documentos
 
 ```bash
@@ -94,6 +105,7 @@ La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `
 | `embeddings.py` | Interfaz `Embedder` y modelo local multilingüe |
 | `store.py` / `store_json.py` / `store_chroma.py` | Interfaz `VectorStore` y sus dos almacenes: JSON + numpy y ChromaDB |
 | `factory.py` | Elige el almacén según `VECTOR_STORE` (`json` por defecto, o `chroma`) |
+| `embeddings.py` (`LazyEmbedder`) | Carga el modelo de embeddings en el primer uso, para arrancar al instante |
 | `ingest.py` / `retrieval.py` | Orquesta la ingesta (y el script de consola) y consulta el índice |
 
 ## Configuración y logs
@@ -103,4 +115,4 @@ La primera vez descarga el modelo de embeddings (~470 MB). El índice queda en `
 
 ## Estado
 
-Fases 0, 1, 2, 3, 3b, 4 y 5 completadas (RAG como herramienta, skill, memoria recortada, diagramas y requisitos, almacén ChromaDB seleccionable, API web y página de chat). Siguiente: Fase 6 (servidor MCP). Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.
+Fases 0, 1, 2, 3, 3b, 4, 5 y 6 completadas (RAG como herramienta, skill, memoria recortada, diagramas y requisitos, almacén ChromaDB seleccionable, API web y servidor MCP). Siguiente: Fase 7 (evaluaciones). Ver el checklist de fases al inicio de `docs/08-roadmap-fases.md`.

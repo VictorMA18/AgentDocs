@@ -19,7 +19,7 @@ python-multipart
 httpx          # para TestClient
 
 # Fase 6
-mcp
+mcp>=2,<3        # 2.x: FastMCP pasó a llamarse MCPServer
 
 # Nota: cuando todo funcione, fija versiones exactas (pip freeze) para que el
 # proyecto sea reproducible, y anótalo en el README.

@@ -6,6 +6,7 @@ guardan **normalizados** (norma 1): así la similitud coseno es un producto punt
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Protocol
 
 import numpy as np
@@ -56,3 +57,30 @@ class SentenceTransformerEmbedder:
 
     def embed_query(self, text: str) -> np.ndarray:
         return self.embed_documents([text])[0]
+
+
+class LazyEmbedder:
+    """Carga el embedder real la primera vez que se usa, no al crearlo.
+
+    Cargar el modelo tarda segundos; con esto un servidor puede arrancar al instante y pagar
+    esa espera solo si alguien busca o indexa (las herramientas que no embeben no la pagan).
+    """
+
+    def __init__(self, factory: Callable[[], Embedder]) -> None:
+        self._factory = factory
+        self._embedder: Embedder | None = None
+
+    def _get(self) -> Embedder:
+        if self._embedder is None:
+            self._embedder = self._factory()
+        return self._embedder
+
+    @property
+    def dimension(self) -> int:
+        return self._get().dimension
+
+    def embed_documents(self, texts: list[str]) -> np.ndarray:
+        return self._get().embed_documents(texts)
+
+    def embed_query(self, text: str) -> np.ndarray:
+        return self._get().embed_query(text)
