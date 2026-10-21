@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from fakes import HashingEmbedder
 
-from techdoc_agent.rag.embeddings import SentenceTransformerEmbedder, normalize
+from techdoc_agent.rag.embeddings import LazyEmbedder, SentenceTransformerEmbedder, normalize
 
 
 def test_normalize_gives_unit_norm() -> None:
@@ -49,3 +49,24 @@ def test_real_model_dimension_and_norm() -> None:
     vectors = emb.embed_documents(["hola mundo", "retries"])
     assert vectors.shape == (2, emb.dimension) == (2, 384)
     assert np.allclose(np.linalg.norm(vectors, axis=1), 1.0, atol=1e-5)
+
+
+def test_lazy_embedder_does_not_build_the_real_one_until_used() -> None:
+    built: list[int] = []
+
+    def factory() -> HashingEmbedder:
+        built.append(1)
+        return HashingEmbedder()
+
+    lazy = LazyEmbedder(factory)
+    assert built == []  # crear el envoltorio no carga nada
+    assert lazy.embed_query("reintentos").shape == (HashingEmbedder().dimension,)
+    lazy.embed_documents(["a", "b"])
+    assert lazy.dimension == HashingEmbedder().dimension
+    assert built == [1]  # y se carga una sola vez
+
+
+def test_lazy_embedder_gives_the_same_vectors_as_the_wrapped_one() -> None:
+    lazy, real = LazyEmbedder(HashingEmbedder), HashingEmbedder()
+    assert np.array_equal(lazy.embed_documents(["hola mundo"]), real.embed_documents(["hola mundo"]))
+    assert np.array_equal(lazy.embed_query("hola"), real.embed_query("hola"))
