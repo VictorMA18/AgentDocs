@@ -147,7 +147,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 - CLI `claude` (Claude Code) como LLM — modelo configurable por `LLM_MODEL` (por defecto `claude-haiku-5-5`)
 - `numpy` + `sentence-transformers` (embeddings locales, multilingüe) → luego `chromadb`
 - `fastapi` + `uvicorn` + HTML/JS puro (sin framework de frontend)
-- `mcp` (SDK oficial de Python, `FastMCP`)
+- `mcp` 2.x (SDK oficial de Python, `MCPServer`; antes `FastMCP`)
 - `pytest`
 
 ## Convenciones de código

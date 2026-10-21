@@ -9,7 +9,7 @@ Estado (marca al terminar cada una):
 - [x] Fase 3b · Herramientas de diagramas y requisitos
 - [x] Fase 4 · Migración a ChromaDB
 - [x] Fase 5 · FastAPI + HTML
-- [ ] Fase 6 · Servidor MCP
+- [x] Fase 6 · Servidor MCP
 - [ ] Fase 7 · Evaluaciones, logs y README final
 - [ ] Fase 8 · (Opcional) streaming, agente revisor (la memoria recortada ya se adelantó, ver ADR-011)
 
@@ -201,7 +201,7 @@ descarga de artefactos. Arranca el servidor y dime exactamente qué probar en el
 **Concepto:** exponer el agente a otros clientes con un protocolo estándar.
 
 **Entregables**
-- `mcp_server.py` con `FastMCP`, herramientas de `docs/06` (sección B), transporte stdio, logs a stderr.
+- `mcp_server.py` con `MCPServer` (en `mcp` 2.x; antes `FastMCP`), herramientas de `docs/06` (sección B), transporte stdio, logs a stderr.
 - Documentar en el README cómo conectarlo a Claude Code y a Claude Desktop.
 - Test con el cliente MCP del SDK.
 
@@ -213,7 +213,7 @@ descarga de artefactos. Arranca el servidor y dime exactamente qué probar en el
 **Prompt para Claude Code**
 ```
 Ejecuta la Fase 6 de docs/08-roadmap-fases.md siguiendo docs/06-api-y-mcp.md (sección
-B). Usa el SDK oficial de Python de MCP (FastMCP) y transporte stdio. Nada de print a
+B). Usa el SDK oficial de Python de MCP (MCPServer; FastMCP en la 1.x) y transporte stdio. Nada de print a
 stdout. Verifica la API vigente del SDK en su documentación. Explícame qué diferencia
 hay entre exponer buscar_documentos y exponer preguntar_agente, y escribe un test que
 llame ambas herramientas.
