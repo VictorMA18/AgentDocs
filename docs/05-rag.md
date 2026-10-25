@@ -101,7 +101,8 @@ python -m techdoc_agent.rag.ingest --buscar "reintentos" --top-k 3           # s
 El índice guarda la dimensión de los vectores; si cambias `EMBEDDING_MODEL` hay que reindexar (el almacén rechaza dimensiones distintas).
 
 - `top_k` por defecto 5; el agente puede pedir más.
-- Umbral mínimo de score configurable (`MIN_SCORE`, p. ej. 0.25). Por debajo, el fragmento se descarta; si no queda ninguno, `"Sin resultados relevantes"`.
+- Umbral mínimo de score configurable (`MIN_SCORE`, p. ej. 0.25). Por debajo, el fragmento se descarta; si no queda ninguno, `"Sin resultados relevantes"`. En los modos léxico e híbrido también pasa un fragmento con coincidencia de palabras muy fuerte (`LEXICAL_MIN`, BM25 ≥ 4,0 por defecto) aunque su coseno no llegue a `MIN_SCORE`.
+- **Modo de búsqueda** (`SEARCH_MODE`, Fase 7.B, ADR-018): `hybrid` (por defecto) fusiona la búsqueda vectorial y BM25 con RRF; `vector` es la de siempre (solo significado); `lexical` es solo BM25 y existe sobre todo para comparar. `rag/lexical.py` implementa BM25 a mano (minúsculas, sin acentos, conserva `E-4021` y `ack_batch_window` enteros y partidos) y `rag/hybrid.py` la fusión por posición `1/(60+posición)`. El índice léxico se reconstruye en memoria a partir de `VectorStore.all_chunks()` en cada búsqueda: vale para este tamaño de corpus (decenas a miles de fragmentos); con muchos más habría que cachearlo. `SearchHit.score` es siempre el coseno y `lexical_score` el BM25 (`None` en `vector`).
 - Cada resultado se formatea como:
 ```
 <documento fuente="taskflow.md#3" seccion="Reintentos" score="0.82">
@@ -110,7 +111,7 @@ El índice guarda la dimensión de los vectores; si cambias `EMBEDDING_MODEL` ha
 ```
 
 ## Mejoras posibles (después de v1, guiadas por evaluación)
-1. Búsqueda híbrida (BM25 + vectorial).
+1. ~~Búsqueda híbrida (BM25 + vectorial).~~ Hecha en la Fase 7.B (ADR-018).
 2. *Reranking* con un modelo cruzado.
 3. Reescritura de consulta (el propio agente ya lo hace al reformular).
 4. Deduplicación de fragmentos casi idénticos.

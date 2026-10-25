@@ -38,6 +38,8 @@ Campos opcionales (los valida `evals/dataset.py`; un campo desconocido o un tipo
 - `setup_docs`: documentos extra a indexar **solo para ese caso** (rutas desde la raíz del repositorio; el caso corre con un índice propio).
 - `follow_up`: mensajes siguientes en la misma sesión. Las reglas de contenido miran la **última** respuesta; las de herramientas, **todos** los turnos.
 - `expect_clarification`: pregunta ambigua; debe preguntar o declarar su suposición.
+- `expect_evidence`: textos que deben aparecer en los **fragmentos recuperados** (nivel de fragmento: un archivo puede tener muchos y `expect_sources` solo mira el archivo). La regla `retrieval` exige fuentes **y** evidencia.
+- `kind`: tipo de caso difícil de recuperación (`exact_term`, `distractor`, `version`, `paraphrase`); el reporte agrupa por tipo.
 
 **Cómo se juzga cada regla** (`evals/rules.py`, funciones puras; `None` = no aplica a ese caso, y un caso pasa si pasan todas las que le aplican):
 | Regla | Pasa cuando… |
@@ -79,6 +81,13 @@ python -m evals.run --repeat 2 --workers 4 --label linea-base
 5. Imprime una tabla por caso, el porcentaje por regla y el global, y sale con **0** si la tasa global ≥ `EVAL_MIN_PASS` (por defecto 0,8; se cambia con `--min-pass`), **1** si no, **2** si el dataset o los argumentos no son válidos.
 
 Opciones: `--dataset`, `--only id1,id2`, `--repeat N`, `--workers N`, `--min-pass`, `--label`.
+
+### Recuperación sin LLM (`python -m evals.retrieval`)
+```bash
+python -m evals.retrieval                 # compara vector, lexical e hybrid en todos los casos
+python -m evals.retrieval --top-k 3 --only dificil-error-e4021
+```
+Indexa los documentos de cada caso, lanza la consulta literal y mide **hit@k** (¿está la evidencia entre los fragmentos?), **MRR** (¿en qué posición?) y **admitidos** (lo mismo tras el filtro `MIN_SCORE`/`LEXICAL_MIN` que aplica la herramienta). En los casos fuera de alcance cuenta los fragmentos admitidos (menos es mejor). Tarda segundos y no gasta tokens, por eso es la medición principal para ajustar la recuperación antes de pasar por el modelo.
 
 - **Repeticiones:** el CLI de Claude no permite fijar la temperatura (ADR-008), así que el modelo no es determinista. Con `--repeat N` cada caso se ejecuta N veces y cuenta como acierto si pasa en al menos la mitad; se informa la tasa.
 - **Paralelismo:** `--workers N` (4 por defecto) ejecuta casos a la vez; la espera es del subproceso `claude -p`. Reduce el tiempo total, no el gasto de tokens, y **infla la latencia medida** (varias llamadas compiten): para comparar tiempos usa `--workers 1`.

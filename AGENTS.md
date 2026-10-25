@@ -51,7 +51,9 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Almacén ChromaDB | `src/techdoc_agent/rag/store_chroma.py` | Fase 4 |
 | Selección del almacén (`VECTOR_STORE`) | `src/techdoc_agent/rag/factory.py` | Fase 4 |
 | Orquestación de la ingesta y script de consola | `src/techdoc_agent/rag/ingest.py` | Fase 2 |
-| Recuperación (consulta de texto → fragmentos) | `src/techdoc_agent/rag/retrieval.py` | Fase 2 |
+| Recuperación (consulta de texto → fragmentos; modos `vector`, `lexical`, `hybrid`) | `src/techdoc_agent/rag/retrieval.py` | Fase 2 (modos: 7.B) |
+| BM25 hecho a mano (tokenización y puntuación) | `src/techdoc_agent/rag/lexical.py` | Fase 7.B |
+| Fusión de rankings RRF | `src/techdoc_agent/rag/hybrid.py` | Fase 7.B |
 | Herramientas `buscar_documentos` y `listar_documentos` (registro) | `src/techdoc_agent/core/tools_rag.py` | Fase 3 |
 | Herramientas `generar_diagrama` y `generar_requisitos` (registro) | `src/techdoc_agent/core/tools_outputs.py` | Fase 3b |
 | Validación y guardado de Mermaid | `src/techdoc_agent/outputs/diagrams.py` | Fase 3b |
@@ -88,6 +90,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Runner de evaluación (`--workers`, `--repeat`, `--only`, `--label`) | `evals/run.py` (Fase 7) |
 | Formato y validación del dataset | `evals/dataset.py` (Fase 7) |
 | Reglas de evaluación (pasa/falla por métrica) | `evals/rules.py` (Fase 7) |
+| Comparación de modos de búsqueda sin LLM (hit@k, MRR) | `evals/retrieval.py` (Fase 7.B) |
 | Resultados de ejecuciones | `evals/results/` (en `.gitignore`) |
 
 ### E. Configuración y raíz
@@ -183,12 +186,12 @@ src/techdoc_agent/
   config.py  logging_setup.py  bootstrap.py  cli.py  mcp_server.py
   core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  prompts.py  skills.py
              memory.py  summarizer.py  transcripts.py  storage.py  llm.py
-  rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py
+  rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py  lexical.py  hybrid.py
              store_json.py  store_chroma.py  factory.py  ingest.py
   outputs/   diagrams.py  requirements_doc.py  naming.py  artifacts.py
   api/       main.py  static/index.html  static/app.js  static/app.css
 tests/
-evals/       dataset.example.jsonl  dataset.jsonl  dataset.py  rules.py  run.py  fixtures/  results/
+evals/       dataset.example.jsonl  dataset.jsonl  dataset.py  rules.py  run.py  retrieval.py  fixtures/  results/
 data/        sample_docs/  documents/  index/  conversations/
 outputs/     # artefactos generados (runtime)
 logs/        # JSONL (runtime)

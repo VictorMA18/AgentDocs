@@ -11,6 +11,7 @@ Estado (marca al terminar cada una):
 - [x] Fase 5 · FastAPI + HTML
 - [x] Fase 6 · Servidor MCP
 - [x] Fase 7 · Evaluaciones, logs y README final
+- [x] Fase 7.B · Búsqueda híbrida (BM25 + vectorial), decidida con evaluaciones
 - [ ] Fase 8 · (Opcional) streaming, agente revisor (la memoria recortada ya se adelantó, ver ADR-011)
 
 **Cómo usar los prompts:** abre Claude Code en la raíz del proyecto y pega el prompt de la fase. Cuando termine, revisa los criterios de aceptación **tú mismo**, lee el código y pídele que te explique lo que no entiendas antes de pasar a la siguiente.
@@ -244,10 +245,19 @@ obtener la línea base. Muéstrame los fallos y propón (sin aplicar aún) mejor
 
 ---
 
+## Fase 7.B · Búsqueda híbrida (BM25 + vectorial)
+**Concepto:** no añadir una pieza sin que los datos la justifiquen. Primero se construyó un dataset difícil (códigos exactos, versiones, parámetros parecidos, paráfrasis) y se midió la recuperación; la vectorial falló en uno; entonces se implementó la híbrida.
+
+**Entregables:** `rag/lexical.py` (BM25 a mano), `rag/hybrid.py` (RRF), `all_chunks()` en los almacenes, `SEARCH_MODE`/`LEXICAL_MIN`, `evals/retrieval.py` (comparación sin LLM), 8 casos `dificil-*` con `kind` y `expect_evidence`, ADR-018.
+
+**Aceptación (cumplida):** `python -m evals.retrieval` compara los tres modos; `hybrid` mejora hit@k en `exact_term` sin bajar otro tipo y sin admitir más fragmentos fuera de alcance; la pasada completa en `hybrid` mantiene el 100 % (38 casos) y la abstención.
+
+---
+
 ## Fase 8 · Opcional
 - Streaming SSE en la web.
 - ~~Recorte/resumen de historial~~ (hecho tras la Fase 3, ADR-011).
 - Skill con divulgación progresiva (`cargar_skill`).
 - Agente revisor que critique la respuesta del primero (workflow evaluador-optimizador).
-- Búsqueda híbrida y reranking, validados con las evaluaciones.
+- ~~Búsqueda híbrida~~ (hecha en la Fase 7.B) y reranking, validado con las evaluaciones.
 - Validación real de Mermaid con `mermaid-cli`.
