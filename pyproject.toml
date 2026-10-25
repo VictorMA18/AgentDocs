@@ -14,4 +14,4 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]  # permite `from fakes import ...`
+pythonpath = ["tests", "."]  # `from fakes import ...` y `import evals`
