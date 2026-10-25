@@ -10,7 +10,7 @@ Estado (marca al terminar cada una):
 - [x] Fase 4 · Migración a ChromaDB
 - [x] Fase 5 · FastAPI + HTML
 - [x] Fase 6 · Servidor MCP
-- [ ] Fase 7 · Evaluaciones, logs y README final
+- [x] Fase 7 · Evaluaciones, logs y README final
 - [ ] Fase 8 · (Opcional) streaming, agente revisor (la memoria recortada ya se adelantó, ver ADR-011)
 
 **Cómo usar los prompts:** abre Claude Code en la raíz del proyecto y pega el prompt de la fase. Cuando termine, revisa los criterios de aceptación **tú mismo**, lee el código y pídele que te explique lo que no entiendas antes de pasar a la siguiente.
