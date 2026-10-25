@@ -65,4 +65,4 @@ def test_api_only_touches_the_core_through_its_public_entry_points() -> None:
         "techdoc_agent", "techdoc_agent.core.agent", "techdoc_agent.core.llm", "techdoc_agent.rag.embeddings",
         "techdoc_agent.rag.ingest", "techdoc_agent.rag.store", "techdoc_agent.bootstrap",
         "techdoc_agent.rag.factory", "techdoc_agent.core.memory", "techdoc_agent.core.transcripts",
-        "techdoc_agent.logging_setup"}, imports
+        "techdoc_agent.logging_setup", "techdoc_agent.outputs.artifacts"}, imports
