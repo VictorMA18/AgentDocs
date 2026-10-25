@@ -24,7 +24,7 @@ ARTIFACT_TYPE = {"mermaid": "mermaid", "requisitos": "requirements"}  # dataset 
 # Frases (sin acentos ni mayúsculas) con las que el agente declara que algo no está documentado.
 ABSTENTION_PHRASES = (
     "no aparece", "no esta en", "no se encuentra", "no cubre", "no describe", "no incluye", "no menciona",
-    "no contiene", "no hay informacion", "no encontre", "no explica", "no documenta", "no esta documentado",
+    "no contiene", "no hay informacion", "no encontre", "no encuentro", "no explica", "no documenta", "no esta documentado",
     "sin resultados", "no figura", "no consta", "no habla", "no trata", "no proporciona", "no se documenta",
 )
 CLARIFICATION_PHRASES = (

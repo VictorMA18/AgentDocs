@@ -127,6 +127,7 @@ def test_abstention_phrases() -> None:
     c = case(out_of_scope=True)
     assert evaluate(c, outcome("Esto no aparece en la documentación indexada."))["abstention"] is True
     assert evaluate(c, outcome("La documentación no cubre Kubernetes."))["abstention"] is True
+    assert evaluate(c, outcome("No encuentro nada sobre Kubernetes en la documentación indexada."))["abstention"] is True
     assert evaluate(c, outcome("Para Kubernetes crea un Deployment con TaskFlow."))["abstention"] is False
     assert evaluate(case(), outcome("no aparece"))["abstention"] is None
 
