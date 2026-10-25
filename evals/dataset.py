@@ -17,9 +17,10 @@ DEFAULT_DATASET = REPO_ROOT / "evals" / "dataset.jsonl"
 
 KNOWN_TOOLS = ("buscar_documentos", "listar_documentos", "generar_diagrama", "generar_requisitos")
 ARTIFACTS = ("mermaid", "requisitos")
+KINDS = ("exact_term", "distractor", "version", "paraphrase")  # tipos de caso difícil de recuperación (Fase 7.A)
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _LIST_FIELDS = ("expect_tools", "forbid_tools", "expect_sources", "must_include", "must_not_include",
-                "must_not_start_with", "setup_docs", "follow_up")
+                "must_not_start_with", "setup_docs", "follow_up", "expect_evidence")
 _BOOL_FIELDS = ("out_of_scope", "expect_clarification")
 
 
@@ -34,6 +35,7 @@ class Case:
     expect_tools: tuple[str, ...] = ()
     forbid_tools: tuple[str, ...] = ()
     expect_sources: tuple[str, ...] = ()  # fuentes (archivos) que deben aparecer entre los fragmentos recuperados
+    expect_evidence: tuple[str, ...] = ()  # textos que deben estar en los fragmentos recuperados (nivel de fragmento)
     must_include: tuple[str, ...] = ()  # en la respuesta final, sin distinguir mayúsculas
     must_not_include: tuple[str, ...] = ()  # no puede aparecer en ninguna parte (p. ej. un literal del prompt)
     must_not_start_with: tuple[str, ...] = ()  # la respuesta no puede empezar así: sería obedecer una orden inyectada
@@ -42,6 +44,7 @@ class Case:
     expect_clarification: bool = False  # pregunta ambigua: debe preguntar o declarar su suposición
     setup_docs: tuple[str, ...] = ()  # documentos extra a indexar (rutas desde la raíz del repo)
     follow_up: tuple[str, ...] = ()  # mensajes siguientes en la misma sesión
+    kind: str | None = None  # tipo de caso difícil, para reportar la recuperación por tipo
     notes: str = ""
 
 
@@ -66,6 +69,9 @@ def _parse(raw: dict[str, Any], root: Path) -> Case:
     artifact = raw.get("expect_artifact")
     if artifact is not None and artifact not in ARTIFACTS:
         raise DatasetError(f"expect_artifact debe ser uno de {ARTIFACTS}, no {artifact!r}")
+    kind = raw.get("kind")
+    if kind is not None and kind not in KINDS:
+        raise DatasetError(f"kind debe ser uno de {KINDS}, no {kind!r}")
     for tool in raw.get("expect_tools", []) + raw.get("forbid_tools", []):
         if tool not in KNOWN_TOOLS:
             raise DatasetError(f"herramienta desconocida: {tool!r} (conocidas: {', '.join(KNOWN_TOOLS)})")

@@ -206,12 +206,17 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         applicable = [run.checks[name] for run in runs if run.checks.get(name) is not None]
         if applicable:
             per_check[name] = {"applicable": len(applicable), "rate": sum(applicable) / len(applicable)}
+    per_kind: dict[str, dict[str, float | int]] = {}
+    for kind in sorted({r.case.kind for r in results if r.case.kind}):
+        group = [r for r in results if r.case.kind == kind]
+        per_kind[kind] = {"cases": len(group), "rate": sum(r.pass_rate for r in group) / len(group)}
     return {
         "cases": len(results),
         "cases_passed": sum(r.passed for r in results),
         "pass_rate": sum(r.passed for r in results) / len(results),
         "mean_case_rate": sum(r.pass_rate for r in results) / len(results),
         "checks": per_check,
+        "kinds": per_kind,
         "mean_tokens": round(sum(r.input_tokens + r.output_tokens for r in runs) / len(runs)),
         "mean_seconds": round(sum(r.duration_ms for r in runs) / len(runs) / 1000, 1),
         "errors": sum(1 for r in runs if r.error),
@@ -231,6 +236,9 @@ def format_report(results: list[CaseResult], summary: dict[str, Any], min_pass: 
     lines += ["", "Por regla (casos a los que aplica):"]
     for name, data in summary["checks"].items():
         lines.append(f"  {name:<14} {data['rate']:>5.0%}  ({data['applicable']})")
+    if summary["kinds"]:
+        lines += ["", "Por tipo de caso difícil (tasa media):"]
+        lines += [f"  {name:<14} {data['rate']:>5.0%}  ({data['cases']} casos)" for name, data in summary["kinds"].items()]
     verdict = "SUPERA" if summary["pass_rate"] >= min_pass else "NO SUPERA"
     lines += [
         "",

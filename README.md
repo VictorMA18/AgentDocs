@@ -135,6 +135,13 @@ python -m evals.run --repeat 2 --workers 4            # 2 repeticiones, 4 casos 
 
 Cada caso corre aislado (índice, memoria y salidas propios) y se evalúa con reglas comprobables: herramientas usadas, recuperación de la fuente correcta, contenido, abstención, citas, artefactos y resistencia a inyección. Opciones: `--dataset`, `--only`, `--repeat N`, `--workers N` (`1` = en serie), `--min-pass`, `--label nombre`. Escribe `evals/results/YYYYMMDD-HHMMSS[-nombre].json` y los logs de la ejecución, y sale con código `0` si la tasa global alcanza `EVAL_MIN_PASS` (0,8), `1` si no y `2` si el dataset es inválido. Formato del dataset y métricas en `docs/07-evaluaciones.md`.
 
+Para comparar los modos de búsqueda **sin gastar tokens** (hit@k y MRR sobre el índice de cada caso):
+
+```bash
+python -m evals.retrieval                    # vector, lexical e hybrid
+python -m evals.retrieval --top-k 3          # más estricto
+```
+
 #### Resultados
 
 30 casos × 2 repeticiones, Haiku 5.5, embeddings MiniLM, 4 casos a la vez (≈ 19.000 tokens y 3,6 min por pasada). Cada fila es un cambio y su efecto medido; el detalle está en `docs/09`.
@@ -149,6 +156,20 @@ Cada caso corre aislado (índice, memoria y salidas propios) y se evalúa con re
 | 4b · `MIN_SCORE=0,5` | 29/30 | 93 % | **Regresión**: se pierden fragmentos relevantes (recuperación 97 %, contenido 90 %) |
 | 5 · `VECTOR_STORE=chroma` | 30/30 | 100 % | Mismo comportamiento que JSON (tras corregir una frase de la regla de abstención) |
 
+#### Búsqueda híbrida (Fase 7.B)
+
+Con 30/30 el dataset ya no discriminaba, así que se añadieron 9 casos difíciles (códigos de error casi idénticos, flags parecidos, dos versiones de una guía, paráfrasis). La búsqueda vectorial falló en uno: el agente dijo que `E-4021` «no aparece en la documentación» estando indexado. Se midió la recuperación **sin gastar tokens** (`python -m evals.retrieval`, 25 casos con evidencia y 7 fuera de alcance):
+
+| Modo | hit@5 | hit@3 | MRR (k=5) | Fragmentos admitidos fuera de alcance |
+|---|---|---|---|---|
+| `vector` | 24/25 | 20/25 | 0,79 | 22 |
+| `lexical` (solo BM25) | 25/25 | 24/25 | 0,95 | 22 |
+| `hybrid` (por defecto) | 25/25 | 24/25 | 0,84 | 23 |
+
+La pasada completa en `hybrid` (38 casos × 2) dio 38/38 y `dificil-error-e4021` pasó de 50 % a 100 %. La léxica sola tiene mejor MRR porque las preguntas del dataset repiten palabras del documento, pero falla con paráfrasis; la híbrida es el compromiso seguro. `SEARCH_MODE=vector` restaura el comportamiento anterior. Detalle y calibración de `LEXICAL_MIN` en `docs/09`.
+
+Validación posterior de BM25 (`docs/09`). Con el modelo: la abstención se mantiene (21/21 en `hybrid` y en `vector`, incluidas 4 preguntas con palabras compartidas) y, en 4 casos clave × 5 repeticiones, `hybrid` acierta 20/20 frente al 85 % de `vector` (`E-4021` 5/5 frente a 3/5). Sin tokens: con **Chroma real** da exactamente lo mismo que con JSON; la **búsqueda por palabras exactas no empeora la abstención** (4 preguntas fuera de alcance que comparten palabras con los documentos: 23 fragmentos admitidos frente a 22 de la vectorial, y la propia vectorial ya admite fragmentos en casi todas); el índice BM25 se reconstruye en cada búsqueda, lo que cuesta ≈ 26 ms con 500 fragmentos, ≈ 290 ms con 5.000 y ≈ 1,1 s con 20.000; y `invalidatePrefix` (lowerCamelCase) ahora encuentra `invalidate_prefix`.
+
 Con 2 repeticiones, un 50 % en un caso es una sola ejecución fallida: las diferencias de un punto o dos son ruido. Lo que sí enseñan los datos es que `MIN_SCORE=0,5` perjudica y que la abstención está protegida por varias capas a la vez.
 
 
@@ -161,6 +182,7 @@ Todo se lee de variables de entorno (`.env`, plantilla en `.env.example`) en `te
 | `LLM_MODEL`, `LLM_TIMEOUT_S`, `MAX_AGENT_ITERATIONS` | `claude-haiku-5-5`, 120, 8 | Modelo y límites duros del bucle |
 | `VECTOR_STORE` | `json` | `json` o `chroma` |
 | `EMBEDDING_MODEL`, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `TOP_K_DEFAULT`, `MIN_SCORE` | MiniLM multilingüe, 700, 100, 5, 0,25 | Recuperación |
+| `SEARCH_MODE`, `LEXICAL_MIN` | `hybrid`, 4,0 | `hybrid` (vector + BM25), `vector` o `lexical`; BM25 mínimo para admitir un fragmento por palabras exactas |
 | `MEMORY_MAX_TOKENS`, `MEMORY_KEEP_TURNS` | 8000, 3 | Cuándo se resumen los turnos antiguos |
 | `DATA_DIR`, `OUTPUTS_DIR`, `LOGS_DIR`, `SKILLS_DIR` | `./data`, `./outputs`, `./logs`, `./skills` | Carpetas (relativas al directorio actual) |
 | `MAX_UPLOAD_MB`, `ALLOWED_EXTENSIONS`, `ALLOWED_INGEST_DIR` | 10, `.md,.txt,.pdf,…`, `./data/documents` | Límites de seguridad |
@@ -182,6 +204,8 @@ Los fallos reales se anotan en `docs/09-decisiones-y-glosario.md` y cada uno aca
 | El modelo conjeturó que "el índice puede estar incompleto" | Sin regla que lo prohíba, rellena el hueco con una hipótesis | Regla en la skill: no especular sobre el estado del sistema |
 | Un diagrama roto que el usuario pidió guardar "tal cual" se corrigió en silencio | La skill no distinguía el código aportado por el usuario | Excepción en la skill: mostrar errores, proponer y preguntar |
 | Un cliente MCP adivinaba rutas absolutas al ingestar | Nada le decía que bastaba el nombre del archivo | Descripción y error de la herramienta lo indican |
+| El agente dijo que `E-4021` «no aparece» estando indexado | La búsqueda vectorial pierde identificadores exactos entre códigos casi idénticos | Búsqueda híbrida BM25 + vectorial (ADR-018) |
+| `expect_sources` daba por buena una búsqueda con el archivo correcto aunque faltara el fragmento con el dato | Un archivo tiene muchos fragmentos | `expect_evidence`: la evidencia debe estar en los fragmentos recuperados |
 | "No such tool available" del CLI, repetido por el modelo como «la herramienta no está disponible» | El modelo intentó una llamada nativa y repitió el mensaje como un hecho | Regla de prompt y un reintento con la pista del protocolo JSON; fallo raro (≈ 1/96) |
 | Una evaluación marcó como fallo a un agente que resistió la inyección o se abstuvo | Las reglas por frases/palabras miraban la respuesta entera o tenían una lista incompleta | Reglas más precisas (`must_not_start_with`, «no encuentro»): **si falla un caso, primero se mira si falla la regla** |
 
@@ -192,6 +216,7 @@ Lecciones:
 - **Medir antes de elegir:** a esta escala ChromaDB no es más rápido que JSON + numpy en búsqueda (hasta 20.000 fragmentos), pero gana en la reingesta incremental.
 - **Los mensajes de error de una herramienta son parte de su interfaz** para el cliente que la usa.
 - **Memoria acotada:** resumir los turnos antiguos frena el crecimiento del contexto, y lo técnico se vuelve a buscar en el RAG en vez de fiarse del resumen.
+- **Una pieza nueva se justifica con una medición:** la híbrida no se añadió por ser lo habitual, sino cuando un caso difícil mostró un fallo real y la comparación sin LLM (segundos, 0 tokens) confirmó la mejora. El hit@k de un corpus pequeño es indulgente: hay que mirar también MRR y `top_k` más bajos.
 - **Medir también el instrumento:** uno de los dos fallos de la línea base (y otro después, con Chroma) era de las reglas, no del agente; y quitar piezas (umbral, paso de la skill) enseña qué protege cada una: `MIN_SCORE=0,5` rompe la recuperación, mientras que la abstención resiste porque está repetida en varias capas.
 - **Buscar frente a preguntar (MCP):** exponer `buscar_documentos` da fragmentos baratos y componibles; `preguntar_agente` da una respuesta elaborada pero es una caja negra lenta.
 
@@ -224,8 +249,8 @@ outputs/  logs/                 # artefactos generados y registros (locales)
 | `docs/04-diseno-agente.md` | Bucle, herramientas (schemas), system prompt, memoria, seguridad, logs |
 | `docs/05-rag.md` · `06-api-y-mcp.md` · `07-evaluaciones.md` | RAG, API web y servidor MCP, evaluaciones |
 | `docs/08-roadmap-fases.md` | Fases, entregables y criterios de aceptación |
-| `docs/09-decisiones-y-glosario.md` | Decisiones (ADR-001 a ADR-017), experimentos medidos, fallos y glosario |
+| `docs/09-decisiones-y-glosario.md` | Decisiones (ADR-001 a ADR-018), experimentos medidos, fallos y glosario |
 
 ## Estado
 
-Fases 0, 1, 2, 3, 3b, 4, 5, 6 y 7 completadas: bucle del agente, RAG como herramienta con skill, memoria recortada, diagramas y requisitos validados, almacén ChromaDB seleccionable, API web con conversaciones guardadas y servidor MCP, evaluaciones repetibles con línea base y seis contrastes medidos. Checklist en `docs/08-roadmap-fases.md`.
+Fases 0, 1, 2, 3, 3b, 4, 5, 6, 7 y 7.B completadas: bucle del agente, RAG como herramienta con skill, memoria recortada, diagramas y requisitos validados, almacén ChromaDB seleccionable, API web con conversaciones guardadas y servidor MCP, evaluaciones repetibles con línea base y seis contrastes medidos. Checklist en `docs/08-roadmap-fases.md`.

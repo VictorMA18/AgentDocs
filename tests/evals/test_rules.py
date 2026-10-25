@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+import pytest
+
 from evals.dataset import Case
 from evals.rules import Outcome, evaluate, failed_checks, fold, passed, retrieved_sources, searches
 
@@ -132,6 +134,17 @@ def test_abstention_phrases() -> None:
     assert evaluate(case(), outcome("no aparece"))["abstention"] is None
 
 
+@pytest.mark.parametrize("reply", [
+    "No he encontrado nada sobre Kubernetes.",
+    "En los documentos no hay datos sobre ese tema.",
+    "Eso no está cubierto en la documentación.",
+    "La guía no se menciona\nKubernetes en ningún punto.",  # salto de línea dentro de la frase
+    "No   dispongo de información sobre eso.",
+])
+def test_abstention_accepts_common_variants(reply: str) -> None:
+    assert evaluate(case(out_of_scope=True), outcome(reply))["abstention"] is True
+
+
 # --- citas ---
 
 
@@ -197,3 +210,16 @@ def test_searches_counts_only_search_calls() -> None:
 
 def test_fold() -> None:
     assert fold("EXCEPCIÓN Ñandú") == "excepcion nandu"
+
+
+# --- evidencia a nivel de fragmento ---
+
+
+def test_evidence_requires_the_specific_fragment_not_just_the_file() -> None:
+    c = case(expect_sources=("e.md",), expect_evidence=("quota_messages",))
+    right = Call("buscar_documentos", result=fragment("e.md", 2).replace("texto", "La cola alcanzó su `quota_messages`"))
+    wrong = Call("buscar_documentos", result=fragment("e.md", 1))  # mismo archivo, otro fragmento
+    assert evaluate(c, outcome(calls=[right]))["retrieval"] is True
+    assert evaluate(c, outcome(calls=[wrong]))["retrieval"] is False
+    assert evaluate(case(expect_evidence=("x",)), outcome())["retrieval"] is False  # sin búsqueda
+    assert evaluate(case(), outcome())["retrieval"] is None

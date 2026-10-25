@@ -100,6 +100,16 @@ class ChromaVectorStore:
             hits.append(SearchHit(Chunk(id_, origin, text, metadata), 1.0 - float(distance)))
         return hits
 
+    def all_chunks(self, source: str | None = None) -> list[Chunk]:
+        result = self._collection.get(
+            where={SOURCE_KEY: source} if source is not None else None, include=["documents", "metadatas"]
+        )
+        chunks = []
+        for id_, text, metadata in zip(result["ids"], result["documents"], result["metadatas"], strict=True):
+            metadata = dict(metadata)
+            chunks.append(Chunk(id_, metadata.pop(SOURCE_KEY), text, metadata))
+        return chunks
+
     def list_sources(self) -> list[dict[str, Any]]:
         metadatas = self._collection.get(include=["metadatas"])["metadatas"]
         counts = Counter(m[SOURCE_KEY] for m in metadatas)
