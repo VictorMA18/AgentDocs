@@ -61,6 +61,7 @@ def test_blank_lines_are_ignored_but_line_numbers_stay_correct(tmp_path: Path) -
     (case(notes=3), "'notes' debe ser un texto"),
     (case(expect_artifact="pdf"), "expect_artifact debe ser uno de"),
     (case(kind="raro"), "kind debe ser uno de"),
+    (case(expect_cited="a.md"), "'expect_cited' debe ser una lista"),
     (case(expect_evidence="x"), "'expect_evidence' debe ser una lista"),
     (case(expect_tools=["buscar_en_internet"]), "herramienta desconocida"),
     (case(forbid_tools=["borrar_todo"]), "herramienta desconocida"),
@@ -222,7 +223,7 @@ def test_must_include_and_must_not_include_never_overlap(cases: list[Case]) -> N
 
 def test_hard_cases_have_kind_and_evidence_that_exists_in_the_sources(cases: list[Case]) -> None:
     hard = [c for c in cases if c.kind]
-    assert len(hard) >= 8 and {c.kind for c in hard} == {"exact_term", "distractor", "version", "paraphrase"}
+    assert len(hard) >= 8 and {c.kind for c in hard} == {"exact_term", "distractor", "version", "paraphrase", "attribution"}
     for c in hard:
         assert c.expect_sources and c.expect_evidence and c.setup_docs, c.id
         text = "\n".join(_doc_text(name) for name in c.expect_sources)

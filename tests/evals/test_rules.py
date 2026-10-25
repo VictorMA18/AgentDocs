@@ -212,6 +212,21 @@ def test_fold() -> None:
     assert fold("EXCEPCIÓN Ñandú") == "excepcion nandu"
 
 
+# --- atribución de citas ---
+
+
+def test_attribution_requires_citing_the_file_that_holds_the_fact() -> None:
+    c = case(expect_cited=("code.py",))
+    assert evaluate(c, outcome("Son 40 [code.py#1]."))["attribution"] is True
+    assert evaluate(c, outcome("Son 40 [guia.md#0]."))["attribution"] is False  # dato correcto, fuente equivocada
+    assert evaluate(c, outcome("Son 40."))["attribution"] is False
+    # con must_include solo cuentan los párrafos que dan el dato: citar el código en otro no vale
+    ok = case(expect_cited=("code.py",), must_include=("40",))
+    assert evaluate(ok, outcome("Son 40 conexiones [code.py#0].\nEl ejemplo usa 10 [guia.md#1]."))["attribution"] is True
+    assert evaluate(ok, outcome("Son 40 conexiones [guia.md#1].\nVer también [code.py#0]."))["attribution"] is False
+    assert evaluate(case(), outcome("Son 40 [guia.md#0]."))["attribution"] is None
+
+
 # --- evidencia a nivel de fragmento ---
 
 
