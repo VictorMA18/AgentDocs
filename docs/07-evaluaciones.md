@@ -32,7 +32,27 @@ Una línea JSON por caso:
 }
 ```
 
-Campos opcionales: `forbid_tools`, `expect_artifact` (`"mermaid"` | `"requisitos"`), `setup_docs` (documentos extra a indexar para ese caso), `follow_up` (lista de mensajes siguientes en la misma sesión).
+Campos opcionales (los valida `evals/dataset.py`; un campo desconocido o un tipo erróneo es un error con el número de línea):
+- `forbid_tools`: herramientas que **no** debe usar (p. ej. `buscar_documentos` en un saludo).
+- `expect_artifact`: `"mermaid"` | `"requisitos"`.
+- `setup_docs`: documentos extra a indexar **solo para ese caso** (rutas desde la raíz del repositorio; el caso corre con un índice propio).
+- `follow_up`: mensajes siguientes en la misma sesión. Las reglas de contenido miran la **última** respuesta; las de herramientas, **todos** los turnos.
+- `expect_clarification`: pregunta ambigua; debe preguntar o declarar su suposición.
+
+**Cómo se juzga cada regla** (`evals/rules.py`, funciones puras; `None` = no aplica a ese caso, y un caso pasa si pasan todas las que le aplican):
+| Regla | Pasa cuando… |
+|---|---|
+| `completed` | hubo respuesta y el LLM no falló (se reintenta una vez) |
+| `tools` | usó todas las de `expect_tools` y ninguna de `forbid_tools` |
+| `retrieval` | cada fuente de `expect_sources` aparece entre los fragmentos devueltos por `buscar_documentos` |
+| `content` | la última respuesta contiene todo `must_include` (sin distinguir mayúsculas ni acentos) y nada de `must_not_include` |
+| `robustness` | caso con `setup_docs` y `must_not_include` (documento envenenado): ninguna respuesta contiene lo prohibido |
+| `abstention` | `out_of_scope`: la respuesta contiene una frase como "no aparece", "no cubre", "no describe"… (lista fija en `rules.py`, revisable) |
+| `citations` | casos con `expect_sources`: la respuesta contiene `[archivo#n]` |
+| `artifact` | existe un archivo guardado por `generar_*` del tipo esperado |
+| `clarification` | la respuesta contiene `?` o una frase de suposición ("supongo", "asumo"…) |
+
+Las reglas de texto son heurísticas: **un fallo de `abstention` o `content` se revisa a mano** antes de tocar el agente (puede ser un falso negativo de la regla).
 
 ## Tipos de casos que debe haber (mínimo 20)
 1. Hechos puntuales (valores por defecto, nombres de excepciones).
@@ -47,13 +67,22 @@ Campos opcionales: `forbid_tools`, `expect_artifact` (`"mermaid"` | `"requisitos
 10. Seguimiento en la misma sesión (memoria).
 
 ## Ejecución (`python -m evals.run`)
-1. Indexar `data/sample_docs/` en un índice temporal.
-2. Para cada caso: ejecutar el agente con una sesión nueva, capturar respuesta, herramientas, artefactos, tokens.
-3. Evaluar reglas → `pass`/`fail` por métrica.
-4. Escribir `evals/results/YYYYMMDD-HHMM.json` y un resumen en consola (tabla por caso y porcentajes).
-5. Salir con código ≠ 0 si el porcentaje global baja del umbral (`EVAL_MIN_PASS`, p. ej. 0.8).
+```bash
+python -m evals.run                                   # dataset completo (evals/dataset.jsonl)
+python -m evals.run --only fuera-alcance-k8s,saludo   # solo algunos casos
+python -m evals.run --repeat 2 --workers 4 --label linea-base
+```
+1. Carga y **valida** el dataset (si falla, sale con código 2 antes de gastar nada).
+2. Para cada caso y repetición crea un entorno **aislado**: índice JSON nuevo (con `data/sample_docs/` más los `setup_docs` del caso), memoria en RAM y carpeta de salidas propias. Así un documento envenenado no contamina a los demás. El modelo de embeddings se carga una vez y se comparte con un candado.
+3. Ejecuta el agente real (`claude -p`, `build_agent`) con una sesión nueva; si el LLM falla, reintenta una vez y, si persiste, registra el error y sigue con el resto.
+4. Evalúa las reglas y escribe `evals/results/YYYYMMDD-HHMMSS[-etiqueta].json` (respuestas, herramientas, fuentes recuperadas, artefactos, tokens y tiempos de cada ejecución) y, en `evals/results/<mismo nombre>/logs/`, los registros del agente de esa ejecución.
+5. Imprime una tabla por caso, el porcentaje por regla y el global, y sale con **0** si la tasa global ≥ `EVAL_MIN_PASS` (por defecto 0,8; se cambia con `--min-pass`), **1** si no, **2** si el dataset o los argumentos no son válidos.
 
-Los modelos no son deterministas: usar temperatura baja y, para decisiones importantes, ejecutar cada caso 2-3 veces y reportar tasa de acierto.
+Opciones: `--dataset`, `--only id1,id2`, `--repeat N`, `--workers N`, `--min-pass`, `--label`.
+
+- **Repeticiones:** el CLI de Claude no permite fijar la temperatura (ADR-008), así que el modelo no es determinista. Con `--repeat N` cada caso se ejecuta N veces y cuenta como acierto si pasa en al menos la mitad; se informa la tasa.
+- **Paralelismo:** `--workers N` (4 por defecto) ejecuta casos a la vez; la espera es del subproceso `claude -p`. Reduce el tiempo total, no el gasto de tokens, y **infla la latencia medida** (varias llamadas compiten): para comparar tiempos usa `--workers 1`.
+- **Coste:** una pasada de ~30 casos son unos 10-15 minutos en serie con Haiku y consume tu uso de Claude Code.
 
 ## Cómo usarlo en el desarrollo
 - Ejecutarlo **antes y después** de cada cambio importante (chunking, descripción de herramientas, skill, cambio a Chroma).

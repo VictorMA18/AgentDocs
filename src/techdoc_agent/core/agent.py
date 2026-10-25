@@ -7,6 +7,7 @@ tests usan un LLM falso. Cada paso se registra con ``log_event``.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any
@@ -18,6 +19,15 @@ from techdoc_agent.core.prompts import with_summary
 from techdoc_agent.core.summarizer import summarize
 from techdoc_agent.core.tools import ToolRegistry, ToolResult, format_tool_results
 from techdoc_agent.logging_setup import log_event
+
+# Cuando el modelo intenta una llamada de herramienta nativa en vez de nuestro protocolo JSON, el CLI
+# le contesta con este texto y el modelo a veces lo cuenta como si la herramienta no existiera.
+NATIVE_TOOL_ERROR = re.compile(r"no such tool available", re.IGNORECASE)
+NATIVE_TOOL_HINT = (
+    "Error de protocolo: las herramientas no se invocan de forma nativa; tu respuesta dice que una no está "
+    "disponible, pero sí lo está. Pídela con el objeto JSON {\"accion\": \"herramientas\", \"llamadas\": [...]} "
+    "usando uno de los nombres listados, o responde sin mencionar ese error."
+)
 
 DEFAULT_SYSTEM_PROMPT = (
     "Eres un asistente útil y conciso. Responde en el idioma del usuario. "
@@ -109,6 +119,7 @@ class Agent:
         log_event(session=session_id, event="user_message", chars=len(user_message))
 
         result = AgentResult(text="")
+        native_retry_used = False  # se corrige una sola vez por turno, para no entrar en bucle
         for iteration in range(1, self.max_iterations + 1):
             result.iterations = iteration
             started = perf_counter()
@@ -138,7 +149,13 @@ class Agent:
             history.append({"role": "assistant", "content": reply.raw})
 
             if not reply.tool_calls:
-                result.text = reply.text or ""
+                text = reply.text or ""
+                if not native_retry_used and NATIVE_TOOL_ERROR.search(text):
+                    native_retry_used = True
+                    log_event(session=session_id, iter=iteration, event="native_tool_attempt")
+                    history.append({"role": "user", "content": NATIVE_TOOL_HINT})
+                    continue
+                result.text = text
                 return result
 
             # Un turno puede pedir varias herramientas: se responden todas en un solo mensaje.

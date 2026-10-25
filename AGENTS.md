@@ -57,6 +57,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Validación y guardado de Mermaid | `src/techdoc_agent/outputs/diagrams.py` | Fase 3b |
 | Nombres de archivo generados (slug + id) | `src/techdoc_agent/outputs/naming.py` | Fase 3b |
 | Validación y render de requisitos | `src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
+| Archivos guardados por las herramientas de salida en un turno (API y evals) | `src/techdoc_agent/outputs/artifacts.py` | Fase 7 |
 | API web (endpoints) | `src/techdoc_agent/api/main.py` | Fase 5 |
 | Interfaz HTML/JS/CSS | `src/techdoc_agent/api/static/` (`index.html`, `app.js`, `app.css`) | Fase 5 |
 | Ensamblado del agente (CLI y API) | `src/techdoc_agent/bootstrap.py` | Fase 5 |
@@ -84,7 +85,9 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Casos de evaluación de ejemplo | `evals/dataset.example.jsonl` |
 | Dataset de evaluación real (Fase 7) | `evals/dataset.jsonl` |
 | Documentos auxiliares de evaluación (p. ej. documento envenenado) | `evals/fixtures/` |
-| Runner de evaluación | `evals/run.py` (Fase 7) |
+| Runner de evaluación (`--workers`, `--repeat`, `--only`, `--label`) | `evals/run.py` (Fase 7) |
+| Formato y validación del dataset | `evals/dataset.py` (Fase 7) |
+| Reglas de evaluación (pasa/falla por métrica) | `evals/rules.py` (Fase 7) |
 | Resultados de ejecuciones | `evals/results/` (en `.gitignore`) |
 
 ### E. Configuración y raíz
@@ -182,10 +185,10 @@ src/techdoc_agent/
              memory.py  summarizer.py  transcripts.py  storage.py  llm.py
   rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py
              store_json.py  store_chroma.py  factory.py  ingest.py
-  outputs/   diagrams.py  requirements_doc.py  naming.py
+  outputs/   diagrams.py  requirements_doc.py  naming.py  artifacts.py
   api/       main.py  static/index.html  static/app.js  static/app.css
 tests/
-evals/       dataset.example.jsonl  dataset.jsonl  fixtures/  run.py  results/
+evals/       dataset.example.jsonl  dataset.jsonl  dataset.py  rules.py  run.py  fixtures/  results/
 data/        sample_docs/  documents/  index/  conversations/
 outputs/     # artefactos generados (runtime)
 logs/        # JSONL (runtime)

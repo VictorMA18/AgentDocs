@@ -24,11 +24,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from techdoc_agent import config
-from techdoc_agent.core.agent import Agent, ToolTrace
+from techdoc_agent.core.agent import Agent
 from techdoc_agent.core.llm import LLMError
 from techdoc_agent.core.memory import Memory
 from techdoc_agent.core.transcripts import Transcripts
 from techdoc_agent.logging_setup import log_event
+from techdoc_agent.outputs.artifacts import ARTIFACT_TYPES, turn_artifacts
 from techdoc_agent.rag.embeddings import Embedder
 from techdoc_agent.rag.ingest import ingest_file
 from techdoc_agent.rag.store import VectorStore
@@ -41,9 +42,6 @@ MULTIPART_OVERHEAD = 64 * 1024  # margen de cabeceras del multipart al comparar 
 CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 SOURCE_NAME = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 ARTIFACT_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
-ARTIFACT_TYPES = {".mmd": "mermaid", ".md": "requirements"}
-ARTIFACT_IN_RESULT = re.compile(r"guardad[oa]s? como ([a-z0-9][a-z0-9._-]*\.(?:mmd|md))")
-OUTPUT_TOOLS = ("generar_diagrama", "generar_requisitos")
 
 # Sin scripts inline: la página carga sus propios archivos y las tres librerías fijadas por CDN.
 CSP = (
@@ -129,20 +127,6 @@ def _artifact_info(path: Path) -> dict[str, Any]:
     }
 
 
-def _turn_artifacts(traces: list[ToolTrace]) -> list[dict[str, Any]]:
-    """Archivos guardados por las herramientas de salida durante el turno."""
-    found = []
-    for trace in traces:
-        match = ARTIFACT_IN_RESULT.search(trace.result)
-        if trace.name not in OUTPUT_TOOLS or trace.is_error or not match:
-            continue
-        path = config.settings.outputs_dir / match.group(1)
-        if path.is_file():
-            found.append({"name": path.name, "type": ARTIFACT_TYPES[path.suffix],
-                          "title": str(trace.args.get("titulo", ""))})
-    return found
-
-
 def create_app(
     agent: Agent | None = None, store: VectorStore | None = None, embedder: Embedder | None = None
 ) -> FastAPI:
@@ -207,7 +191,7 @@ def create_app(
                     {"tool": t.name, "args": t.args, "is_error": t.is_error, "duration_ms": t.duration_ms}
                     for t in result.tool_calls
                 ],
-                "artifacts": _turn_artifacts(result.tool_calls),
+                "artifacts": turn_artifacts(result.tool_calls, config.settings.outputs_dir),
                 "usage": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
                 "truncated": result.truncated,
             }
