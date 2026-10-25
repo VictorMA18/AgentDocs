@@ -248,9 +248,11 @@ obtener la línea base. Muéstrame los fallos y propón (sin aplicar aún) mejor
 ## Fase 7.B · Búsqueda híbrida (BM25 + vectorial)
 **Concepto:** no añadir una pieza sin que los datos la justifiquen. Primero se construyó un dataset difícil (códigos exactos, versiones, parámetros parecidos, paráfrasis) y se midió la recuperación; la vectorial falló en uno; entonces se implementó la híbrida.
 
-**Entregables:** `rag/lexical.py` (BM25 a mano), `rag/hybrid.py` (RRF), `all_chunks()` en los almacenes, `SEARCH_MODE`/`LEXICAL_MIN`, `evals/retrieval.py` (comparación sin LLM), 8 casos `dificil-*` con `kind` y `expect_evidence`, ADR-018.
+**Entregables:** `rag/lexical.py` (BM25 a mano), `rag/hybrid.py` (RRF), `all_chunks()` en los almacenes, `SEARCH_MODE`/`LEXICAL_MIN`, `evals/retrieval.py` (comparación sin LLM), 9 casos `dificil-*` con `kind` y `expect_evidence`, reserva léxica en la fusión (`with_lexical_floor`), ADR-018 y ADR-019.
 
-**Aceptación (cumplida):** `python -m evals.retrieval` compara los tres modos; `hybrid` mejora hit@k en `exact_term` sin bajar otro tipo y sin admitir más fragmentos fuera de alcance; la pasada completa en `hybrid` mantiene el 100 % (38 casos) y la abstención.
+**Aceptación (cumplida):** `python -m evals.retrieval` compara los tres modos; `hybrid` mejora hit@k en `exact_term` sin bajar otro tipo y sin admitir más fragmentos fuera de alcance; la pasada completa en `hybrid` mantiene el 100 % y la abstención.
+
+**Prueba de uso real (cumplida):** documentación pública de httpx (14 preguntas, 14/14), el manual PDF de `requests` (418 fragmentos), el servidor MCP con Claude Code y el CLI. Encontró un fallo de la fusión RRF con coincidencias exactas fuertes (ADR-019, arreglado con la reserva léxica) y un fallo del CLI con comandos desconocidos. Un PDF sin texto indexa 0 fragmentos con aviso, y uno dañado da un error legible. Detalle en `docs/09`.
 
 ---
 
@@ -261,3 +263,12 @@ obtener la línea base. Muéstrame los fallos y propón (sin aplicar aún) mejor
 - Agente revisor que critique la respuesta del primero (workflow evaluador-optimizador).
 - ~~Búsqueda híbrida~~ (hecha en la Fase 7.B) y reranking, validado con las evaluaciones.
 - Validación real de Mermaid con `mermaid-cli`.
+
+**Observaciones de la prueba de uso real, pendientes para esta fase** (ninguna bloquea; ver `docs/09`):
+- El agente partió el diagrama de excepciones de httpx en 3 archivos aunque se pidió uno: ajustar la skill (un diagrama por petición salvo que el usuario pida varios).
+- En las preguntas fuera de alcance añade información cercana (marcada como «conocimiento general») y alarga la respuesta: valorar una regla de brevedad en la skill.
+- Texto del PDF con palabras sin espacios («Intheeventofanetworkproblem») por la extracción de `pypdf`: probar otra extracción o normalizar, midiendo el efecto en la recuperación.
+- Subida de documentos reales desde la interfaz web (no se probó con documentos reales).
+- Inyección de instrucciones en un documento real (solo se midió con fixtures ficticias).
+- Con más de 3 fragmentos que comparten un término exacto, alguno puede quedar fuera del top-k (la reserva léxica es 3); valorar `top_k` mayor o reserva configurable si aparece un caso real.
+- La guarda de herramienta nativa (Fase 7) lleva ≈ 450 ejecuciones sin activarse: decidir si se retira.
