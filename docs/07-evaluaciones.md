@@ -39,7 +39,8 @@ Campos opcionales (los valida `evals/dataset.py`; un campo desconocido o un tipo
 - `follow_up`: mensajes siguientes en la misma sesión. Las reglas de contenido miran la **última** respuesta; las de herramientas, **todos** los turnos.
 - `expect_clarification`: pregunta ambigua; debe preguntar o declarar su suposición.
 - `expect_evidence`: textos que deben aparecer en los **fragmentos recuperados** (nivel de fragmento: un archivo puede tener muchos y `expect_sources` solo mira el archivo). La regla `retrieval` exige fuentes **y** evidencia.
-- `kind`: tipo de caso difícil de recuperación (`exact_term`, `distractor`, `version`, `paraphrase`); el reporte agrupa por tipo.
+- `kind`: tipo de caso difícil de recuperación (`exact_term`, `distractor`, `version`, `paraphrase`, `attribution`); el reporte agrupa por tipo.
+- `expect_cited`: archivos a los que la respuesta debe atribuir los datos de `must_include` (regla `attribution`): el párrafo que contiene el dato debe citar `[archivo#n]` de ese archivo. Es heurística por proximidad de texto; valídala con respuestas reales antes de fiarte de ella.
 
 **Cómo se juzga cada regla** (`evals/rules.py`, funciones puras; `None` = no aplica a ese caso, y un caso pasa si pasan todas las que le aplican):
 | Regla | Pasa cuando… |
