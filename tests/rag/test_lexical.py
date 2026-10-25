@@ -21,6 +21,17 @@ def test_compound_terms_are_kept_whole_and_split() -> None:
     assert tokenize("--drain-timeout") == ["drain-timeout", "drain", "timeout"]
 
 
+def test_lower_camel_case_matches_snake_case_by_its_parts() -> None:
+    assert tokenize("invalidatePrefix") == ["invalidateprefix", "invalidate", "prefix"]
+    chunks = [chunk(0, "### invalidate_prefix(prefijo) borra las claves"), chunk(1, "otra cosa sin relación")]
+    assert Bm25Index(chunks).search("invalidatePrefix", top_k=2)[0][0].id == "d.md#0"
+
+
+def test_pascal_case_names_are_not_split() -> None:
+    """TaskFlow / OrbitaMQ son nombres propios: partirlos añadía ruido ('task', 'flow' son genéricas)."""
+    assert tokenize("TaskFlow") == ["taskflow"] and tokenize("OrbitaMQ") == ["orbitamq"]
+
+
 def test_exact_identifier_ranks_first_among_similar_ones() -> None:
     chunks = [chunk(0, "### E-4012 firma inválida"), chunk(1, "### E-4021 cuota excedida"),
               chunk(2, "### E-4030 mensaje duplicado")]

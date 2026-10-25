@@ -25,25 +25,37 @@ STOPWORDS = frozenset(
     "no o para por que se si su sus te tu un una uno unos unas y ya hay son ser fue sobre entre desde "
     "hace hacer puede pueden tiene tienen cuanto cuantos cuanta cuantas the of and to in is for".split()
 )
-_TOKEN = re.compile(r"[a-z0-9]+(?:[-_][a-z0-9]+)*")
+_TOKEN = re.compile(r"[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*")
 _PARTS = re.compile(r"[-_]")
+_CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")  # salto de minúscula a mayúscula
+
+
+def _strip_accents(text: str) -> str:
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
 
 
 def fold(text: str) -> str:
     """Minúsculas y sin acentos."""
-    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().casefold()
+    return _strip_accents(text).casefold()
 
 
 def tokenize(text: str) -> list[str]:
     """Palabras en minúsculas y sin acentos. Los compuestos (``ack_batch_window``, ``E-4021``,
-    ``drain-timeout``) se guardan enteros **y** partidos: la consulta exacta puntúa más alto que
-    una que solo comparte una parte."""
+    ``drain-timeout``, ``invalidatePrefix``) se guardan enteros **y** partidos: la consulta exacta
+    puntúa más alto que una que solo comparte una parte, y ``invalidatePrefix`` encuentra
+    ``invalidate_prefix`` por sus partes. Los nombres en PascalCase (``TaskFlow``, ``OrbitaMQ``) no se
+    parten: sus partes (``task``, ``flow``) son palabras genéricas que añadían ruido (medido en la Fase 7.B)."""
     tokens: list[str] = []
-    for word in _TOKEN.findall(fold(text)):
-        if len(word) >= 2 and word not in STOPWORDS:
-            tokens.append(word)
-        if _PARTS.search(word):
-            tokens.extend(p for p in _PARTS.split(word) if len(p) >= 2 and p not in STOPWORDS)
+    for word in _TOKEN.findall(_strip_accents(text)):
+        whole = word.casefold()
+        if len(whole) >= 2 and whole not in STOPWORDS:
+            tokens.append(whole)
+        pieces = _PARTS.split(word)
+        if word[0].islower():  # lowerCamelCase (``invalidatePrefix``) sí; PascalCase (``TaskFlow``) es un nombre propio
+            pieces = [q for piece in pieces for q in _CAMEL.split(piece)]
+        parts = [p.casefold() for p in pieces]
+        if len(parts) > 1:
+            tokens.extend(p for p in parts if len(p) >= 2 and p not in STOPWORDS)
     return tokens
 
 
