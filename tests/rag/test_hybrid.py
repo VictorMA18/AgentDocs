@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from fakes import STORE_KINDS, HashingEmbedder, make_store
 
-from techdoc_agent.rag.hybrid import RRF_K, rrf_fuse
+from techdoc_agent.rag.hybrid import RRF_K, rrf_fuse, with_lexical_floor
 from techdoc_agent.rag.retrieval import search
 from techdoc_agent.rag.store import Chunk
 
@@ -22,6 +22,22 @@ def test_rrf_is_deterministic_and_ties_keep_first_appearance() -> None:
     assert rrf_fuse([["a"], ["b"]]) == rrf_fuse([["a"], ["b"]])
     assert [i for i, _ in rrf_fuse([["a"], ["b"]])] == ["a", "b"]
     assert rrf_fuse([]) == [] and rrf_fuse([[], []]) == []
+
+
+def test_lexical_floor_brings_in_a_strong_exact_match_that_rrf_buried() -> None:
+    fused = ["a", "b", "c", "d", "e", "f"]            # orden de la fusión; "x" quedó fuera del top 3
+    lexical = [("y", 40.0), ("x", 38.0), ("a", 3.0)]
+    result = with_lexical_floor(fused, lexical, top_k=3, min_score=4.0)
+    assert result == ["a", "y", "x"] and len(result) == 3  # lo que ya estaba conserva su orden; entran los 2 léxicos
+
+
+def test_lexical_floor_respects_threshold_and_does_not_reorder_what_is_there() -> None:
+    fused = ["a", "b", "c", "d"]
+    assert with_lexical_floor(fused, [("z", 3.9)], top_k=3, min_score=4.0) == ["a", "b", "c"]  # bajo el umbral
+    assert with_lexical_floor(fused, [("b", 50.0), ("a", 40.0)], top_k=3, min_score=4.0) == ["a", "b", "c"]  # ya estaban
+    assert with_lexical_floor(fused, [], top_k=3, min_score=4.0) == ["a", "b", "c"]
+    assert with_lexical_floor(fused, [("z", 9.0), ("w", 8.0), ("v", 7.0), ("u", 6.0)], top_k=4, min_score=1.0) == ["a", "z", "w", "v"]  # solo reserva 3
+    assert with_lexical_floor(["a"], [("z", 9.0)], top_k=1, min_score=1.0) == ["z"]
 
 
 @pytest.fixture(params=STORE_KINDS)
