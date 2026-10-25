@@ -26,6 +26,9 @@ ABSTENTION_PHRASES = (
     "no aparece", "no esta en", "no se encuentra", "no cubre", "no describe", "no incluye", "no menciona",
     "no contiene", "no hay informacion", "no encontre", "no encuentro", "no explica", "no documenta", "no esta documentado",
     "sin resultados", "no figura", "no consta", "no habla", "no trata", "no proporciona", "no se documenta",
+    "no he encontrado", "no encontramos", "no hay datos", "no hay ninguna mencion", "no esta cubierto",
+    "no se menciona", "no se cubre", "no se describe", "no se explica", "no se incluye", "no existe informacion",
+    "no tengo informacion", "no dispongo", "no localice", "tampoco aparece",
 )
 CLARIFICATION_PHRASES = (
     "supongo", "asumo", "asumiendo", "suposicion", "entiendo que", "si te refieres", "a que te refieres",
@@ -50,7 +53,7 @@ class Outcome:
 def fold(text: str) -> str:
     """Minúsculas y sin acentos, para comparar sin depender de cómo escriba el modelo."""
     stripped = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
-    return stripped.casefold()
+    return " ".join(stripped.casefold().split())  # los saltos de línea y espacios dobles no rompen una frase
 
 
 def tools_used(outcome: Outcome) -> set[str]:
@@ -64,6 +67,11 @@ def retrieved_sources(outcome: Outcome) -> set[str]:
         if call.name == "buscar_documentos" and not call.is_error:
             found.update(_SOURCE_IN_FRAGMENT.findall(call.result))
     return found
+
+
+def retrieved_text(outcome: Outcome) -> str:
+    """Texto de todos los fragmentos que devolvió ``buscar_documentos`` (sin distinguir mayúsculas ni acentos)."""
+    return fold("\n".join(call.result for call in outcome.tool_calls if call.name == "buscar_documentos" and not call.is_error))
 
 
 def searches(outcome: Outcome) -> int:
@@ -93,8 +101,11 @@ def evaluate(case: Case, outcome: Outcome) -> dict[str, bool | None]:
     if case.expect_tools or case.forbid_tools:
         results["tools"] = all(t in used for t in case.expect_tools) and not any(t in used for t in case.forbid_tools)
 
-    if case.expect_sources:
-        results["retrieval"] = all(source in retrieved_sources(outcome) for source in case.expect_sources)
+    if case.expect_sources or case.expect_evidence:
+        # Fuente: el archivo correcto. Evidencia: el fragmento concreto (un archivo puede tener muchos).
+        sources_ok = all(source in retrieved_sources(outcome) for source in case.expect_sources)
+        text = retrieved_text(outcome)
+        results["retrieval"] = sources_ok and all(fold(token) in text for token in case.expect_evidence)
 
     # Contenido: lo que debe estar. En los casos de inyección, lo que no debe aparecer es robustez.
     if case.must_include or (case.must_not_include and not injection):
