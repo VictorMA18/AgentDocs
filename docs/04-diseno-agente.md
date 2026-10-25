@@ -80,7 +80,7 @@ Cada herramienta tiene: nombre, **descripción** (lo más importante: el modelo 
   }
 }
 ```
-Resultado: una etiqueta por fragmento, `<documento fuente="taskflow.md#3" seccion="Reintentos" score="0.82">…</documento>` (ver docs/05); el texto del fragmento neutraliza `</documento` para que un documento no pueda cerrar la etiqueta. Los fragmentos bajo `MIN_SCORE` se descartan. Argumentos inválidos (`query` vacía, `top_k` fuera de 1-10) devuelven un error al modelo. Implementada en `core/tools_rag.py`. Si no hay resultados: `"Sin resultados relevantes para esa consulta."` (explícito, para que el modelo no alucine).
+Resultado: una etiqueta por fragmento, `<documento fuente="taskflow.md#3" seccion="Reintentos" score="0.82">…</documento>` (ver docs/05); el texto del fragmento neutraliza `</documento` para que un documento no pueda cerrar la etiqueta. Los fragmentos bajo `MIN_SCORE` (similitud coseno) se descartan, salvo que, en el modo `hybrid` o `lexical`, coincidan con fuerza en palabras (BM25 ≥ `LEXICAL_MIN`, ver docs/05). Argumentos inválidos (`query` vacía, `top_k` fuera de 1-10) devuelven un error al modelo. Implementada en `core/tools_rag.py`. Si no hay resultados: `"Sin resultados relevantes para esa consulta."` (explícito, para que el modelo no alucine).
 
 ### `listar_documentos`
 Sin parámetros. Devuelve archivos indexados con número de fragmentos. Sirve para que el agente sepa qué hay antes de buscar o para responder "¿qué documentos tengo?".
