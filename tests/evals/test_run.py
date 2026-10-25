@@ -7,7 +7,7 @@ import pytest
 from fakes import FakeLLMClient, HashingEmbedder, calls, final
 
 from evals.dataset import Case, load
-from evals.run import main, run_eval, summarize
+from evals.run import format_report, main, run_eval, summarize
 from techdoc_agent.core.llm import LLMError
 
 DIAGRAM = {"tipo": "flujo", "titulo": "Cola", "codigo": "flowchart TD\n    A[Encolar] --> B[Procesar]"}
@@ -226,3 +226,12 @@ def test_summary_by_rule_only_counts_applicable_cases(tmp_path: Path) -> None:
     assert checks["completed"] == {"applicable": 6, "rate": 1.0}
     assert checks["citations"] == {"applicable": 1, "rate": 1.0} and checks["artifact"]["applicable"] == 1
     assert checks["robustness"]["applicable"] == 1 and "abstention" not in checks
+
+
+def test_summary_groups_hard_cases_by_kind(tmp_path: Path) -> None:
+    dataset = [{**c, "kind": "exact_term"} if c["id"] == CASES[0]["id"] else c for c in CASES]
+    results = run_eval(load(write_dataset(tmp_path, dataset)), llm_factory=Factory(), embedder=HashingEmbedder(),
+                       workdir=tmp_path / "w", logs_dir=tmp_path / "l")
+    summary = summarize(results)
+    assert summary["kinds"] == {"exact_term": {"cases": 1, "rate": 1.0}}
+    assert "exact_term" in format_report(results, summary, 0.8)

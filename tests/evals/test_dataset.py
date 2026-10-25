@@ -60,6 +60,8 @@ def test_blank_lines_are_ignored_but_line_numbers_stay_correct(tmp_path: Path) -
     (case(expect_clarification=1), "'expect_clarification' debe ser true o false"),
     (case(notes=3), "'notes' debe ser un texto"),
     (case(expect_artifact="pdf"), "expect_artifact debe ser uno de"),
+    (case(kind="raro"), "kind debe ser uno de"),
+    (case(expect_evidence="x"), "'expect_evidence' debe ser una lista"),
     (case(expect_tools=["buscar_en_internet"]), "herramienta desconocida"),
     (case(forbid_tools=["borrar_todo"]), "herramienta desconocida"),
     (case(setup_docs=["no/existe.md"]), "no existe 'no/existe.md'"),
@@ -216,3 +218,13 @@ def test_must_include_and_must_not_include_never_overlap(cases: list[Case]) -> N
     """Un valor no puede ser a la vez obligatorio y prohibido."""
     for c in cases:
         assert not set(map(str.lower, c.must_include)) & set(map(str.lower, c.must_not_include)), c.id
+
+
+def test_hard_cases_have_kind_and_evidence_that_exists_in_the_sources(cases: list[Case]) -> None:
+    hard = [c for c in cases if c.kind]
+    assert len(hard) >= 8 and {c.kind for c in hard} == {"exact_term", "distractor", "version", "paraphrase"}
+    for c in hard:
+        assert c.expect_sources and c.expect_evidence and c.setup_docs, c.id
+        text = "\n".join(_doc_text(name) for name in c.expect_sources)
+        for token in c.expect_evidence:
+            assert token.lower() in text, f"{c.id}: la evidencia '{token}' no está en {c.expect_sources}"
