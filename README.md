@@ -158,15 +158,17 @@ python -m evals.retrieval --top-k 3          # más estricto
 
 #### Búsqueda híbrida (Fase 7.B)
 
-Con 30/30 el dataset ya no discriminaba, así que se añadieron 8 casos difíciles (códigos de error casi idénticos, flags parecidos, dos versiones de una guía, paráfrasis). La búsqueda vectorial falló en uno: el agente dijo que `E-4021` «no aparece en la documentación» estando indexado. Se midió la recuperación **sin gastar tokens** (`python -m evals.retrieval`, 24 casos con evidencia):
+Con 30/30 el dataset ya no discriminaba, así que se añadieron 9 casos difíciles (códigos de error casi idénticos, flags parecidos, dos versiones de una guía, paráfrasis). La búsqueda vectorial falló en uno: el agente dijo que `E-4021` «no aparece en la documentación» estando indexado. Se midió la recuperación **sin gastar tokens** (`python -m evals.retrieval`, 25 casos con evidencia y 7 fuera de alcance):
 
 | Modo | hit@5 | hit@3 | MRR (k=5) | Fragmentos admitidos fuera de alcance |
 |---|---|---|---|---|
-| `vector` | 23/24 | 19/24 | 0,81 | 11 |
-| `lexical` (solo BM25) | 24/24 | 23/24 | 0,95 | 10 |
-| `hybrid` (por defecto) | 24/24 | 23/24 | 0,86 | 11 |
+| `vector` | 24/25 | 20/25 | 0,79 | 22 |
+| `lexical` (solo BM25) | 25/25 | 24/25 | 0,95 | 22 |
+| `hybrid` (por defecto) | 25/25 | 24/25 | 0,84 | 23 |
 
 La pasada completa en `hybrid` (38 casos × 2) dio 38/38 y `dificil-error-e4021` pasó de 50 % a 100 %. La léxica sola tiene mejor MRR porque las preguntas del dataset repiten palabras del documento, pero falla con paráfrasis; la híbrida es el compromiso seguro. `SEARCH_MODE=vector` restaura el comportamiento anterior. Detalle y calibración de `LEXICAL_MIN` en `docs/09`.
+
+Validación posterior de BM25 (sin tokens, `docs/09`): con **Chroma real** da exactamente lo mismo que con JSON; la **búsqueda por palabras exactas no empeora la abstención** (4 preguntas fuera de alcance que comparten palabras con los documentos: 23 fragmentos admitidos frente a 22 de la vectorial, y la propia vectorial ya admite fragmentos en casi todas); el índice BM25 se reconstruye en cada búsqueda, lo que cuesta ≈ 26 ms con 500 fragmentos, ≈ 290 ms con 5.000 y ≈ 1,1 s con 20.000; y `invalidatePrefix` (lowerCamelCase) ahora encuentra `invalidate_prefix`.
 
 Con 2 repeticiones, un 50 % en un caso es una sola ejecución fallida: las diferencias de un punto o dos son ruido. Lo que sí enseñan los datos es que `MIN_SCORE=0,5` perjudica y que la abstención está protegida por varias capas a la vez.
 
