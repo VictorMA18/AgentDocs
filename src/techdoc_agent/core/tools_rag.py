@@ -36,6 +36,13 @@ def format_hit(hit: SearchHit) -> str:
     )
 
 
+def _is_relevant(hit: SearchHit) -> bool:
+    """Pasa el umbral de coseno, o (búsqueda léxica/híbrida) una coincidencia de palabras muy fuerte."""
+    if hit.score >= config.settings.min_score:
+        return True
+    return hit.lexical_score is not None and hit.lexical_score >= config.settings.lexical_min
+
+
 def rag_tools(store: VectorStore, embedder: Embedder) -> list[Tool]:
     """Crea las herramientas RAG sobre un almacén y un embedder concretos."""
 
@@ -48,7 +55,7 @@ def rag_tools(store: VectorStore, embedder: Embedder) -> list[Tool]:
         if source is not None and not isinstance(source, str):
             raise ValueError("source debe ser un nombre de archivo")
         hits = search(store, embedder, query.strip(), top_k=k, source=source or None)
-        relevant = [h for h in hits if h.score >= config.settings.min_score]
+        relevant = [h for h in hits if _is_relevant(h)]
         return "\n\n".join(format_hit(h) for h in relevant) if relevant else NO_RESULTS
 
     def listar_documentos() -> str:

@@ -16,6 +16,7 @@ def test_defaults_when_env_is_empty() -> None:
     assert s.memory_max_tokens == 8000 and s.memory_keep_turns == 3
     assert s.vector_store == "json"
     assert s.min_score == pytest.approx(0.25)
+    assert s.search_mode == "hybrid" and s.lexical_min == pytest.approx(4.0)
     assert s.logs_dir == Path("./logs")
     assert ".md" in s.allowed_extensions and ".pdf" in s.allowed_extensions
 
@@ -38,3 +39,10 @@ def test_allowed_extensions_parsed_as_normalized_tuple() -> None:
 def test_invalid_number_raises_clear_error() -> None:
     with pytest.raises(ValueError, match="LLM_TIMEOUT_S"):
         load_settings({"LLM_TIMEOUT_S": "abc"})
+
+
+def test_search_mode_is_validated_and_normalized() -> None:
+    assert load_settings({"SEARCH_MODE": " Vector "}).search_mode == "vector"
+    assert load_settings({"SEARCH_MODE": "lexical"}).search_mode == "lexical"
+    with pytest.raises(ValueError, match="SEARCH_MODE debe ser uno de"):
+        load_settings({"SEARCH_MODE": "difuso"})

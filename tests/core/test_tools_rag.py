@@ -98,3 +98,21 @@ def test_list_documents_empty(tmp_path: Path, embedder: HashingEmbedder) -> None
     empty = ToolRegistry(rag_tools(make_store("json", tmp_path / "vacio"), embedder))
     assert empty.dispatch("listar_documentos", {}) == (NO_DOCUMENTS, False)
     assert empty.dispatch("buscar_documentos", {"query": "algo"}) == (NO_RESULTS, False)
+
+
+def test_lexical_gate_admits_a_strong_word_match_below_the_cosine_threshold(
+    registry: ToolRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Con MIN_SCORE imposible solo pasa lo que coincide con fuerza en palabras (BM25 >= LEXICAL_MIN)."""
+    monkeypatch.setattr(config, "settings", config.load_settings(
+        {"MIN_SCORE": "0.99", "SEARCH_MODE": "hybrid", "LEXICAL_MIN": "0.1"}))
+    assert "<documento" in registry.dispatch("buscar_documentos", {"query": "max_retries"})[0]
+    monkeypatch.setattr(config, "settings", config.load_settings(
+        {"MIN_SCORE": "0.99", "SEARCH_MODE": "hybrid", "LEXICAL_MIN": "999"}))
+    assert registry.dispatch("buscar_documentos", {"query": "max_retries"}) == (NO_RESULTS, False)
+
+
+def test_vector_mode_ignores_the_lexical_gate(registry: ToolRegistry, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "settings", config.load_settings(
+        {"MIN_SCORE": "0.99", "SEARCH_MODE": "vector", "LEXICAL_MIN": "0.1"}))
+    assert registry.dispatch("buscar_documentos", {"query": "max_retries"}) == (NO_RESULTS, False)

@@ -33,6 +33,8 @@ class Settings:
     chunk_overlap: int
     top_k_default: int
     min_score: float
+    search_mode: str
+    lexical_min: float
 
     # --- Rutas ---
     data_dir: Path
@@ -72,6 +74,13 @@ def _get_float(env: Mapping[str, str], name: str, default: float) -> float:
         raise ValueError(f"{name} debe ser un número, se recibió {raw!r}") from None
 
 
+def _get_choice(env: Mapping[str, str], name: str, default: str, choices: tuple[str, ...]) -> str:
+    value = _get_str(env, name, default).strip().lower()
+    if value not in choices:
+        raise ValueError(f"{name} debe ser uno de {', '.join(choices)}, se recibió {value!r}")
+    return value
+
+
 def _get_list(env: Mapping[str, str], name: str, default: str) -> tuple[str, ...]:
     """Lista separada por comas, normalizada a minúsculas y sin vacíos."""
     raw = _get_str(env, name, default)
@@ -108,6 +117,8 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         chunk_overlap=_get_int(env, "CHUNK_OVERLAP", 100),
         top_k_default=_get_int(env, "TOP_K_DEFAULT", 5),
         min_score=_get_float(env, "MIN_SCORE", 0.25),
+        search_mode=_get_choice(env, "SEARCH_MODE", "hybrid", ("vector", "lexical", "hybrid")),
+        lexical_min=_get_float(env, "LEXICAL_MIN", 4.0),
         data_dir=_get_path(env, "DATA_DIR", "./data"),
         outputs_dir=_get_path(env, "OUTPUTS_DIR", "./outputs"),
         logs_dir=_get_path(env, "LOGS_DIR", "./logs"),
