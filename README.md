@@ -168,6 +168,8 @@ Con 30/30 el dataset ya no discriminaba, así que se añadieron 9 casos difícil
 
 La pasada completa en `hybrid` (38 casos × 2) dio 38/38 y `dificil-error-e4021` pasó de 50 % a 100 %. La léxica sola tiene mejor MRR porque las preguntas del dataset repiten palabras del documento, pero falla con paráfrasis; la híbrida es el compromiso seguro. `SEARCH_MODE=vector` restaura el comportamiento anterior. Detalle y calibración de `LEXICAL_MIN` en `docs/09`.
 
+**Prueba de uso real** (`docs/09`): documentación pública de httpx (15 archivos, 14 preguntas: 14/14 correctas), el manual PDF de `requests` (418 fragmentos), el servidor MCP con Claude Code y el CLI. Encontró un fallo que el dataset no veía: con el PDF, la fusión RRF enterraba una coincidencia exacta fuerte (`HTTPAdapter(pool_connections: int = 10, …)`) y el agente decía que no estaba documentada. Se arregló reservando en el top-k los 3 mejores resultados BM25 (ADR-019): 5/5 después, sin cambios en el resto de métricas. También se corrigió que el CLI mandara `/foo` al modelo.
+
 Validación posterior de BM25 (`docs/09`). Con el modelo: la abstención se mantiene (21/21 en `hybrid` y en `vector`, incluidas 4 preguntas con palabras compartidas) y, en 4 casos clave × 5 repeticiones, `hybrid` acierta 20/20 frente al 85 % de `vector` (`E-4021` 5/5 frente a 3/5). Sin tokens: con **Chroma real** da exactamente lo mismo que con JSON; la **búsqueda por palabras exactas no empeora la abstención** (4 preguntas fuera de alcance que comparten palabras con los documentos: 23 fragmentos admitidos frente a 22 de la vectorial, y la propia vectorial ya admite fragmentos en casi todas); el índice BM25 se reconstruye en cada búsqueda, lo que cuesta ≈ 26 ms con 500 fragmentos, ≈ 290 ms con 5.000 y ≈ 1,1 s con 20.000; y `invalidatePrefix` (lowerCamelCase) ahora encuentra `invalidate_prefix`.
 
 Con 2 repeticiones, un 50 % en un caso es una sola ejecución fallida: las diferencias de un punto o dos son ruido. Lo que sí enseñan los datos es que `MIN_SCORE=0,5` perjudica y que la abstención está protegida por varias capas a la vez.
@@ -216,6 +218,7 @@ Lecciones:
 - **Medir antes de elegir:** a esta escala ChromaDB no es más rápido que JSON + numpy en búsqueda (hasta 20.000 fragmentos), pero gana en la reingesta incremental.
 - **Los mensajes de error de una herramienta son parte de su interfaz** para el cliente que la usa.
 - **Memoria acotada:** resumir los turnos antiguos frena el crecimiento del contexto, y lo técnico se vuelve a buscar en el RAG en vez de fiarse del resumen.
+- **Probar con documentos reales:** un PDF de verdad destapó un fallo de la fusión híbrida que 26 casos ficticios no veían; y una regla de evaluación nueva dio dos falsos positivos y una falsa alarma mía hasta contrastarla con respuestas y fuentes reales.
 - **Una pieza nueva se justifica con una medición:** la híbrida no se añadió por ser lo habitual, sino cuando un caso difícil mostró un fallo real y la comparación sin LLM (segundos, 0 tokens) confirmó la mejora. El hit@k de un corpus pequeño es indulgente: hay que mirar también MRR y `top_k` más bajos.
 - **Medir también el instrumento:** uno de los dos fallos de la línea base (y otro después, con Chroma) era de las reglas, no del agente; y quitar piezas (umbral, paso de la skill) enseña qué protege cada una: `MIN_SCORE=0,5` rompe la recuperación, mientras que la abstención resiste porque está repetida en varias capas.
 - **Buscar frente a preguntar (MCP):** exponer `buscar_documentos` da fragmentos baratos y componibles; `preguntar_agente` da una respuesta elaborada pero es una caja negra lenta.
@@ -249,7 +252,7 @@ outputs/  logs/                 # artefactos generados y registros (locales)
 | `docs/04-diseno-agente.md` | Bucle, herramientas (schemas), system prompt, memoria, seguridad, logs |
 | `docs/05-rag.md` · `06-api-y-mcp.md` · `07-evaluaciones.md` | RAG, API web y servidor MCP, evaluaciones |
 | `docs/08-roadmap-fases.md` | Fases, entregables y criterios de aceptación |
-| `docs/09-decisiones-y-glosario.md` | Decisiones (ADR-001 a ADR-018), experimentos medidos, fallos y glosario |
+| `docs/09-decisiones-y-glosario.md` | Decisiones (ADR-001 a ADR-019), experimentos medidos, fallos y glosario |
 
 ## Estado
 

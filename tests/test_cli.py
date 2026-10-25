@@ -31,3 +31,13 @@ def test_ingest_errors_are_messages_not_exceptions(tmp_path: Path) -> None:
     bad = tmp_path / "x.xyz"
     bad.write_text("x", encoding="utf-8")
     assert ingestar(str(bad), store, emb).startswith("No se pudo indexar")
+
+
+def test_unknown_slash_command_is_detected_but_paths_and_known_commands_are_not() -> None:
+    from techdoc_agent.cli import comando_desconocido
+
+    assert comando_desconocido("/foo") == "/foo" and comando_desconocido("/Ingestar x") is None
+    assert comando_desconocido("/foo bar baz") == "/foo"
+    assert all(comando_desconocido(c) is None for c in ("/nuevo", "/salir", "/ingestar ruta.md"))
+    assert comando_desconocido("/etc/hosts ¿qué es esto?") is None  # una ruta va al agente
+    assert comando_desconocido("¿Qué hace /foo?") is None

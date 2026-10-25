@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from techdoc_agent import config
 from techdoc_agent.rag.embeddings import Embedder
-from techdoc_agent.rag.hybrid import rrf_fuse
+from techdoc_agent.rag.hybrid import rrf_fuse, with_lexical_floor
 from techdoc_agent.rag.lexical import Bm25Index
 from techdoc_agent.rag.store import SearchHit, VectorStore
 
@@ -44,6 +44,8 @@ def search(
         ids = [chunk.id for chunk, _ in lexical][:top_k]
     else:
         by_cosine = sorted(cosine, key=lambda id_: -cosine[id_])
-        ids = [id_ for id_, _ in rrf_fuse([by_cosine, [chunk.id for chunk, _ in lexical]])][:top_k]
+        fused = [id_ for id_, _ in rrf_fuse([by_cosine, [chunk.id for chunk, _ in lexical]])]
+        ids = with_lexical_floor(fused, [(chunk.id, score) for chunk, score in lexical], top_k,
+                                 config.settings.lexical_min)
     chunks = {c.id: c for c in store.all_chunks(source)}
     return [SearchHit(chunks[id_], cosine.get(id_, 0.0), bm25.get(id_, 0.0)) for id_ in ids]

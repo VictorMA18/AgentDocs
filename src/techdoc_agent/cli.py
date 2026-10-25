@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from pathlib import Path
 
@@ -13,7 +14,16 @@ from techdoc_agent.rag.factory import build_store
 from techdoc_agent.rag.ingest import ingest_dir, ingest_file
 from techdoc_agent.rag.store import VectorStore
 
+COMANDOS = ("/ingestar", "/nuevo", "/salir")
 AYUDA = "Comandos: /ingestar <ruta> (indexa un archivo o carpeta), /nuevo (reinicia), /salir"
+
+
+def comando_desconocido(line: str) -> str | None:
+    """``/foo`` es un comando mal escrito, no una pregunta: se responde sin gastar una llamada al modelo.
+
+    Solo cuenta como comando una primera palabra ``/letras``; una ruta (``/etc/hosts ¿qué es?``) va al agente."""
+    first = line.split()[0]
+    return first if re.fullmatch(r"/[a-z]+", first) and first not in COMANDOS else None
 
 
 def ingestar(ruta: str, store: VectorStore, embedder: Embedder) -> str:
@@ -71,6 +81,9 @@ def main() -> None:
         if line == "/ingestar" or line.startswith("/ingestar "):
             ruta = line.removeprefix("/ingestar").strip()
             print(ingestar(ruta, store, embedder) if ruta else "Uso: /ingestar <ruta>")
+            continue
+        if (desconocido := comando_desconocido(line)) is not None:
+            print(f"Comando desconocido: {desconocido}. {AYUDA}")
             continue
         try:
             mostrar(agent.run(session_id, line))

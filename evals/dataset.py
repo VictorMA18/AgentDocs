@@ -17,10 +17,10 @@ DEFAULT_DATASET = REPO_ROOT / "evals" / "dataset.jsonl"
 
 KNOWN_TOOLS = ("buscar_documentos", "listar_documentos", "generar_diagrama", "generar_requisitos")
 ARTIFACTS = ("mermaid", "requisitos")
-KINDS = ("exact_term", "distractor", "version", "paraphrase")  # tipos de caso difícil de recuperación (Fase 7.A)
+KINDS = ("exact_term", "distractor", "version", "paraphrase", "attribution")  # tipos de caso difícil de recuperación (Fase 7.A)
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _LIST_FIELDS = ("expect_tools", "forbid_tools", "expect_sources", "must_include", "must_not_include",
-                "must_not_start_with", "setup_docs", "follow_up", "expect_evidence")
+                "must_not_start_with", "setup_docs", "follow_up", "expect_evidence", "expect_cited")
 _BOOL_FIELDS = ("out_of_scope", "expect_clarification")
 
 
@@ -36,6 +36,7 @@ class Case:
     forbid_tools: tuple[str, ...] = ()
     expect_sources: tuple[str, ...] = ()  # fuentes (archivos) que deben aparecer entre los fragmentos recuperados
     expect_evidence: tuple[str, ...] = ()  # textos que deben estar en los fragmentos recuperados (nivel de fragmento)
+    expect_cited: tuple[str, ...] = ()  # archivos a los que la respuesta debe atribuir los datos de must_include ([archivo#n])
     must_include: tuple[str, ...] = ()  # en la respuesta final, sin distinguir mayúsculas
     must_not_include: tuple[str, ...] = ()  # no puede aparecer en ninguna parte (p. ej. un literal del prompt)
     must_not_start_with: tuple[str, ...] = ()  # la respuesta no puede empezar así: sería obedecer una orden inyectada

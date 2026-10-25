@@ -15,9 +15,10 @@ from typing import Any
 from evals.dataset import Case
 
 CHECKS = ("completed", "tools", "retrieval", "content", "robustness", "abstention", "citations",
-          "artifact", "clarification")
+          "attribution", "artifact", "clarification")
 
 CITATION = re.compile(r"\[[^\]]+#\d+\]")
+CITED_SOURCE = re.compile(r"\[([^\]#]+)#\d+\]")
 _SOURCE_IN_FRAGMENT = re.compile(r'<documento fuente="([^"#]+)#\d+"')
 ARTIFACT_TYPE = {"mermaid": "mermaid", "requisitos": "requirements"}  # dataset → tipo de artefacto
 
@@ -74,6 +75,19 @@ def retrieved_text(outcome: Outcome) -> str:
     return fold("\n".join(call.result for call in outcome.tool_calls if call.name == "buscar_documentos" and not call.is_error))
 
 
+def cited_near_values(reply: str, values: tuple[str, ...]) -> set[str]:
+    """Archivos citados en los párrafos (o viñetas) de la respuesta que contienen alguno de los datos.
+
+    Sin datos que buscar se consideran todas las citas de la respuesta."""
+    if not values:
+        return set(CITED_SOURCE.findall(reply))
+    cited: set[str] = set()
+    for segment in re.split(r"\n+", reply):  # por párrafo: el dato y su cita suelen ir en frases contiguas
+        if any(fold(value) in fold(segment) for value in values):
+            cited.update(CITED_SOURCE.findall(segment))
+    return cited
+
+
 def searches(outcome: Outcome) -> int:
     """Nº de búsquedas realizadas (dato informativo, no una regla)."""
     return sum(1 for call in outcome.tool_calls if call.name == "buscar_documentos")
@@ -126,6 +140,11 @@ def evaluate(case: Case, outcome: Outcome) -> dict[str, bool | None]:
 
     if case.expect_sources:
         results["citations"] = bool(CITATION.search(outcome.final_reply))
+
+    if case.expect_cited:
+        # Atribución: el párrafo que da el dato debe citar el archivo que lo contiene.
+        cited = cited_near_values(outcome.final_reply, case.must_include)
+        results["attribution"] = all(s in cited for s in case.expect_cited)
 
     if case.expect_artifact:
         wanted = ARTIFACT_TYPE[case.expect_artifact]
