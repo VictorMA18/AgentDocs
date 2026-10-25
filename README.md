@@ -49,7 +49,7 @@ Reglas de diseño: **núcleo + adaptadores** (`core/` y `rag/` no conocen la web
 
 ## Instalación
 
-Necesitas **Python 3.11+** (probado con 3.12), `git` y el CLI [`claude`](https://claude.com/claude-code) instalado y con sesión iniciada. Hay que dejar sitio para unos 2 GB (PyTorch, Chroma y el modelo de embeddings, que se descarga la primera vez, ~470 MB).
+Necesitas **Python 3.11+** (probado con 3.12), `git` y el CLI [`claude`](https://claude.com/claude-code) instalado y con sesión iniciada. Hay que dejar sitio para unos 2 GB (PyTorch, Chroma y el modelo de embeddings, que se descarga la primera vez, ~470 MB). El repositorio es **privado** por ahora: para clonarlo hace falta acceso a la cuenta propietaria. Las dependencias de `requirements.txt` no están fijadas a una versión exacta.
 
 ```bash
 git clone https://github.com/VictorMA18/AgentDocs.git techdoc-agent
@@ -133,9 +133,24 @@ python -m evals.run --only fuera-alcance-k8s,saludo   # solo algunos casos
 python -m evals.run --repeat 2 --workers 4            # 2 repeticiones, 4 casos a la vez
 ```
 
-Cada caso corre aislado (índice, memoria y salidas propios) y se evalúa con reglas comprobables: herramientas usadas, recuperación de la fuente correcta, contenido, abstención, citas, artefactos y resistencia a inyección. Opciones: `--dataset`, `--only`, `--repeat N`, `--workers N` (`1` = en serie), `--min-pass`. Escribe `evals/results/YYYYMMDD-HHMM.json` y los logs de la ejecución, y sale con código `0` si la tasa global alcanza `EVAL_MIN_PASS` (0,8), `1` si no y `2` si el dataset es inválido. Formato del dataset y métricas en `docs/07-evaluaciones.md`.
+Cada caso corre aislado (índice, memoria y salidas propios) y se evalúa con reglas comprobables: herramientas usadas, recuperación de la fuente correcta, contenido, abstención, citas, artefactos y resistencia a inyección. Opciones: `--dataset`, `--only`, `--repeat N`, `--workers N` (`1` = en serie), `--min-pass`, `--label nombre`. Escribe `evals/results/YYYYMMDD-HHMMSS[-nombre].json` y los logs de la ejecución, y sale con código `0` si la tasa global alcanza `EVAL_MIN_PASS` (0,8), `1` si no y `2` si el dataset es inválido. Formato del dataset y métricas en `docs/07-evaluaciones.md`.
 
-<!-- RESULTADOS_EVALUACION -->
+#### Resultados
+
+30 casos × 2 repeticiones, Haiku 5.5, embeddings MiniLM, 4 casos a la vez (≈ 19.000 tokens y 3,6 min por pasada). Cada fila es un cambio y su efecto medido; el detalle está en `docs/09`.
+
+| Pasada | Casos acertados | Tasa media | Lectura |
+|---|---|---|---|
+| Línea base | 29/30 (97 %) | 95 % | Dos fallos: una regla mal planteada y un «No such tool available» raro |
+| 1 · regla de robustez (mencionar ≠ obedecer) | 30/30 | 100 % | Corrección del instrumento (mismas respuestas); el agente no cambió |
+| 2 · guarda de herramienta nativa | 30/30 | 100 % | Efecto no medible: el fallo es ≈ 1 de cada 96 ejecuciones |
+| 3 · sin el paso «Evalúa la evidencia» | 30/30 | 98 % | La abstención no depende solo de ese paso (hay redundancia con la regla fija) |
+| 4a · `MIN_SCORE=0` | 30/30 | 100 % | El umbral no decide la abstención; +4 % de tokens |
+| 4b · `MIN_SCORE=0,5` | 29/30 | 93 % | **Regresión**: se pierden fragmentos relevantes (recuperación 97 %, contenido 90 %) |
+| 5 · `VECTOR_STORE=chroma` | 30/30 | 100 % | Mismo comportamiento que JSON (tras corregir una frase de la regla de abstención) |
+
+Con 2 repeticiones, un 50 % en un caso es una sola ejecución fallida: las diferencias de un punto o dos son ruido. Lo que sí enseñan los datos es que `MIN_SCORE=0,5` perjudica y que la abstención está protegida por varias capas a la vez.
+
 
 ## Configuración
 
@@ -167,6 +182,8 @@ Los fallos reales se anotan en `docs/09-decisiones-y-glosario.md` y cada uno aca
 | El modelo conjeturó que "el índice puede estar incompleto" | Sin regla que lo prohíba, rellena el hueco con una hipótesis | Regla en la skill: no especular sobre el estado del sistema |
 | Un diagrama roto que el usuario pidió guardar "tal cual" se corrigió en silencio | La skill no distinguía el código aportado por el usuario | Excepción en la skill: mostrar errores, proponer y preguntar |
 | Un cliente MCP adivinaba rutas absolutas al ingestar | Nada le decía que bastaba el nombre del archivo | Descripción y error de la herramienta lo indican |
+| "No such tool available" del CLI, repetido por el modelo como «la herramienta no está disponible» | El modelo intentó una llamada nativa y repitió el mensaje como un hecho | Regla de prompt y un reintento con la pista del protocolo JSON; fallo raro (≈ 1/96) |
+| Una evaluación marcó como fallo a un agente que resistió la inyección o se abstuvo | Las reglas por frases/palabras miraban la respuesta entera o tenían una lista incompleta | Reglas más precisas (`must_not_start_with`, «no encuentro»): **si falla un caso, primero se mira si falla la regla** |
 
 Lecciones:
 
@@ -175,6 +192,7 @@ Lecciones:
 - **Medir antes de elegir:** a esta escala ChromaDB no es más rápido que JSON + numpy en búsqueda (hasta 20.000 fragmentos), pero gana en la reingesta incremental.
 - **Los mensajes de error de una herramienta son parte de su interfaz** para el cliente que la usa.
 - **Memoria acotada:** resumir los turnos antiguos frena el crecimiento del contexto, y lo técnico se vuelve a buscar en el RAG en vez de fiarse del resumen.
+- **Medir también el instrumento:** uno de los dos fallos de la línea base (y otro después, con Chroma) era de las reglas, no del agente; y quitar piezas (umbral, paso de la skill) enseña qué protege cada una: `MIN_SCORE=0,5` rompe la recuperación, mientras que la abstención resiste porque está repetida en varias capas.
 - **Buscar frente a preguntar (MCP):** exponer `buscar_documentos` da fragmentos baratos y componibles; `preguntar_agente` da una respuesta elaborada pero es una caja negra lenta.
 
 ## Estructura del repositorio
@@ -206,8 +224,8 @@ outputs/  logs/                 # artefactos generados y registros (locales)
 | `docs/04-diseno-agente.md` | Bucle, herramientas (schemas), system prompt, memoria, seguridad, logs |
 | `docs/05-rag.md` · `06-api-y-mcp.md` · `07-evaluaciones.md` | RAG, API web y servidor MCP, evaluaciones |
 | `docs/08-roadmap-fases.md` | Fases, entregables y criterios de aceptación |
-| `docs/09-decisiones-y-glosario.md` | Decisiones (ADR-001 a ADR-016), experimentos medidos, fallos y glosario |
+| `docs/09-decisiones-y-glosario.md` | Decisiones (ADR-001 a ADR-017), experimentos medidos, fallos y glosario |
 
 ## Estado
 
-Fases 0, 1, 2, 3, 3b, 4, 5 y 6 completadas: bucle del agente, RAG como herramienta con skill, memoria recortada, diagramas y requisitos validados, almacén ChromaDB seleccionable, API web con conversaciones guardadas y servidor MCP. **Fase 7 (evaluaciones, logs y README final) en curso.** Checklist en `docs/08-roadmap-fases.md`.
+Fases 0, 1, 2, 3, 3b, 4, 5, 6 y 7 completadas: bucle del agente, RAG como herramienta con skill, memoria recortada, diagramas y requisitos validados, almacén ChromaDB seleccionable, API web con conversaciones guardadas y servidor MCP, evaluaciones repetibles con línea base y seis contrastes medidos. Checklist en `docs/08-roadmap-fases.md`.
