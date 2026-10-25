@@ -111,6 +111,9 @@ class JsonVectorStore:
         order = candidates[np.argsort(-scores[candidates], kind="stable")][:top_k]
         return [SearchHit(self._chunks[i], float(scores[i])) for i in order]
 
+    def all_chunks(self, source: str | None = None) -> list[Chunk]:
+        return [c for c in self._chunks if source is None or c.source == source]
+
     def list_sources(self) -> list[dict[str, Any]]:
         counts = Counter(c.source for c in self._chunks)
         return [{"source": s, "chunks": n} for s, n in counts.items()]

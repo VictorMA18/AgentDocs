@@ -26,6 +26,7 @@ class Chunk:
 class SearchHit:
     chunk: Chunk
     score: float  # similitud coseno: 1 = misma dirección, 0 = sin relación
+    lexical_score: float | None = None  # BM25 si la búsqueda es léxica o híbrida; ``None`` en la vectorial
 
 
 class VectorStore(Protocol):
@@ -36,6 +37,10 @@ class VectorStore(Protocol):
     def search(
         self, query_vector: np.ndarray, top_k: int = 5, source: str | None = None
     ) -> list[SearchHit]: ...
+
+    def all_chunks(self, source: str | None = None) -> list[Chunk]:
+        """Todos los fragmentos (o los de un documento): lo necesita la búsqueda léxica."""
+        ...
 
     def list_sources(self) -> list[dict[str, Any]]:
         """``[{"source": "taskflow.md", "chunks": 9}, ...]``"""
