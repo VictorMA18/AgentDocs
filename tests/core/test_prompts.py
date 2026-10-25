@@ -30,3 +30,8 @@ def test_summary_is_context_not_evidence_and_is_appended_to_the_system_prompt() 
     assert with_summary("BASE", "") == "BASE"
     assert with_summary("BASE", "hablamos de X").endswith(
         "<resumen_conversacion>\nhablamos de X\n</resumen_conversacion>")
+
+
+def test_fixed_rules_say_tools_are_only_requested_through_the_json_protocol() -> None:
+    assert "objeto JSON del protocolo" in FIXED_RULES
+    assert "no afirmes que una no está disponible" in FIXED_RULES

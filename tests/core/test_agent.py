@@ -132,3 +132,35 @@ def test_every_step_is_logged(logs_dir: Path) -> None:
     assert tool_event["is_error"] is False and "duration_ms" in tool_event
     assert events[1]["input_tokens"] == 10 and events[1]["iter"] == 1
     assert "suma secreta" not in "\n".join(lines)  # solo se registra el tamaño del mensaje
+
+
+# --- el modelo intenta una llamada nativa y lo cuenta como "herramienta no disponible" ---
+
+NATIVE = "No pude guardarlo: la herramienta no está disponible (error \"No such tool available\")."
+
+
+def test_claim_that_a_tool_is_unavailable_is_sent_back_once_for_correction(logs_dir) -> None:
+    agent, llm = make_agent([
+        final(NATIVE),
+        calls(("c1", "sumar", {"a": 1, "b": 2})),
+        final("Son 3."),
+    ])
+    result = agent.run("s1", "suma 1+2")
+    assert result.text == "Son 3." and result.iterations == 3
+    assert [t.name for t in result.tool_calls] == ["sumar"]
+    hint = llm.seen[1][-1]["content"]  # lo que vio el modelo tras su respuesta errónea
+    assert hint.startswith("Error de protocolo") and '"accion": "herramientas"' in hint
+    assert llm.seen[1][-2]["content"].count("No such tool available") == 1  # su respuesta quedó en el historial
+    events = [json.loads(line)["event"] for f in logs_dir.glob("*.jsonl") for line in f.read_text().splitlines()]
+    assert "native_tool_attempt" in events
+
+
+def test_the_correction_is_not_repeated_so_it_cannot_loop(logs_dir) -> None:
+    agent, llm = make_agent([final(NATIVE), final(NATIVE)])
+    result = agent.run("s1", "suma 1+2")
+    assert result.text == NATIVE and result.iterations == 2 and len(llm.seen) == 2
+
+
+def test_normal_answers_are_never_touched_by_the_check(logs_dir) -> None:
+    agent, llm = make_agent([final("Las herramientas están disponibles; son 3.")])
+    assert agent.run("s1", "hola").iterations == 1 and len(llm.seen) == 1
