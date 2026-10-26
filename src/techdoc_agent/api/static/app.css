@@ -91,6 +91,9 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(
 .msg-agent code { font-family: var(--mono); font-size: .88em; background: var(--code-bg); padding: .08em .3em; border-radius: 3px; }
 .msg-error { color: var(--danger); border-left: 3px solid var(--danger); padding-left: .9rem; }
 .msg-wait { color: var(--muted); }
+.wait-steps { margin-top: .35rem; font-size: .85rem; }
+.wait-step { margin: .1rem 0; }
+.wait-step.error { color: var(--danger); }
 
 .codeblock { position: relative; margin: .8em 0; }
 .codeblock pre { margin: 0; padding: 1rem; background: var(--code-bg); border-radius: 4px; overflow-x: auto; }

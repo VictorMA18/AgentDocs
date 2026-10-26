@@ -164,3 +164,45 @@ def test_the_correction_is_not_repeated_so_it_cannot_loop(logs_dir) -> None:
 def test_normal_answers_are_never_touched_by_the_check(logs_dir) -> None:
     agent, llm = make_agent([final("Las herramientas están disponibles; son 3.")])
     assert agent.run("s1", "hola").iterations == 1 and len(llm.seen) == 1
+
+
+# --- avisos de progreso (Fase 8): el adaptador web los convierte en SSE ---
+
+
+def test_on_event_reports_thinking_and_each_tool_in_order() -> None:
+    agent, _ = make_agent([calls(("c1", "sumar", {"a": 1, "b": 2})), final("Son 3.")])
+    events: list[dict] = []
+    result = agent.run("s1", "suma 1+2", on_event=events.append)
+    assert result.text == "Son 3."
+    assert [e["tipo"] for e in events] == ["pensando", "herramienta", "pensando"]
+    assert events[0] == {"tipo": "pensando", "iter": 1} and events[2]["iter"] == 2
+    tool = events[1]
+    assert tool["nombre"] == "sumar" and tool["error"] is False and isinstance(tool["ms"], int) and tool["resumen"] == ""
+
+
+def test_tool_event_summarizes_only_short_descriptive_arguments() -> None:
+    agent, _ = make_agent([
+        calls(("c1", "sumar", {"query": "  " + "x" * 200, "a": 1, "b": 2})),
+        calls(("c2", "sumar", {"codigo": "A --> B " * 500, "a": 1, "b": 2})),
+        final("ok"),
+    ])
+    events: list[dict] = []
+    agent.run("s1", "q", on_event=events.append)
+    summaries = [e["resumen"] for e in events if e["tipo"] == "herramienta"]
+    assert summaries == ["x" * 80, ""]  # recortado a 80; un argumento largo sin clave descriptiva no se envía
+
+
+def test_a_failing_listener_does_not_break_the_turn(logs_dir) -> None:
+    agent, _ = make_agent([final("hola")])
+
+    def boom(_event: dict) -> None:
+        raise RuntimeError("cliente caído")
+
+    assert agent.run("s1", "hola", on_event=boom).text == "hola"
+    events = [json.loads(line)["event"] for f in logs_dir.glob("*.jsonl") for line in f.read_text().splitlines()]
+    assert "on_event_error" in events
+
+
+def test_without_listener_nothing_changes() -> None:
+    agent, llm = make_agent([final("hola")])
+    assert agent.run("s1", "hola").iterations == 1 and len(llm.seen) == 1
