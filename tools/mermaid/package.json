@@ -1,0 +1,8 @@
+{
+  "name": "techdoc-mermaid-validator",
+  "private": true,
+  "description": "Instala mermaid-cli (mmdc) para validar diagramas con MERMAID_VALIDATE=cli. Ver docs/09, ADR-022.",
+  "dependencies": {
+    "@mermaid-js/mermaid-cli": "12.0.0"
+  }
+}
