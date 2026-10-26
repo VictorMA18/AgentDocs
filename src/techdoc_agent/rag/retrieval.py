@@ -46,6 +46,6 @@ def search(
         by_cosine = sorted(cosine, key=lambda id_: -cosine[id_])
         fused = [id_ for id_, _ in rrf_fuse([by_cosine, [chunk.id for chunk, _ in lexical]])]
         ids = with_lexical_floor(fused, [(chunk.id, score) for chunk, score in lexical], top_k,
-                                 config.settings.lexical_min)
+                                 config.settings.lexical_min, config.settings.lexical_reserve)
     chunks = {c.id: c for c in store.all_chunks(source)}
     return [SearchHit(chunks[id_], cosine.get(id_, 0.0), bm25.get(id_, 0.0)) for id_ in ids]
