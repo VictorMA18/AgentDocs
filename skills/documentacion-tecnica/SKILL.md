@@ -11,7 +11,7 @@ Esta skill define **cómo trabajar**, no qué saber. El conocimiento está en lo
 1. **Entiende la petición.** ¿Es una pregunta, un ejemplo de código, un diagrama o unos requisitos? Si es ambigua y la ambigüedad cambia la respuesta, haz **una** pregunta breve; si no, declara tu suposición y continúa.
 2. **Busca antes de afirmar.** Para cualquier dato técnico (nombres, parámetros, valores por defecto, versiones, comportamiento), consulta `buscar_documentos`. No respondas de memoria sobre contenido que debería estar en los documentos.
 3. **Busca bien.** Usa consultas específicas y autocontenidas. Si el resultado no basta, reformula con otros términos o sinónimos (incluye el nombre técnico en inglés si la documentación lo usa). Si la pregunta combina temas, haz una búsqueda por tema.
-4. **Evalúa la evidencia.** Si los fragmentos no respaldan la respuesta, dilo claramente: *"Esto no aparece en la documentación indexada"*. Puedes ofrecer conocimiento general **marcándolo explícitamente** como no proveniente de los documentos.
+4. **Evalúa la evidencia.** Si los fragmentos no respaldan la respuesta, dilo claramente: *"Esto no aparece en la documentación indexada"*. Sé **breve** (unas 6 líneas): añade como mucho 2 viñetas con lo cercano que sí aparece y sea útil para el usuario, sin resumir todo lo recuperado. Conocimiento general, solo si aporta y en una frase **marcada explícitamente** como no proveniente de los documentos.
 5. **Responde** con el formato de la sección correspondiente y cita las fuentes.
 
 ## Citas
@@ -29,32 +29,8 @@ Esta skill define **cómo trabajar**, no qué saber. El conocimiento está en lo
 - Después del código, explica en pocas líneas qué hace y los puntos delicados (errores comunes, valores por defecto).
 - No inventes APIs, parámetros ni versiones.
 
-## Diagramas
-1. Recupera primero la información que sustenta el diagrama (componentes, flujos, entidades).
-2. Elige el tipo adecuado:
-   | Necesidad | Tipo (`tipo`) | Mermaid |
-   |---|---|---|
-   | Estructura de clases/módulos | `clases` | `classDiagram` |
-   | Interacción en el tiempo | `secuencia` | `sequenceDiagram` |
-   | Proceso o arquitectura simple | `flujo` / `componentes` | `flowchart TD` o `LR` |
-   | Datos y relaciones | `entidad_relacion` | `erDiagram` |
-   | Ciclo de vida | `estados` | `stateDiagram-v2` |
-3. Llama a `generar_diagrama` con el código Mermaid **sin** delimitadores ```.
-4. Si la herramienta devuelve errores, corrígelos y vuelve a llamarla (máximo 3 intentos).
-   - **Excepción:** si el usuario te dio el código ya escrito y pidió guardarlo *tal cual*, no lo modifiques por tu cuenta. Muestra los errores que devolvió la herramienta, propón la versión corregida y pregunta si la guardas.
-5. En tu respuesta, indica el **nombre del archivo guardado**, incluye el código Mermaid en un bloque ```mermaid y resume qué muestra el diagrama y qué partes provienen de la documentación y cuáles son supuestos.
-6. Buenas prácticas: máximo ~15 nodos por diagrama (divide si hay más); etiquetas cortas; identificadores sin espacios ni acentos; texto con caracteres especiales entre comillas.
-
-## Requisitos
-1. Recupera el contenido fuente (funcionalidades, restricciones, comportamientos).
-2. Redacta cada requisito de forma **verificable**:
-   - Funcional: "El sistema debe <verbo> <objeto> <condición>".
-   - No funcional: con **métrica** (tiempo, porcentaje, límite).
-3. Asigna prioridad MoSCoW (`M`, `S`, `C`, `W`) y un **criterio de aceptación** concreto.
-4. Identificadores: `RF-01`, `RF-02`… y `RNF-01`… sin repetir.
-5. Indica en `fuente` el documento/fragmento del que deduces el requisito. Si es una suposición tuya, déjalo vacío y menciónalo.
-6. Llama a `generar_requisitos`; si devuelve errores, corrígelos y vuelve a llamar; si devuelve advertencias, explícalas al usuario. Indica el **nombre del archivo guardado** y resume los requisitos.
-7. No inventes requisitos que no se deduzcan de la información; pregunta o márcalos como "propuesto".
+## Diagramas y requisitos
+Para generar un diagrama o un documento de requisitos, **carga antes su guía** con `cargar_guia` (nombres en `<guias_disponibles>`) y sigue sus pasos; no los improvises de memoria.
 
 ## Tono y estilo
 - Español salvo que el usuario escriba en otro idioma.

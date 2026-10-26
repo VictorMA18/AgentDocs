@@ -13,6 +13,7 @@ from typing import Any
 from techdoc_agent import config
 from techdoc_agent.core.tools import Tool
 from techdoc_agent.outputs.diagrams import HEADERS, save_diagram, validate_mermaid
+from techdoc_agent.outputs.mermaid_cli import validate_with_cli
 from techdoc_agent.outputs.requirements_doc import save_requirements, validate_requirements
 
 RETRY_HINT = "Corrige estos problemas y vuelve a llamar a la herramienta."
@@ -32,6 +33,10 @@ def output_tools(outputs_dir: Path | None = None) -> list[Tool]:
         errors = validate_mermaid(tipo, titulo, codigo)
         if errors:
             raise _fail(errors)
+        if config.settings.mermaid_validate == "cli":  # tras la heurística (barata); si mmdc no está, se sigue sin él
+            rejected = validate_with_cli(codigo)
+            if rejected:
+                raise _fail([f"Mermaid rechazó el diagrama: {message}" for message in rejected])
         name = save_diagram(tipo, titulo, codigo, target())
         return f"Diagrama válido y guardado como {name}."
 

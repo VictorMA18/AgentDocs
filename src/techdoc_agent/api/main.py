@@ -6,7 +6,9 @@ Aquí solo se valida lo que llega por HTTP (mensajes, archivos, nombres) y se de
 
 from __future__ import annotations
 
+import json
 import os
+import queue
 import re
 import shutil
 import tempfile
@@ -19,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -37,6 +39,7 @@ from techdoc_agent.rag.store import VectorStore
 STATIC_DIR = Path(__file__).parent / "static"
 MAX_MESSAGE_CHARS = 8000
 UPLOAD_CHUNK = 1024 * 1024
+STREAM_KEEPALIVE_S = 15
 MULTIPART_OVERHEAD = 64 * 1024  # margen de cabeceras del multipart al comparar con Content-Length
 
 CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
@@ -127,6 +130,35 @@ def _artifact_info(path: Path) -> dict[str, Any]:
     }
 
 
+def _run_turn(core: Core, body: ChatRequest, on_event: Any = None) -> dict[str, Any]:
+    """Un turno de chat completo bajo el candado: agente, respuesta documentada y transcripción."""
+    with core.lock:
+        try:
+            result = core.agent.run(body.session_id, body.message, on_event=on_event)
+        except LLMError:  # el detalle ya está en el log; al cliente, un mensaje genérico
+            raise HTTPException(502, "El modelo no respondió correctamente. Inténtalo de nuevo.") from None
+        response = {
+            "reply": result.text,
+            "tool_calls": [
+                {"tool": t.name, "args": t.args, "is_error": t.is_error, "duration_ms": t.duration_ms}
+                for t in result.tool_calls
+            ],
+            "artifacts": turn_artifacts(result.tool_calls, config.settings.outputs_dir),
+            "usage": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
+            "truncated": result.truncated,
+        }
+        try:
+            core.transcripts.append(body.session_id, {"message": body.message, **response})
+        except OSError as exc:  # la respuesta ya existe: no se pierde por un fallo de disco
+            log_event(session=body.session_id, event="transcript_save_error", error=str(exc))
+    return response
+
+
+def _sse(event: dict[str, Any]) -> str:
+    """Un evento SSE: ``event:`` con el tipo y ``data:`` con el JSON (una sola línea)."""
+    return f"event: {event['tipo']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+
 def create_app(
     agent: Agent | None = None, store: VectorStore | None = None, embedder: Embedder | None = None
 ) -> FastAPI:
@@ -179,27 +211,46 @@ def create_app(
 
     @app.post("/api/chat")
     def chat(body: ChatRequest, request: Request) -> dict[str, Any]:
+        return _run_turn(core_of(request), body)
+
+    @app.post("/api/chat/stream")
+    def chat_stream(body: ChatRequest, request: Request) -> StreamingResponse:
+        """Mismo turno que ``/api/chat`` pero en SSE: eventos de progreso y, al final, ``final`` o ``error``.
+
+        Es progreso, no tokens: la respuesta del modelo llega entera dentro de un JSON estructurado.
+        El turno corre en un hilo; si el cliente se desconecta, termina y se guarda igualmente.
+        """
         core = core_of(request)
-        with core.lock:
+        events: queue.Queue[dict[str, Any] | None] = queue.Queue()
+
+        def work() -> None:
             try:
-                result = core.agent.run(body.session_id, body.message)
-            except LLMError:  # el detalle ya está en el log; al cliente, un mensaje genérico
-                raise HTTPException(502, "El modelo no respondió correctamente. Inténtalo de nuevo.") from None
-            response = {
-                "reply": result.text,
-                "tool_calls": [
-                    {"tool": t.name, "args": t.args, "is_error": t.is_error, "duration_ms": t.duration_ms}
-                    for t in result.tool_calls
-                ],
-                "artifacts": turn_artifacts(result.tool_calls, config.settings.outputs_dir),
-                "usage": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
-                "truncated": result.truncated,
-            }
-            try:
-                core.transcripts.append(body.session_id, {"message": body.message, **response})
-            except OSError as exc:  # la respuesta ya existe: no se pierde por un fallo de disco
-                log_event(session=body.session_id, event="transcript_save_error", error=str(exc))
-        return response
+                if core.lock.locked():  # otro turno en curso: se avisa en vez de dejar al cliente a oscuras
+                    events.put({"tipo": "en_cola"})
+                events.put({"tipo": "final", **_run_turn(core, body, on_event=events.put)})
+            except HTTPException as exc:
+                events.put({"tipo": "error", "detalle": exc.detail})
+            except Exception as exc:  # noqa: BLE001 - nada de trazas al cliente
+                log_event(session=body.session_id, event="stream_error", error=str(exc))
+                events.put({"tipo": "error", "detalle": "Error interno del servidor."})
+            finally:
+                events.put(None)
+
+        threading.Thread(target=work, daemon=True).start()
+
+        def generate() -> Any:
+            while True:
+                try:
+                    event = events.get(timeout=STREAM_KEEPALIVE_S)
+                except queue.Empty:
+                    yield ": keepalive\n\n"  # un comentario SSE: evita que un proxy cierre la conexión inactiva
+                    continue
+                if event is None:
+                    return
+                yield _sse(event)
+
+        return StreamingResponse(generate(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     # --- conversaciones guardadas ---
 

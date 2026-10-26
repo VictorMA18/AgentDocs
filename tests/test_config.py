@@ -16,7 +16,7 @@ def test_defaults_when_env_is_empty() -> None:
     assert s.memory_max_tokens == 8000 and s.memory_keep_turns == 3
     assert s.vector_store == "json"
     assert s.min_score == pytest.approx(0.25)
-    assert s.search_mode == "hybrid" and s.lexical_min == pytest.approx(4.0)
+    assert s.search_mode == "hybrid" and s.lexical_min == pytest.approx(4.0) and s.lexical_reserve == 3
     assert s.logs_dir == Path("./logs")
     assert ".md" in s.allowed_extensions and ".pdf" in s.allowed_extensions
 
@@ -46,3 +46,12 @@ def test_search_mode_is_validated_and_normalized() -> None:
     assert load_settings({"SEARCH_MODE": "lexical"}).search_mode == "lexical"
     with pytest.raises(ValueError, match="SEARCH_MODE debe ser uno de"):
         load_settings({"SEARCH_MODE": "difuso"})
+
+
+def test_lexical_reserve_accepts_zero_and_rejects_negatives_and_text() -> None:
+    assert load_settings({"LEXICAL_RESERVE": "0"}).lexical_reserve == 0
+    assert load_settings({"LEXICAL_RESERVE": "5"}).lexical_reserve == 5
+    with pytest.raises(ValueError, match="LEXICAL_RESERVE no puede ser negativo"):
+        load_settings({"LEXICAL_RESERVE": "-1"})
+    with pytest.raises(ValueError, match="LEXICAL_RESERVE debe ser un entero"):
+        load_settings({"LEXICAL_RESERVE": "mucho"})

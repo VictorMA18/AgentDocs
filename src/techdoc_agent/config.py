@@ -35,6 +35,7 @@ class Settings:
     min_score: float
     search_mode: str
     lexical_min: float
+    lexical_reserve: int
 
     # --- Rutas ---
     data_dir: Path
@@ -47,6 +48,10 @@ class Settings:
     max_upload_mb: int
     allowed_extensions: tuple[str, ...]
     allowed_ingest_dir: Path
+    mermaid_validate: str
+    mermaid_cli_path: Path
+    mermaid_timeout_s: int
+    mermaid_puppeteer_config: str
 
     # --- Evaluaciones ---
     eval_min_pass: float
@@ -64,6 +69,13 @@ def _get_int(env: Mapping[str, str], name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         raise ValueError(f"{name} debe ser un entero, se recibió {raw!r}") from None
+
+
+def _get_non_negative_int(env: Mapping[str, str], name: str, default: int) -> int:
+    value = _get_int(env, name, default)
+    if value < 0:
+        raise ValueError(f"{name} no puede ser negativo, se recibió {value}")
+    return value
 
 
 def _get_float(env: Mapping[str, str], name: str, default: float) -> float:
@@ -119,6 +131,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         min_score=_get_float(env, "MIN_SCORE", 0.25),
         search_mode=_get_choice(env, "SEARCH_MODE", "hybrid", ("vector", "lexical", "hybrid")),
         lexical_min=_get_float(env, "LEXICAL_MIN", 4.0),
+        lexical_reserve=_get_non_negative_int(env, "LEXICAL_RESERVE", 3),
         data_dir=_get_path(env, "DATA_DIR", "./data"),
         outputs_dir=_get_path(env, "OUTPUTS_DIR", "./outputs"),
         logs_dir=_get_path(env, "LOGS_DIR", "./logs"),
@@ -131,6 +144,10 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             ".md,.txt,.pdf,.py,.js,.ts,.java,.json,.yaml,.yml",
         ),
         allowed_ingest_dir=_get_path(env, "ALLOWED_INGEST_DIR", "./data/documents"),
+        mermaid_validate=_get_choice(env, "MERMAID_VALIDATE", "heuristic", ("heuristic", "cli")),
+        mermaid_cli_path=_get_path(env, "MERMAID_CLI_PATH", "./tools/mermaid/node_modules/.bin/mmdc"),
+        mermaid_timeout_s=_get_int(env, "MERMAID_TIMEOUT_S", 30),
+        mermaid_puppeteer_config=_get_str(env, "MERMAID_PUPPETEER_CONFIG", ""),
         eval_min_pass=_get_float(env, "EVAL_MIN_PASS", 0.8),
     )
 

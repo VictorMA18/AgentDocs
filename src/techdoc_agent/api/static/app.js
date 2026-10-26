@@ -233,18 +233,79 @@ async function showAgentTurn(data) {
   for (const artifact of data.artifacts) await addArtifact(box, artifact);
 }
 
+// Etiquetas de lo que hace el agente mientras trabaja (eventos de /api/chat/stream).
+const STEP_LABELS = {
+  buscar_documentos: "Buscando en la documentación", listar_documentos: "Listando los documentos",
+  generar_diagrama: "Generando el diagrama", generar_requisitos: "Generando los requisitos",
+  cargar_guia: "Leyendo la guía de la skill",
+};
+
+// Todo el texto del progreso entra con textContent: el modelo decide los argumentos, no es de fiar.
+function showProgress(waiting, event) {
+  const text = waiting.querySelector(".wait-text");
+  const steps = waiting.querySelector(".wait-steps");
+  if (event.tipo === "en_cola") text.textContent = "Esperando a que termine otra consulta…";
+  else if (event.tipo === "pensando") {
+    text.textContent = event.iter === 1 ? "El agente está pensando…" : "Elaborando la respuesta (paso " + event.iter + ")…";
+  } else if (event.tipo === "herramienta") {
+    const label = STEP_LABELS[event.nombre] || event.nombre;
+    const detail = event.resumen ? ": " + event.resumen : "";
+    steps.append(el("div", "wait-step" + (event.error ? " error" : ""),
+      (event.error ? "✗ " : "✓ ") + label + detail + " (" + event.ms + " ms)"));
+  }
+  scrollToEnd();
+}
+
+// Un bloque SSE ("event: x\ndata: {...}") → objeto; los comentarios (": keepalive") se ignoran.
+function parseSseBlock(block) {
+  const line = block.split("\n").find((l) => l.startsWith("data: "));
+  if (!line) return null;
+  try { return JSON.parse(line.slice(6)); } catch { return null; }
+}
+
+// POST con respuesta en streaming (EventSource solo admite GET). Devuelve el evento "final".
+async function streamChat(text, onProgress) {
+  const response = await fetch("/api/chat/stream", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId(), message: text }),
+  });
+  if (!response.ok) {
+    let detail = "Error " + response.status;
+    try { const body = await response.json(); if (typeof body.detail === "string") detail = body.detail; } catch { /* sin JSON */ }
+    throw new Error(detail);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let end;
+    while ((end = buffer.indexOf("\n\n")) !== -1) {
+      const event = parseSseBlock(buffer.slice(0, end));
+      buffer = buffer.slice(end + 2);
+      if (!event) continue;
+      if (event.tipo === "final") result = event;
+      else if (event.tipo === "error") throw new Error(event.detalle);
+      else onProgress(event);
+    }
+  }
+  if (!result) throw new Error("La conexión se cerró antes de recibir la respuesta.");
+  return result;
+}
+
 async function sendMessage(text) {
   busy = true;
   els.send.disabled = true;
   addUserMessage(text);
-  const waiting = el("div", "msg-wait", "El agente está trabajando…");
+  const waiting = el("div", "msg-wait");
+  waiting.append(el("div", "wait-text", "El agente está trabajando…"), el("div", "wait-steps"));
   els.messages.append(waiting);
   scrollToEnd();
   try {
-    const data = await api("/api/chat", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId(), message: text }),
-    });
+    const data = await streamChat(text, (event) => showProgress(waiting, event));
     waiting.remove();
     await showAgentTurn(data);
     loadConversations();

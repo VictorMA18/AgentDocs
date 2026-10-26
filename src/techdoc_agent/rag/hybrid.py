@@ -8,7 +8,7 @@ que sale alto en cualquiera de los dos rankings, o medio en ambos, sube.
 from __future__ import annotations
 
 RRF_K = 60  # valor habitual: suaviza la diferencia entre las primeras posiciones
-LEXICAL_RESERVE = 3  # mejores resultados léxicos que no pueden quedar fuera del top-k
+DEFAULT_LEXICAL_RESERVE = 3  # mejores resultados léxicos que no pueden quedar fuera del top-k (``LEXICAL_RESERVE``)
 
 
 def rrf_fuse(rankings: list[list[str]], k: int = RRF_K) -> list[tuple[str, float]]:
@@ -22,7 +22,7 @@ def rrf_fuse(rankings: list[list[str]], k: int = RRF_K) -> list[tuple[str, float
 
 
 def with_lexical_floor(
-    fused_ids: list[str], lexical: list[tuple[str, float]], top_k: int, min_score: float, reserve: int = LEXICAL_RESERVE
+    fused_ids: list[str], lexical: list[tuple[str, float]], top_k: int, min_score: float, reserve: int = DEFAULT_LEXICAL_RESERVE
 ) -> list[str]:
     """Los ``top_k`` primeros de la fusión, asegurando que los mejores resultados léxicos entren.
 

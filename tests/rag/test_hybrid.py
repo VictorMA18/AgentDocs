@@ -93,3 +93,19 @@ def test_empty_store_returns_nothing_in_every_mode(tmp_path: Path) -> None:
     empty = make_store("json", tmp_path / "vacio")
     for mode in ("vector", "lexical", "hybrid"):
         assert search(empty, HashingEmbedder(), "algo", mode=mode) == []
+
+
+def test_lexical_reserve_setting_is_used_and_zero_means_pure_rrf(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from techdoc_agent import config
+
+    embedder = HashingEmbedder()
+    store = make_store("json", tmp_path / "index")
+    chunks = [Chunk(f"d.md#{i}", "d.md", f"tema común número {i} general") for i in range(12)]
+    chunks.append(Chunk("d.md#12", "d.md", "el identificador raro ZETAUNICO aparece solo aquí"))
+    store.add(chunks, embedder.embed_documents([c.text for c in chunks]))
+    base = {"SEARCH_MODE": "hybrid", "LEXICAL_MIN": "0.1"}
+    monkeypatch.setattr(config, "settings", config.load_settings({**base, "LEXICAL_RESERVE": "1"}))
+    with_floor = [h.chunk.id for h in search(store, embedder, "ZETAUNICO tema común", top_k=1, mode="hybrid")]
+    monkeypatch.setattr(config, "settings", config.load_settings({**base, "LEXICAL_RESERVE": "0"}))
+    pure_rrf = [h.chunk.id for h in search(store, embedder, "ZETAUNICO tema común", top_k=1, mode="hybrid")]
+    assert with_floor == ["d.md#12"] and len(pure_rrf) == 1

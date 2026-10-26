@@ -42,7 +42,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Resumen de turnos antiguos (recorte de memoria) | `src/techdoc_agent/core/summarizer.py` | tras Fase 3 (ADR-011) |
 | Transcripciones de conversaciones y archivos JSON por sesión | `src/techdoc_agent/core/transcripts.py`, `core/storage.py` | Fase 5 (ADR-015) |
 | Construcción del system prompt | `src/techdoc_agent/core/prompts.py` | Fase 3 |
-| Carga de skills | `src/techdoc_agent/core/skills.py` | Fase 3 |
+| Carga de skills (y de sus guías `guias/*.md`) | `src/techdoc_agent/core/skills.py` | Fase 3 (guías: 8) |
+| Herramienta `cargar_guia` (divulgación progresiva de la skill) | `src/techdoc_agent/core/tools_skill.py` | Fase 8 |
 | Lectura de archivos (.md/.txt/.pdf/código) | `src/techdoc_agent/rag/loaders.py` | Fase 2 |
 | Chunking | `src/techdoc_agent/rag/chunking.py` | Fase 2 |
 | Embeddings (`Embedder`) | `src/techdoc_agent/rag/embeddings.py` | Fase 2 |
@@ -57,6 +58,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Herramientas `buscar_documentos` y `listar_documentos` (registro) | `src/techdoc_agent/core/tools_rag.py` | Fase 3 |
 | Herramientas `generar_diagrama` y `generar_requisitos` (registro) | `src/techdoc_agent/core/tools_outputs.py` | Fase 3b |
 | Validación y guardado de Mermaid | `src/techdoc_agent/outputs/diagrams.py` | Fase 3b |
+| Validación real de Mermaid con `mmdc` (opcional, `MERMAID_VALIDATE=cli`) | `src/techdoc_agent/outputs/mermaid_cli.py` y `tools/mermaid/` | Fase 8 |
 | Nombres de archivo generados (slug + id) | `src/techdoc_agent/outputs/naming.py` | Fase 3b |
 | Validación y render de requisitos | `src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
 | Archivos guardados por las herramientas de salida en un turno (API y evals) | `src/techdoc_agent/outputs/artifacts.py` | Fase 7 |
@@ -70,7 +72,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 
 | Qué | Dónde | Notas |
 |---|---|---|
-| **Skill del agente** (método y formatos de salida) | `skills/documentacion-tecnica/SKILL.md` | Se inserta en el system prompt. Cambiar el comportamiento del agente = editar este archivo. **No** es documentación del proyecto. |
+| **Skill del agente** (método general y guías de diagramas y requisitos) | `skills/documentacion-tecnica/SKILL.md` y `skills/documentacion-tecnica/guias/*.md` | Se inserta en el system prompt. Cambiar el comportamiento del agente = editar este archivo. **No** es documentación del proyecto. |
 | Skill activa | variable `ACTIVE_SKILL` en `.env` | |
 | Documentos de ejemplo para probar el RAG | `data/sample_docs/taskflow.md` | Documentación ficticia, versionada en git |
 | Documentos subidos por el usuario | `data/documents/` | En `.gitignore`; nombres saneados por el sistema (ADR-014) |
@@ -114,6 +116,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Un endpoint | `api/main.py` (solo adaptación; la lógica va al núcleo) |
 | Una herramienta MCP | `mcp_server.py` (solo adaptación; la lógica va al núcleo) |
 | Otra skill | `skills/<nombre>/SKILL.md` |
+| Instrucciones detalladas de una skill que no hace falta en cada llamada | `skills/<nombre>/guias/<guia>.md` (con `description` en el frontmatter; el agente las carga con `cargar_guia`) |
 | Una decisión de diseño | Entrada nueva en `docs/09-decisiones-y-glosario.md` |
 | Un fallo reproducible | Fila en la tabla de fallos de `docs/09` + caso en `evals/dataset.jsonl` |
 | Una variable de configuración | `config.py` + `.env.example` + mención en el doc afectado |
@@ -181,14 +184,15 @@ python -m evals.run                                      # evaluaciones (Fase 7)
 ```
 AGENTS.md  CLAUDE.md  README.md  requirements.txt  pyproject.toml  .env.example
 docs/                  # documentación del proyecto (01-09)
-skills/documentacion-tecnica/SKILL.md
+skills/documentacion-tecnica/SKILL.md  guias/
+tools/mermaid/         # mermaid-cli opcional (package.json); node_modules fuera de git
 src/techdoc_agent/
   config.py  logging_setup.py  bootstrap.py  cli.py  mcp_server.py
-  core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  prompts.py  skills.py
+  core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  tools_skill.py  prompts.py  skills.py
              memory.py  summarizer.py  transcripts.py  storage.py  llm.py
   rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py  lexical.py  hybrid.py
              store_json.py  store_chroma.py  factory.py  ingest.py
-  outputs/   diagrams.py  requirements_doc.py  naming.py  artifacts.py
+  outputs/   diagrams.py  mermaid_cli.py  requirements_doc.py  naming.py  artifacts.py
   api/       main.py  static/index.html  static/app.js  static/app.css
 tests/
 evals/       dataset.example.jsonl  dataset.jsonl  dataset.py  rules.py  run.py  retrieval.py  fixtures/  results/

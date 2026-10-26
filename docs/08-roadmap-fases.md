@@ -12,7 +12,7 @@ Estado (marca al terminar cada una):
 - [x] Fase 6 · Servidor MCP
 - [x] Fase 7 · Evaluaciones, logs y README final
 - [x] Fase 7.B · Búsqueda híbrida (BM25 + vectorial), decidida con evaluaciones
-- [ ] Fase 8 · (Opcional) streaming, agente revisor (la memoria recortada ya se adelantó, ver ADR-011)
+- [x] Fase 8 · Progreso en vivo (SSE), skill con divulgación progresiva, validación real de Mermaid y cierre de observaciones
 
 **Cómo usar los prompts:** abre Claude Code en la raíz del proyecto y pega el prompt de la fase. Cuando termine, revisa los criterios de aceptación **tú mismo**, lee el código y pídele que te explique lo que no entiendas antes de pasar a la siguiente.
 
@@ -256,19 +256,20 @@ obtener la línea base. Muéstrame los fallos y propón (sin aplicar aún) mejor
 
 ---
 
-## Fase 8 · Opcional
-- Streaming SSE en la web.
-- ~~Recorte/resumen de historial~~ (hecho tras la Fase 3, ADR-011).
-- Skill con divulgación progresiva (`cargar_skill`).
-- Agente revisor que critique la respuesta del primero (workflow evaluador-optimizador).
-- ~~Búsqueda híbrida~~ (hecha en la Fase 7.B) y reranking, validado con las evaluaciones.
-- Validación real de Mermaid con `mermaid-cli`.
+## Fase 8 · Mejoras guiadas por la prueba de uso real
+**Concepto:** cada mejora se justifica con una medición o se descarta con datos.
 
-**Observaciones de la prueba de uso real, pendientes para esta fase** (ninguna bloquea; ver `docs/09`):
-- El agente partió el diagrama de excepciones de httpx en 3 archivos aunque se pidió uno: ajustar la skill (un diagrama por petición salvo que el usuario pida varios).
-- En las preguntas fuera de alcance añade información cercana (marcada como «conocimiento general») y alarga la respuesta: valorar una regla de brevedad en la skill.
-- Texto del PDF con palabras sin espacios («Intheeventofanetworkproblem») por la extracción de `pypdf`: probar otra extracción o normalizar, midiendo el efecto en la recuperación.
-- Subida de documentos reales desde la interfaz web (no se probó con documentos reales).
-- Inyección de instrucciones en un documento real (solo se midió con fixtures ficticias).
-- Con más de 3 fragmentos que comparten un término exacto, alguno puede quedar fuera del top-k (la reserva léxica es 3); valorar `top_k` mayor o reserva configurable si aparece un caso real.
-- La guarda de herramienta nativa (Fase 7) lleva ≈ 450 ejecuciones sin activarse: decidir si se retira.
+**Hecho (ver ADR-020 a ADR-023 y las filas de `docs/09`):**
+- Progreso en vivo por SSE (`POST /api/chat/stream`, `Agent.run(on_event=…)`): eventos de cada paso, no tokens.
+- Skill con divulgación progresiva (`cargar_guia`): −9 % de tokens en diagramas/requisitos y −4 % en preguntas normales sin perder aciertos; es la skill por defecto.
+- Validación real de Mermaid con `mermaid-cli`, opcional (`MERMAID_VALIDATE=cli`, instalado en `tools/mermaid/`): rechaza 7 de 7 diagramas que la heurística daba por buenos.
+- Ajustes de la skill medidos con el dataset: un diagrama por petición (de 2-4 archivos a 1) y respuestas fuera de alcance breves (mediana ~1.600 → ~780 caracteres).
+- `LEXICAL_RESERVE` configurable. Pruebas con documentos reales: web (subida, borrado, errores, SSE) e inyección en un documento real (6/6 sin obedecer).
+- La guarda de herramienta nativa **se conserva** (ADR-023): se retiró, el fallo reapareció y se restauró.
+
+**Descartado con datos:**
+- *Reranking:* tras la reserva léxica la recuperación acierta en todos los casos; no hay fallo que lo pida.
+- *Agente revisor:* sin un fallo medido que lo justifique, duplicaría las llamadas al modelo.
+- *Palabras pegadas del PDF:* `pypdf` en modo `layout` no mejora la extracción (27 frente a 23 palabras pegadas en 10 páginas); queda como limitación de la extracción de texto.
+
+**Límites conocidos:** con más de `LEXICAL_RESERVE` fragmentos que comparten un término exacto, alguno puede quedar fuera del top-k; `MERMAID_VALIDATE=cli` necesita Node y Chromium (~170 MB) y, en algunos Linux, `--no-sandbox`.
