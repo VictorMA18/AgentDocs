@@ -49,7 +49,7 @@ Reglas de diseño: **núcleo + adaptadores** (`core/` y `rag/` no conocen la web
 
 ## Instalación
 
-Necesitas **Python 3.11+** (probado con 3.12), `git` y el CLI [`claude`](https://claude.com/claude-code) instalado y con sesión iniciada. Hay que dejar sitio para unos 2 GB (PyTorch, Chroma y el modelo de embeddings, que se descarga la primera vez, ~470 MB). El repositorio es **privado** por ahora: para clonarlo hace falta acceso a la cuenta propietaria. Las dependencias de `requirements.txt` no están fijadas a una versión exacta.
+Necesitas **Python 3.11+** (probado con 3.12), `git` y el CLI [`claude`](https://claude.com/claude-code) instalado y con sesión iniciada. Hay que dejar sitio para unos 2 GB (PyTorch, Chroma y el modelo de embeddings, que se descarga la primera vez, ~470 MB). El repositorio es público. Las dependencias de `requirements.txt` no están fijadas a una versión exacta.
 
 ```bash
 git clone https://github.com/VictorMA18/AgentDocs.git techdoc-agent
@@ -87,7 +87,7 @@ tú> Haz un diagrama de secuencia de encolar y procesar un trabajo   → diagram
 uvicorn techdoc_agent.api.main:app --reload    # http://127.0.0.1:8000
 ```
 
-Una página con tres zonas: **conversaciones** y **documentos** (subir, listar, quitar), el **chat** (Markdown saneado, botón para copiar código, diagramas Mermaid dibujados y artefactos descargables) y **pasos del agente** (qué herramientas usó cada respuesta, con argumentos y duración).
+Una página con tres zonas: **conversaciones** y **documentos** (subir, listar, quitar), el **chat** (Markdown saneado, botón para copiar código, diagramas Mermaid dibujados y artefactos descargables) y **pasos del agente** (qué herramientas usó cada respuesta, con argumentos y duración). Mientras el agente trabaja, el chat muestra **su progreso en vivo** ("Buscando en la documentación…", "Generando el diagrama…") por SSE (`POST /api/chat/stream`); es progreso de cada paso, no tokens, porque el modelo responde dentro de un JSON estructurado.
 
 | Cuidado | Qué hace |
 |---|---|
@@ -97,6 +97,19 @@ Una página con tres zonas: **conversaciones** y **documentos** (subir, listar, 
 | Conversaciones | Se guardan en `data/conversations/` (ignorado por git) y sobreviven a recargas y reinicios. **Contienen el texto de lo hablado**: bórralas desde "Quitar" o eliminando la carpeta |
 
 Endpoints y seguridad en `docs/06-api-y-mcp.md`.
+
+### Validación real de Mermaid (opcional)
+
+Por defecto los diagramas se validan con una heurística, que acepta algunos que Mermaid no dibuja. Para usar el parser de Mermaid de verdad (necesita Node; descarga Chromium, ≈ 170 MB):
+
+```bash
+cd tools/mermaid && npm install && cd ../..
+# en .env:
+MERMAID_VALIDATE=cli
+MERMAID_PUPPETEER_CONFIG=./tools/mermaid/puppeteer-config.json   # solo si Chromium falla con "No usable sandbox" (Ubuntu 23.10+); usa --no-sandbox
+```
+
+Si `mmdc` no está o no arranca, el agente sigue con la heurística y lo registra en el log (ADR-022).
 
 ### Servidor MCP (Claude Code, Claude Desktop…)
 
@@ -184,7 +197,8 @@ Todo se lee de variables de entorno (`.env`, plantilla en `.env.example`) en `te
 | `LLM_MODEL`, `LLM_TIMEOUT_S`, `MAX_AGENT_ITERATIONS` | `claude-haiku-5-5`, 120, 8 | Modelo y límites duros del bucle |
 | `VECTOR_STORE` | `json` | `json` o `chroma` |
 | `EMBEDDING_MODEL`, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `TOP_K_DEFAULT`, `MIN_SCORE` | MiniLM multilingüe, 700, 100, 5, 0,25 | Recuperación |
-| `SEARCH_MODE`, `LEXICAL_MIN` | `hybrid`, 4,0 | `hybrid` (vector + BM25), `vector` o `lexical`; BM25 mínimo para admitir un fragmento por palabras exactas |
+| `SEARCH_MODE`, `LEXICAL_MIN`, `LEXICAL_RESERVE` | `hybrid`, 4,0, 3 | `hybrid` (vector + BM25), `vector` o `lexical`; BM25 mínimo para admitir un fragmento por palabras exactas; cuántos de los mejores resultados BM25 entran siempre en el top-k (0 = RRF pura) |
+| `MERMAID_VALIDATE`, `MERMAID_CLI_PATH`, `MERMAID_TIMEOUT_S`, `MERMAID_PUPPETEER_CONFIG` | `heuristic`, `./tools/mermaid/node_modules/.bin/mmdc`, 30, vacío | Validación de diagramas: `heuristic` o `cli` (mermaid-cli, ver arriba) |
 | `MEMORY_MAX_TOKENS`, `MEMORY_KEEP_TURNS` | 8000, 3 | Cuándo se resumen los turnos antiguos |
 | `DATA_DIR`, `OUTPUTS_DIR`, `LOGS_DIR`, `SKILLS_DIR` | `./data`, `./outputs`, `./logs`, `./skills` | Carpetas (relativas al directorio actual) |
 | `MAX_UPLOAD_MB`, `ALLOWED_EXTENSIONS`, `ALLOWED_INGEST_DIR` | 10, `.md,.txt,.pdf,…`, `./data/documents` | Límites de seguridad |
@@ -192,7 +206,7 @@ Todo se lee de variables de entorno (`.env`, plantilla en `.env.example`) en `te
 
 **Logs:** cada paso del agente (mensaje, llamada al LLM, herramienta, argumentos, tokens, duración) se registra como una línea JSON en `logs/agent-YYYYMMDD.jsonl`. No se guarda el contenido de los documentos, solo tamaños y fuentes (formato en `docs/04-diseno-agente.md`, sección 7).
 
-**Cambiar el comportamiento:** el método y los formatos de salida del agente están en `skills/documentacion-tecnica/SKILL.md`; editar ese archivo cambia el comportamiento sin tocar código.
+**Cambiar el comportamiento:** el método general del agente está en `skills/documentacion-tecnica/SKILL.md` y las instrucciones de diagramas y requisitos, en `skills/documentacion-tecnica/guias/` (el agente las carga bajo demanda con `cargar_guia`, ADR-021); editar esos archivos cambia el comportamiento sin tocar código.
 
 ## Fallos encontrados y lecciones
 
@@ -208,6 +222,8 @@ Los fallos reales se anotan en `docs/09-decisiones-y-glosario.md` y cada uno aca
 | Un cliente MCP adivinaba rutas absolutas al ingestar | Nada le decía que bastaba el nombre del archivo | Descripción y error de la herramienta lo indican |
 | El agente dijo que `E-4021` «no aparece» estando indexado | La búsqueda vectorial pierde identificadores exactos entre códigos casi idénticos | Búsqueda híbrida BM25 + vectorial (ADR-018) |
 | `expect_sources` daba por buena una búsqueda con el archivo correcto aunque faltara el fragmento con el dato | Un archivo tiene muchos fragmentos | `expect_evidence`: la evidencia debe estar en los fragmentos recuperados |
+| Un diagrama grande se guardó en 3 archivos; las respuestas fuera de alcance eran largas | La propia skill decía "divide si hay más de ~15 nodos" y permitía contexto sin límite | "Un solo diagrama, simplifica en vez de dividir" y "fuera de alcance: breve"; medido con `max_artifacts` y `max_chars` (2-4 archivos → 1; mediana ~1.600 → ~780 caracteres) |
+| La herramienta decía "válido" para un Mermaid que no se dibuja | La heurística solo mira cabecera, paréntesis y una conexión | Validación real con `mmdc`, opcional: rechaza 7 de 7 diagramas rotos que la heurística aceptaba (ADR-022) |
 | "No such tool available" del CLI, repetido por el modelo como «la herramienta no está disponible» | El modelo intentó una llamada nativa y repitió el mensaje como un hecho | Regla de prompt y un reintento con la pista del protocolo JSON; fallo raro (≈ 1/96) |
 | Una evaluación marcó como fallo a un agente que resistió la inyección o se abstuvo | Las reglas por frases/palabras miraban la respuesta entera o tenían una lista incompleta | Reglas más precisas (`must_not_start_with`, «no encuentro»): **si falla un caso, primero se mira si falla la regla** |
 
@@ -218,6 +234,9 @@ Lecciones:
 - **Medir antes de elegir:** a esta escala ChromaDB no es más rápido que JSON + numpy en búsqueda (hasta 20.000 fragmentos), pero gana en la reingesta incremental.
 - **Los mensajes de error de una herramienta son parte de su interfaz** para el cliente que la usa.
 - **Memoria acotada:** resumir los turnos antiguos frena el crecimiento del contexto, y lo técnico se vuelve a buscar en el RAG en vez de fiarse del resumen.
+- **"0 activaciones" no prueba que una guarda sobre:** la guarda de herramienta nativa solo salta si el fallo ocurre; se retiró por no activarse, el fallo reapareció y se restauró (ADR-023).
+- **Una regla de la skill puede causar el fallo que se ve:** el diagrama partido en 3 era la skill obedeciéndose ("divide si hay más"); medir antes y después con casos que lo reproduzcan arregló la causa.
+- **Progreso, no tokens:** con un modelo que responde dentro de un JSON estructurado, lo que se puede mostrar en vivo son los pasos, y ya quita la sensación de que el agente está colgado.
 - **Probar con documentos reales:** un PDF de verdad destapó un fallo de la fusión híbrida que 26 casos ficticios no veían; y una regla de evaluación nueva dio dos falsos positivos y una falsa alarma mía hasta contrastarla con respuestas y fuentes reales.
 - **Una pieza nueva se justifica con una medición:** la híbrida no se añadió por ser lo habitual, sino cuando un caso difícil mostró un fallo real y la comparación sin LLM (segundos, 0 tokens) confirmó la mejora. El hit@k de un corpus pequeño es indulgente: hay que mirar también MRR y `top_k` más bajos.
 - **Medir también el instrumento:** uno de los dos fallos de la línea base (y otro después, con Chroma) era de las reglas, no del agente; y quitar piezas (umbral, paso de la skill) enseña qué protege cada una: `MIN_SCORE=0,5` rompe la recuperación, mientras que la abstención resiste porque está repetida en varias capas.
@@ -228,12 +247,13 @@ Lecciones:
 ```text
 AGENTS.md  CLAUDE.md  README.md  requirements.txt  pyproject.toml  .env.example
 docs/                  # documentación del proyecto (01-09)
-skills/documentacion-tecnica/SKILL.md
+skills/documentacion-tecnica/SKILL.md + guias/   # método general y guías de diagramas y requisitos
+tools/mermaid/         # mermaid-cli opcional (package.json); node_modules fuera de git
 src/techdoc_agent/
   config.py  logging_setup.py  bootstrap.py  cli.py  mcp_server.py
-  core/      agent, tools, tools_rag, tools_outputs, prompts, skills, memory, summarizer, transcripts, storage, llm
-  rag/       loaders, chunking, embeddings, store, store_json, store_chroma, factory, ingest, retrieval
-  outputs/   diagrams, requirements_doc, naming
+  core/      agent, tools, tools_rag, tools_outputs, tools_skill, prompts, skills, memory, summarizer, transcripts, storage, llm
+  rag/       loaders, chunking, embeddings, store, store_json, store_chroma, factory, ingest, retrieval, lexical, hybrid
+  outputs/   diagrams, mermaid_cli, requirements_doc, naming, artifacts
   api/       main.py + static/ (index.html, app.js, app.css)
 tests/       reflejan la estructura de src/
 evals/       dataset, runner, fixtures/ (dataset de evaluación y documentos de prueba)
@@ -252,8 +272,8 @@ outputs/  logs/                 # artefactos generados y registros (locales)
 | `docs/04-diseno-agente.md` | Bucle, herramientas (schemas), system prompt, memoria, seguridad, logs |
 | `docs/05-rag.md` · `06-api-y-mcp.md` · `07-evaluaciones.md` | RAG, API web y servidor MCP, evaluaciones |
 | `docs/08-roadmap-fases.md` | Fases, entregables y criterios de aceptación |
-| `docs/09-decisiones-y-glosario.md` | Decisiones (ADR-001 a ADR-019), experimentos medidos, fallos y glosario |
+| `docs/09-decisiones-y-glosario.md` | Decisiones (ADR-001 a ADR-023), experimentos medidos, fallos y glosario |
 
 ## Estado
 
-Fases 0, 1, 2, 3, 3b, 4, 5, 6, 7 y 7.B completadas: bucle del agente, RAG como herramienta con skill, memoria recortada, diagramas y requisitos validados, almacén ChromaDB seleccionable, API web con conversaciones guardadas y servidor MCP, evaluaciones repetibles con línea base y seis contrastes medidos. Checklist en `docs/08-roadmap-fases.md`.
+Fases 0, 1, 2, 3, 3b, 4, 5, 6, 7, 7.B y 8 completadas: bucle del agente, RAG como herramienta con skill, memoria recortada, diagramas y requisitos validados, almacén ChromaDB seleccionable, API web con conversaciones guardadas y servidor MCP, evaluaciones repetibles con línea base y seis contrastes medidos, búsqueda híbrida, prueba de uso real, progreso en vivo, skill con divulgación progresiva y validación real de Mermaid opcional. Checklist en `docs/08-roadmap-fases.md`.

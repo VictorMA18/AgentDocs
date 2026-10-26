@@ -10,6 +10,7 @@ Ambos son **adaptadores delgados**: validan entrada, llaman al núcleo, formatea
 | GET | `/` | Sirve `static/index.html` |
 | GET | `/healthz` | `{"status":"ok","documents":N,"chunks":M}` |
 | POST | `/api/chat` | Cuerpo: `{"session_id": "...", "message": "..."}` |
+| POST | `/api/chat/stream` | Mismo cuerpo; respuesta SSE (`text/event-stream`) con el progreso del turno y, al final, `final` o `error` |
 | POST | `/api/documents` | Subida `multipart/form-data` (campo `file`) |
 | GET | `/api/documents` | Lista de documentos indexados |
 | DELETE | `/api/documents/{source}` | Elimina un documento del índice |
@@ -47,6 +48,19 @@ Cada chat correcto se guarda en la transcripción de su `session_id` (`message` 
 
 `artifacts` lista los archivos que `generar_diagrama` y `generar_requisitos` guardaron **en ese turno**: el nombre sale del resultado de la herramienta (`ToolTrace.result`), el título de sus argumentos y el tipo de la extensión (`.mmd` → `mermaid`, `.md` → `requirements`). `GET /api/artifacts` devuelve `name`, `type`, `size` y `modified` de todos los archivos válidos de `outputs/`.
 
+### Progreso en vivo: `POST /api/chat/stream` (Fase 8, ADR-020)
+Es **progreso, no tokens**: el modelo devuelve su respuesta dentro de un JSON estructurado y no se puede emitir a medias. Eventos (`event:` con el tipo, `data:` con el JSON, una línea cada uno):
+
+| Evento | Datos | Cuándo |
+|---|---|---|
+| `en_cola` | — | otro turno tiene el candado; este espera |
+| `pensando` | `iter` | antes de cada llamada al modelo |
+| `herramienta` | `nombre`, `resumen`, `ms`, `error` | tras cada herramienta |
+| `final` | los mismos campos que la respuesta de `/api/chat` | el turno terminó bien (último evento) |
+| `error` | `detalle` (mensaje genérico, sin trazas) | el modelo falló o hubo un error interno (último evento) |
+
+Cada 15 s sin eventos se envía un comentario `: keepalive` para que un proxy no cierre la conexión. Cabeceras `Cache-Control: no-cache` y `X-Accel-Buffering: no`. La validación del cuerpo (422) ocurre antes de empezar a transmitir. El turno corre en un hilo y usa el mismo candado y la misma transcripción que `/api/chat`; si el cliente se desconecta, el turno termina y se guarda igualmente. La interfaz lo lee con `fetch` (EventSource solo admite GET) y pinta el texto con `textContent`.
+
 ### Interfaz (`static/`)
 Una sola página (`index.html`, con `app.js` y `app.css` propios: sin scripts inline para poder usar una CSP estricta), JS puro con `fetch`:
 - Panel izquierdo: **conversaciones guardadas** (abrir, quitar; la actual se marca) y, debajo, subir documento y lista de documentos (con botón eliminar).
@@ -61,7 +75,7 @@ Una sola página (`index.html`, con `app.js` y `app.css` propios: sin scripts in
 - `GET /api/artifacts/{name}`: solo `^[a-z0-9][a-z0-9._-]*$` con extensión `.mmd` o `.md`, sin `..`, resuelto dentro de `outputs/` (un enlace simbólico que salga se rechaza). Se sirve como `text/plain` con `Content-Disposition: attachment`.
 - CORS cerrado por defecto (mismo origen). Cabeceras en todas las respuestas: `Content-Security-Policy` (scripts solo propios y de `cdn.jsdelivr.net`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. `/docs`, `/redoc` y `/openapi.json` están desactivados.
 - Un único candado serializa chat, subida y borrado (la memoria y el almacén JSON no son seguros ante hilos). Pensado para un usuario local; con varios usuarios habría que usar un candado por sesión.
-- (Opcional Fase 8) `POST /api/chat/stream` con SSE.
+- `POST /api/chat/stream`: SSE de progreso (ver arriba); `/api/chat` se conserva.
 
 ### Cómo arrancar
 ```bash
