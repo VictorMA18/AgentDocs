@@ -277,3 +277,7 @@ outputs/  logs/                 # artefactos generados y registros (locales)
 ## Estado
 
 Fases 0, 1, 2, 3, 3b, 4, 5, 6, 7, 7.B y 8 completadas: bucle del agente, RAG como herramienta con skill, memoria recortada, diagramas y requisitos validados, almacén ChromaDB seleccionable, API web con conversaciones guardadas y servidor MCP, evaluaciones repetibles con línea base y seis contrastes medidos, búsqueda híbrida, prueba de uso real, progreso en vivo, skill con divulgación progresiva y validación real de Mermaid opcional. Checklist en `docs/08-roadmap-fases.md`.
+
+## Licencia
+
+[MIT](LICENSE) © 2026 VictorMA18. Las dependencias y el modelo de embeddings (que se descarga aparte) tienen sus propias licencias.
