@@ -238,3 +238,22 @@ def test_evidence_requires_the_specific_fragment_not_just_the_file() -> None:
     assert evaluate(c, outcome(calls=[wrong]))["retrieval"] is False
     assert evaluate(case(expect_evidence=("x",)), outcome())["retrieval"] is False  # sin búsqueda
     assert evaluate(case(), outcome())["retrieval"] is None
+
+
+# --- brevedad y nº de archivos ---
+
+
+def test_max_chars_limits_the_final_reply_length() -> None:
+    c = case(out_of_scope=True, max_chars=50)
+    assert evaluate(c, outcome("No aparece en la documentación."))["content"] is True
+    assert evaluate(c, outcome("No aparece en la documentación. " + "x" * 60))["content"] is False
+    assert evaluate(case(), outcome("x" * 5000))["content"] is None  # sin límite no aplica
+
+
+def test_max_artifacts_rejects_a_diagram_split_into_several_files() -> None:
+    c = case(expect_artifact="mermaid", max_artifacts=1)
+    one = [{"type": "mermaid", "name": "a.mmd"}]
+    assert evaluate(c, outcome(artifacts=one))["artifact"] is True
+    assert evaluate(c, outcome(artifacts=one * 3))["artifact"] is False
+    assert evaluate(c, outcome(artifacts=[]))["artifact"] is False
+    assert evaluate(case(expect_artifact="mermaid"), outcome(artifacts=one * 3))["artifact"] is True  # sin tope

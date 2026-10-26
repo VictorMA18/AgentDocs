@@ -15,7 +15,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATASET = REPO_ROOT / "evals" / "dataset.jsonl"
 
-KNOWN_TOOLS = ("buscar_documentos", "listar_documentos", "generar_diagrama", "generar_requisitos")
+KNOWN_TOOLS = ("buscar_documentos", "listar_documentos", "generar_diagrama", "generar_requisitos", "cargar_guia")
 ARTIFACTS = ("mermaid", "requisitos")
 KINDS = ("exact_term", "distractor", "version", "paraphrase", "attribution")  # tipos de caso difícil de recuperación (Fase 7.A)
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -43,6 +43,8 @@ class Case:
     out_of_scope: bool = False  # la documentación no cubre la pregunta: debe abstenerse
     expect_artifact: str | None = None  # "mermaid" | "requisitos"
     expect_clarification: bool = False  # pregunta ambigua: debe preguntar o declarar su suposición
+    max_artifacts: int | None = None  # con expect_artifact: como mucho este nº de archivos de ese tipo en el turno
+    max_chars: int | None = None  # la respuesta final no puede superar esta longitud (brevedad)
     setup_docs: tuple[str, ...] = ()  # documentos extra a indexar (rutas desde la raíz del repo)
     follow_up: tuple[str, ...] = ()  # mensajes siguientes en la misma sesión
     kind: str | None = None  # tipo de caso difícil, para reportar la recuperación por tipo
@@ -67,6 +69,10 @@ def _parse(raw: dict[str, Any], root: Path) -> Case:
             raise DatasetError(f"'{field}' debe ser true o false")
     if not isinstance(raw.get("notes", ""), str):
         raise DatasetError("'notes' debe ser un texto")
+    for field in ("max_artifacts", "max_chars"):
+        value = raw.get(field)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 1):
+            raise DatasetError(f"'{field}' debe ser un entero positivo")
     artifact = raw.get("expect_artifact")
     if artifact is not None and artifact not in ARTIFACTS:
         raise DatasetError(f"expect_artifact debe ser uno de {ARTIFACTS}, no {artifact!r}")
