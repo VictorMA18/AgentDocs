@@ -14,7 +14,7 @@ def test_build_agent_uses_skill_prompt_and_rag_tools(tmp_path: Path) -> None:
     agent = build_agent(llm, store, emb)
     assert "<skill nombre=\"documentacion-tecnica\">" in agent.system_prompt
     assert {s.name for s in agent.tools.specs()} == {
-        "buscar_documentos", "listar_documentos", "generar_diagrama", "generar_requisitos"}
+        "buscar_documentos", "listar_documentos", "generar_diagrama", "generar_requisitos", "cargar_guia"}
 
 
 def test_outputs_dir_is_where_the_output_tools_save(tmp_path: Path) -> None:
