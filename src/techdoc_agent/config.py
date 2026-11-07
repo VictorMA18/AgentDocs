@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -18,10 +18,14 @@ from dotenv import load_dotenv
 class Settings:
     """Configuración inmutable del agente, ya convertida a sus tipos."""
 
-    # --- LLM (CLI de Claude Code) ---
+    # --- LLM (CLI de Claude Code por defecto; Gemini opcional) ---
+    llm_provider: str
     model: str
     claude_cli_path: str
     llm_timeout_s: int
+    gemini_model: str
+    gemini_thinking_level: str
+    gemini_api_key: str = field(repr=False)  # secreto: nunca en repr ni en logs
     max_agent_iterations: int
     memory_max_tokens: int
     memory_keep_turns: int
@@ -115,9 +119,13 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         env = os.environ
 
     return Settings(
+        llm_provider=_get_choice(env, "LLM_PROVIDER", "claude", ("claude", "gemini")),
         model=_get_str(env, "LLM_MODEL", "claude-haiku-5-5"),
         claude_cli_path=_get_str(env, "CLAUDE_CLI_PATH", "claude"),
         llm_timeout_s=_get_int(env, "LLM_TIMEOUT_S", 120),
+        gemini_model=_get_str(env, "GEMINI_MODEL", "gemini-3.5-flash-lite"),
+        gemini_thinking_level=_get_choice(env, "GEMINI_THINKING_LEVEL", "", ("", "minimal", "low", "medium", "high")),
+        gemini_api_key=_get_str(env, "GEMINI_API_KEY", "").strip(),
         max_agent_iterations=_get_int(env, "MAX_AGENT_ITERATIONS", 8),
         memory_max_tokens=_get_int(env, "MEMORY_MAX_TOKENS", 8000),
         memory_keep_turns=_get_int(env, "MEMORY_KEEP_TURNS", 3),
