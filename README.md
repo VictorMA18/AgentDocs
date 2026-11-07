@@ -188,13 +188,35 @@ Validación posterior de BM25 (`docs/09`). Con el modelo: la abstención se mant
 Con 2 repeticiones, un 50 % en un caso es una sola ejecución fallida: las diferencias de un punto o dos son ruido. Lo que sí enseñan los datos es que `MIN_SCORE=0,5` perjudica y que la abstención está protegida por varias capas a la vez.
 
 
+**Usar Gemini en vez de Claude** (opcional, ADR-024). Crea una clave en Google AI Studio y ponla en tu `.env` (nunca en el código ni en git):
+
+```bash
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=tu-clave
+GEMINI_MODEL=gemini-3.5-flash-lite # por defecto
+GEMINI_THINKING_LEVEL=             # vacío = el del modelo; minimal|low|medium|high
+```
+
+El resto (CLI, web, MCP y evaluaciones) funciona igual: el agente usa el mismo protocolo JSON de herramientas con ambos proveedores. Con el plan gratuito hay límites por minuto y por día: el cliente espera y reintenta ante el límite por minuto, pero si se agota la cuota diaria falla enseguida con un mensaje claro. Con el plan gratuito, `gemini-3.6-flash` solo permite 5 peticiones por minuto y 20 al día (cada pregunta gasta 2-4); `gemini-3.5-flash-lite` permite 15 por minuto y 500 al día (el modelo por defecto). Tus límites están en AI Studio → *Rate limits*; la cuota diaria se reinicia a medianoche, hora del Pacífico.
+
+| Muestra de 15 casos × 2 | Aciertos | Tokens por ejecución | Segundos |
+|---|---|---|---|
+| Claude Haiku 5.5 (CLI) | 15/15 | 16.161 | 11,7 |
+| Gemini 3.5 Flash Lite | 15/15 | 6.815 | 9,3 |
+| Gemini 3.6 Flash | 5/5 ejecuciones antes de agotar la cuota diaria | ≈ 3-7 mil | 3-8 |
+
+Para evaluar con Gemini usa `--workers 1` (detalle en `docs/09`, ADR-024).
+
+
 ## Configuración
 
 Todo se lee de variables de entorno (`.env`, plantilla en `.env.example`) en `techdoc_agent.config.settings`.
 
 | Variable | Por defecto | Para qué |
 |---|---|---|
-| `LLM_MODEL`, `LLM_TIMEOUT_S`, `MAX_AGENT_ITERATIONS` | `claude-haiku-5-5`, 120, 8 | Modelo y límites duros del bucle |
+| `LLM_PROVIDER` | `claude` | `claude` (CLI de Claude Code, sin clave) o `gemini` (API de Gemini) |
+| `LLM_MODEL`, `LLM_TIMEOUT_S`, `MAX_AGENT_ITERATIONS` | `claude-haiku-5-5`, 120, 8 | Modelo de Claude y límites duros del bucle |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_THINKING_LEVEL` | vacía, `gemini-3.5-flash-lite`, vacío | Solo con `LLM_PROVIDER=gemini`; la clave es un secreto (solo en `.env`) |
 | `VECTOR_STORE` | `json` | `json` o `chroma` |
 | `EMBEDDING_MODEL`, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `TOP_K_DEFAULT`, `MIN_SCORE` | MiniLM multilingüe, 700, 100, 5, 0,25 | Recuperación |
 | `SEARCH_MODE`, `LEXICAL_MIN`, `LEXICAL_RESERVE` | `hybrid`, 4,0, 3 | `hybrid` (vector + BM25), `vector` o `lexical`; BM25 mínimo para admitir un fragmento por palabras exactas; cuántos de los mejores resultados BM25 entran siempre en el top-k (0 = RRF pura) |
@@ -216,6 +238,7 @@ Los fallos reales se anotan en `docs/09-decisiones-y-glosario.md` y cada uno aca
 |---|---|---|
 | Un fragmento de párrafo largo superaba `chunk_size` | Cada trozo ocupaba todo el presupuesto y luego se añadía el solape | Partir en trozos de `presupuesto − solape` |
 | El código nuevo no aparecía en `git status` | `.gitignore` con `outputs/` ignoraba también `src/techdoc_agent/outputs/` | Cambiar a `/outputs/` |
+| Con Gemini, las herramientas llegaban sin argumentos | En su schema, un objeto sin `properties` se interpreta como vacío | Declarar `args` con `additionalProperties: true` |
 | "¿Cómo integro TaskFlow con Kubernetes?" puntúa 0,58 con la portada | La búsqueda vectorial se deja llevar por el nombre del producto aunque el tema no esté | Mitigado en la skill ("evalúa la evidencia"); se mide en la evaluación |
 | El modelo conjeturó que "el índice puede estar incompleto" | Sin regla que lo prohíba, rellena el hueco con una hipótesis | Regla en la skill: no especular sobre el estado del sistema |
 | Un diagrama roto que el usuario pidió guardar "tal cual" se corrigió en silencio | La skill no distinguía el código aportado por el usuario | Excepción en la skill: mostrar errores, proponer y preguntar |
@@ -251,7 +274,7 @@ skills/documentacion-tecnica/SKILL.md + guias/   # método general y guías de d
 tools/mermaid/         # mermaid-cli opcional (package.json); node_modules fuera de git
 src/techdoc_agent/
   config.py  logging_setup.py  bootstrap.py  cli.py  mcp_server.py
-  core/      agent, tools, tools_rag, tools_outputs, tools_skill, prompts, skills, memory, summarizer, transcripts, storage, llm
+  core/      agent, tools, tools_rag, tools_outputs, tools_skill, prompts, skills, memory, summarizer, transcripts, storage, llm, llm_gemini, llm_factory
   rag/       loaders, chunking, embeddings, store, store_json, store_chroma, factory, ingest, retrieval, lexical, hybrid
   outputs/   diagrams, mermaid_cli, requirements_doc, naming, artifacts
   api/       main.py + static/ (index.html, app.js, app.css)
@@ -276,7 +299,7 @@ outputs/  logs/                 # artefactos generados y registros (locales)
 
 ## Estado
 
-Fases 0, 1, 2, 3, 3b, 4, 5, 6, 7, 7.B y 8 completadas: bucle del agente, RAG como herramienta con skill, memoria recortada, diagramas y requisitos validados, almacén ChromaDB seleccionable, API web con conversaciones guardadas y servidor MCP, evaluaciones repetibles con línea base y seis contrastes medidos, búsqueda híbrida, prueba de uso real, progreso en vivo, skill con divulgación progresiva y validación real de Mermaid opcional. Checklist en `docs/08-roadmap-fases.md`.
+Fases 0, 1, 2, 3, 3b, 4, 5, 6, 7, 7.B y 8 completadas: bucle del agente, RAG como herramienta con skill, memoria recortada, diagramas y requisitos validados, almacén ChromaDB seleccionable, API web con conversaciones guardadas y servidor MCP, evaluaciones repetibles con línea base y seis contrastes medidos, búsqueda híbrida, prueba de uso real, progreso en vivo, skill con divulgación progresiva y validación real de Mermaid opcional. Después, Gemini como proveedor alternativo (ADR-024). Checklist en `docs/08-roadmap-fases.md`.
 
 ## Licencia
 

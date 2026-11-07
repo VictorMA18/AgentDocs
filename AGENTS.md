@@ -36,6 +36,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Variables de entorno / configuración | `src/techdoc_agent/config.py` | Fase 0 |
 | Logging JSONL | `src/techdoc_agent/logging_setup.py` | Fase 0 |
 | Cliente LLM (`LLMClient`, CLI de Claude Code) y protocolo JSON de herramientas | `src/techdoc_agent/core/llm.py` | Fase 1 |
+| Cliente de la API de Gemini (proveedor alternativo) | `src/techdoc_agent/core/llm_gemini.py` | ADR-024 |
+| Elección del proveedor (`LLM_PROVIDER`: `claude` o `gemini`) | `src/techdoc_agent/core/llm_factory.py` | ADR-024 |
 | Bucle del agente | `src/techdoc_agent/core/agent.py` | Fase 1 |
 | Registro y despacho de herramientas | `src/techdoc_agent/core/tools.py` | Fase 1 |
 | Historial por sesión | `src/techdoc_agent/core/memory.py` | Fase 1 |
@@ -154,6 +156,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 ## Stack
 - Python 3.11+
 - CLI `claude` (Claude Code) como LLM — modelo configurable por `LLM_MODEL` (por defecto `claude-haiku-5-5`)
+- Alternativa: API de Gemini con `httpx` (`LLM_PROVIDER=gemini`, `GEMINI_API_KEY`, `GEMINI_MODEL`, por defecto `gemini-3.5-flash-lite`, la que da cuota con el plan gratuito); la clave solo en `.env`, nunca en código, logs ni git
 - `numpy` + `sentence-transformers` (embeddings locales, multilingüe) → luego `chromadb`
 - `fastapi` + `uvicorn` + HTML/JS puro (sin framework de frontend)
 - `mcp` 2.x (SDK oficial de Python, `MCPServer`; antes `FastMCP`)
@@ -189,7 +192,7 @@ tools/mermaid/         # mermaid-cli opcional (package.json); node_modules fuera
 src/techdoc_agent/
   config.py  logging_setup.py  bootstrap.py  cli.py  mcp_server.py
   core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  tools_skill.py  prompts.py  skills.py
-             memory.py  summarizer.py  transcripts.py  storage.py  llm.py
+             memory.py  summarizer.py  transcripts.py  storage.py  llm.py  llm_gemini.py  llm_factory.py
   rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py  lexical.py  hybrid.py
              store_json.py  store_chroma.py  factory.py  ingest.py
   outputs/   diagrams.py  mermaid_cli.py  requirements_doc.py  naming.py  artifacts.py
