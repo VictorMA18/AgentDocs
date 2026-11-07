@@ -115,7 +115,7 @@ def test_meta_records_the_configuration_of_the_run(tmp_path: Path) -> None:
     _, _, results = run(tmp_path, "--label", "linea-base", "--repeat", "1", "--workers", "2")
     meta = saved(results)["meta"]
     assert meta["label"] == "linea-base" and meta["workers"] == 2 and meta["repeat"] == 1
-    assert {"model", "vector_store", "min_score", "chunk_size", "top_k_default", "dataset"} <= meta.keys()
+    assert {"provider", "model", "vector_store", "min_score", "chunk_size", "top_k_default", "dataset"} <= meta.keys()
     assert next(results.glob("*.json")).name.endswith("-linea-base.json")
 
 

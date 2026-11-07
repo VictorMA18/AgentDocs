@@ -21,7 +21,8 @@ from mcp.server.mcpserver.exceptions import ToolError
 from techdoc_agent import config
 from techdoc_agent.bootstrap import build_agent
 from techdoc_agent.core.agent import Agent
-from techdoc_agent.core.llm import ClaudeCliClient, LLMError
+from techdoc_agent.core.llm import LLMError
+from techdoc_agent.core.llm_factory import build_llm
 from techdoc_agent.core.storage import SESSION_ID
 from techdoc_agent.core.tools import ToolRegistry
 from techdoc_agent.core.tools_rag import rag_tools
@@ -147,7 +148,7 @@ def main() -> None:
     _use_project_root()
     store = build_store()
     embedder = LazyEmbedder(SentenceTransformerEmbedder)  # el modelo se carga al primer uso, no al arrancar
-    agent = build_agent(ClaudeCliClient(), store, embedder)
+    agent = build_agent(build_llm(), store, embedder)
     create_server(agent, store, embedder).run()  # stdio por defecto
 
 
