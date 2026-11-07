@@ -75,12 +75,12 @@ class ChatRequest(BaseModel):
 def _build_core() -> Core:
     """Construye el núcleo real (carga el modelo de embeddings: tarda unos segundos)."""
     from techdoc_agent.bootstrap import build_agent
-    from techdoc_agent.core.llm import ClaudeCliClient
+    from techdoc_agent.core.llm_factory import build_llm
     from techdoc_agent.rag.embeddings import SentenceTransformerEmbedder
     from techdoc_agent.rag.factory import build_store
 
     embedder, store = SentenceTransformerEmbedder(), build_store()
-    agent = build_agent(ClaudeCliClient(), store, embedder, Memory(_conversations_dir()))
+    agent = build_agent(build_llm(), store, embedder, Memory(_conversations_dir()))
     return Core(agent, store, embedder, Transcripts(_conversations_dir()))
 
 

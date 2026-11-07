@@ -297,9 +297,9 @@ def main(
         print(f"Cargando modelo {config.settings.embedding_model}…", file=sys.stderr)
         embedder = SentenceTransformerEmbedder()
     if llm_factory is None:
-        from techdoc_agent.core.llm import ClaudeCliClient
+        from techdoc_agent.core.llm_factory import build_llm
 
-        client = ClaudeCliClient()
+        client = build_llm()
         llm_factory = lambda case, rep: client  # noqa: E731 - el cliente no guarda estado entre llamadas
 
     started = datetime.now()
@@ -314,7 +314,9 @@ def main(
             progress=lambda line: print(line, file=sys.stderr),
         )
     summary = summarize(results)
-    meta = {"started": started.isoformat(timespec="seconds"), "label": args.label, "model": config.settings.model,
+    from techdoc_agent.core.llm_factory import llm_description
+
+    meta = {"started": started.isoformat(timespec="seconds"), "label": args.label, **llm_description(),
             "vector_store": config.settings.vector_store, "min_score": config.settings.min_score,
             "chunk_size": config.settings.chunk_size, "top_k_default": config.settings.top_k_default,
             "repeat": args.repeat, "workers": args.workers, "dataset": args.dataset.name, "min_pass": args.min_pass}

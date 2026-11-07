@@ -273,3 +273,19 @@ obtener la línea base. Muéstrame los fallos y propón (sin aplicar aún) mejor
 - *Palabras pegadas del PDF:* `pypdf` en modo `layout` no mejora la extracción (27 frente a 23 palabras pegadas en 10 páginas); queda como limitación de la extracción de texto.
 
 **Límites conocidos:** con más de `LEXICAL_RESERVE` fragmentos que comparten un término exacto, alguno puede quedar fuera del top-k; `MERMAID_VALIDATE=cli` necesita Node y Chromium (~170 MB) y, en algunos Linux, `--no-sandbox`.
+
+---
+
+## Extra · Gemini como proveedor alternativo (hecho, ADR-024)
+`LLM_PROVIDER=claude|gemini` elige el cliente al arrancar (`core/llm_factory.py`). `GeminiClient` habla con la API REST de Gemini con el mismo protocolo JSON de herramientas, así que el resto del agente no cambia. Con el plan gratuito el modelo por defecto es `gemini-3.5-flash-lite` (500 peticiones al día): 15/15 en la muestra de evaluación, igual que Claude.
+
+## Fase 9 · Elegir el proveedor del LLM desde la interfaz (pendiente)
+**Concepto:** hoy el proveedor se fija con una variable de entorno al arrancar. En esta fase se podrá cambiar entre Claude y Gemini desde la interfaz web, sin reiniciar.
+
+**Ideas a concretar en el plan de la fase:**
+- Un selector de proveedor (y de modelo) en la web; la elección se guarda por conversación.
+- La API indica qué proveedores están disponibles (p. ej. Gemini solo si hay `GEMINI_API_KEY`), sin exponer nunca la clave.
+- El agente construye su `LLMClient` según la elección; el núcleo no importa nada de la API (regla de arquitectura 2).
+- Mensajes claros cuando un proveedor falla (cuota diaria de Gemini agotada, CLI de Claude sin sesión).
+
+**Criterios de aceptación (borrador):** cambiar de proveedor en la web sin reiniciar el servidor; cada conversación recuerda el suyo; los logs y los resultados registran qué proveedor respondió; tests de la API con proveedores falsos.

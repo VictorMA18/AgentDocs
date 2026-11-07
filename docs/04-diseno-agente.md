@@ -2,7 +2,7 @@
 
 ## 1. El bucle
 
-El LLM se invoca con el **CLI de Claude Code** en modo no interactivo (ver ADR-008), sin API key. El CLI se usa como una función "texto → texto" (sin sus herramientas propias, `--tools ""`); el bucle y el protocolo de herramientas son nuestros.
+El LLM se invoca por defecto con el **CLI de Claude Code** en modo no interactivo (ver ADR-008), sin API key; como alternativa, con la **API de Gemini** y una clave (`LLM_PROVIDER=gemini`, ADR-024). El CLI se usa como una función "texto → texto" (sin sus herramientas propias, `--tools ""`); el bucle y el protocolo de herramientas son nuestros.
 
 ### Interfaz `LLMClient`
 ```python
@@ -17,6 +17,8 @@ class LLMReply:
 ```
 - `ClaudeCliClient` (real): ejecuta `claude -p --model $LLM_MODEL --tools "" --no-session-persistence --output-format json --setting-sources "" --strict-mcp-config --disable-slash-commands --system-prompt … --json-schema …` y traduce la salida a `LLMReply`. La respuesta validada llega en el campo `structured_output` del JSON de salida y los tokens en `usage`.
   - Verificado (Fase 0, `claude` 2.1.301): sin `--setting-sources "" --strict-mcp-config --disable-slash-commands` cada llamada arrastra ~38k tokens de contexto de Claude Code; con ellos, ~1k tokens y ~1 s.
+- `GeminiClient` (`core/llm_gemini.py`, opcional): `POST https://generativelanguage.googleapis.com/v1beta/models/$GEMINI_MODEL:generateContent` con la clave en la cabecera `x-goog-api-key` (nunca en la URL ni en los logs). El system prompt va en `systemInstruction`, el historial en `contents` (`user` → `user`, `assistant` → `model`) y la salida se fuerza con `responseMimeType: application/json` + `responseJsonSchema`. Mismo protocolo JSON que Claude. `args` se declara con `additionalProperties: true`: con `{"type": "object"}` a secas Gemini lo devuelve siempre vacío (medido). `thinkingConfig.thinkingLevel` opcional (`GEMINI_THINKING_LEVEL`). Reintenta 429/500/503 hasta 3 veces esperando lo que pide Google (`RetryInfo.retryDelay`, máx. 60 s), salvo la cuota diaria agotada (`PerDay`), que no se recupera reintentando; un JSON cortado o inválido es `LLMProtocolError` (recuperable) y un bloqueo de seguridad o un 400/401/403, `LLMError`.
+- `build_llm()` (`core/llm_factory.py`) elige el cliente según `LLM_PROVIDER`; lo usan el CLI, la web, el servidor MCP y las evaluaciones. Ambos clientes comparten `build_system_text` y `reply_from_structured` de `core/llm.py`.
 - `FakeLLMClient` (tests): guion de respuestas, sin llamar al CLI.
 
 ### Protocolo de herramientas (JSON)

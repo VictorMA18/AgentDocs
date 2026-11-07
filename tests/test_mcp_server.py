@@ -205,7 +205,7 @@ def test_mcp_server_is_a_thin_adapter() -> None:
     imports = set(re.findall(r"^from (techdoc_agent[\w.]*) import", text, flags=re.M))
     assert imports == {
         "techdoc_agent", "techdoc_agent.bootstrap", "techdoc_agent.core.agent", "techdoc_agent.core.llm",
-        "techdoc_agent.core.storage", "techdoc_agent.core.tools", "techdoc_agent.core.tools_rag",
+        "techdoc_agent.core.llm_factory", "techdoc_agent.core.storage", "techdoc_agent.core.tools", "techdoc_agent.core.tools_rag",
         "techdoc_agent.rag.embeddings", "techdoc_agent.rag.factory", "techdoc_agent.rag.ingest",
         "techdoc_agent.rag.store"}
 

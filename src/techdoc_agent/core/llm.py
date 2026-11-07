@@ -1,5 +1,8 @@
 """Cliente LLM: interfaz ``LLMClient`` e implementación sobre el CLI de Claude Code.
 
+Otros proveedores (``llm_gemini.py``) reutilizan de aquí el protocolo: ``build_system_text`` y
+``reply_from_structured``. ``llm_factory.build_llm`` elige cuál se monta (``LLM_PROVIDER``).
+
 El CLI (``claude -p``) se usa como una función "texto → texto", sin sus
 herramientas propias. Las herramientas del agente se piden con un protocolo
 JSON definido aquí (ver docs/04 y ADR-008):
@@ -125,6 +128,31 @@ def _validate(structured: Any, raw: str) -> tuple[str | None, list[ToolCall]]:
     raise LLMProtocolError(f"'accion' desconocida: {accion!r}.", raw)
 
 
+def build_system_text(system: str, tools: list[ToolSpec]) -> str:
+    """System prompt + reglas del protocolo JSON + catálogo de herramientas (común a todos los proveedores)."""
+    parts = [system, _PROTOCOL_RULES]
+    if tools:
+        catalogo = json.dumps(
+            [
+                {"nombre": t.name, "descripcion": t.description, "args_schema": t.input_schema}
+                for t in tools
+            ],
+            ensure_ascii=False,
+            indent=2,
+        )
+        parts.append(f"## Herramientas disponibles\n{catalogo}")
+    else:
+        parts.append("No hay herramientas disponibles: usa siempre accion 'responder'.")
+    return "\n\n".join(parts)
+
+
+def reply_from_structured(structured: Any, input_tokens: int, output_tokens: int) -> LLMReply:
+    """Valida el objeto del protocolo y lo convierte en ``LLMReply`` (común a todos los proveedores)."""
+    raw = json.dumps(structured, ensure_ascii=False)
+    text, calls = _validate(structured, raw)
+    return LLMReply(text=text, tool_calls=calls, input_tokens=input_tokens, output_tokens=output_tokens, raw=raw)
+
+
 def parse_output(stdout: str) -> LLMReply:
     """Convierte la salida JSON del CLI en un ``LLMReply`` validado."""
     try:
@@ -140,22 +168,13 @@ def parse_output(stdout: str) -> LLMReply:
     result_text = str(data.get("result", ""))
     if structured is None:
         raise LLMProtocolError("El modelo no devolvió salida estructurada.", result_text)
-    raw = json.dumps(structured, ensure_ascii=False)
-
-    text, calls = _validate(structured, raw)
     usage = data.get("usage") or {}
     input_tokens = (
         usage.get("input_tokens", 0)
         + usage.get("cache_creation_input_tokens", 0)
         + usage.get("cache_read_input_tokens", 0)
     )
-    return LLMReply(
-        text=text,
-        tool_calls=calls,
-        input_tokens=input_tokens,
-        output_tokens=usage.get("output_tokens", 0),
-        raw=raw,
-    )
+    return reply_from_structured(structured, input_tokens, usage.get("output_tokens", 0))
 
 
 class ClaudeCliClient:
@@ -174,20 +193,7 @@ class ClaudeCliClient:
 
     @staticmethod
     def _build_system(system: str, tools: list[ToolSpec]) -> str:
-        parts = [system, _PROTOCOL_RULES]
-        if tools:
-            catalogo = json.dumps(
-                [
-                    {"nombre": t.name, "descripcion": t.description, "args_schema": t.input_schema}
-                    for t in tools
-                ],
-                ensure_ascii=False,
-                indent=2,
-            )
-            parts.append(f"## Herramientas disponibles\n{catalogo}")
-        else:
-            parts.append("No hay herramientas disponibles: usa siempre accion 'responder'.")
-        return "\n\n".join(parts)
+        return build_system_text(system, tools)
 
     @staticmethod
     def _render_messages(messages: list[Message]) -> str:

@@ -8,7 +8,8 @@ from pathlib import Path
 
 from techdoc_agent.bootstrap import build_agent
 from techdoc_agent.core.agent import AgentResult
-from techdoc_agent.core.llm import ClaudeCliClient, LLMError
+from techdoc_agent.core.llm import LLMError
+from techdoc_agent.core.llm_factory import build_llm
 from techdoc_agent.rag.embeddings import Embedder, SentenceTransformerEmbedder
 from techdoc_agent.rag.factory import build_store
 from techdoc_agent.rag.ingest import ingest_dir, ingest_file
@@ -61,7 +62,7 @@ def main() -> None:
     print("Cargando modelo de embeddings…")
     embedder = SentenceTransformerEmbedder()
     store = build_store()
-    agent = build_agent(ClaudeCliClient(), store, embedder)
+    agent = build_agent(build_llm(), store, embedder)
     session_id = uuid.uuid4().hex[:8]
     print(f"TechDoc Agent (sesión {session_id}). {AYUDA}")
     while True:
