@@ -236,6 +236,21 @@ Resultados con el sample real (5 consultas, top-3): mismos ids en el mismo orden
 | Con Gemini, error 429 tras ≈ 12 peticiones seguidas | Límite de peticiones por minuto del plan gratuito | Reintentos esperando el `retryDelay` que indica Google (máx. 60 s) y evals con `--workers 1` | `test_per_minute_quota_waits_what_google_asks_and_names_the_quota` |
 | La evaluación con Gemini tardaba ≈ 6 min por caso y fallaba igual | Se agotó la cuota **diaria**; los reintentos no podían servir | La cuota diaria (`PerDay`) no se reintenta y el error lo dice | `test_daily_quota_is_not_retried_and_says_so` |
 
+## Lecciones aprendidas
+
+- **La defensa contra inyección es de mejor esfuerzo** (etiquetas `<documento>`, regla fija, cierre neutralizado): hay que medirla, no darla por buena.
+- **Validar y devolver feedback** hace que el agente se corrija solo; la validación heurística de Mermaid no garantiza que renderice.
+- **Medir antes de elegir:** a esta escala ChromaDB no es más rápido que JSON + numpy en búsqueda (hasta 20.000 fragmentos), pero gana en la reingesta incremental.
+- **Los mensajes de error de una herramienta son parte de su interfaz** para el cliente que la usa.
+- **Memoria acotada:** resumir los turnos antiguos frena el crecimiento del contexto, y lo técnico se vuelve a buscar en el RAG en vez de fiarse del resumen.
+- **"0 activaciones" no prueba que una guarda sobre:** la guarda de herramienta nativa solo salta si el fallo ocurre; se retiró por no activarse, el fallo reapareció y se restauró (ADR-023).
+- **Una regla de la skill puede causar el fallo que se ve:** el diagrama partido en 3 era la skill obedeciéndose ("divide si hay más"); medir antes y después con casos que lo reproduzcan arregló la causa.
+- **Progreso, no tokens:** con un modelo que responde dentro de un JSON estructurado, lo que se puede mostrar en vivo son los pasos, y ya quita la sensación de que el agente está colgado.
+- **Probar con documentos reales:** un PDF de verdad destapó un fallo de la fusión híbrida que 26 casos ficticios no veían; y una regla de evaluación nueva dio dos falsos positivos y una falsa alarma mía hasta contrastarla con respuestas y fuentes reales.
+- **Una pieza nueva se justifica con una medición:** la híbrida no se añadió por ser lo habitual, sino cuando un caso difícil mostró un fallo real y la comparación sin LLM (segundos, 0 tokens) confirmó la mejora. El hit@k de un corpus pequeño es indulgente: hay que mirar también MRR y `top_k` más bajos.
+- **Medir también el instrumento:** uno de los dos fallos de la línea base (y otro después, con Chroma) era de las reglas, no del agente; y quitar piezas (umbral, paso de la skill) enseña qué protege cada una: `MIN_SCORE=0,5` rompe la recuperación, mientras que la abstención resiste porque está repetida en varias capas.
+- **Buscar frente a preguntar (MCP):** exponer `buscar_documentos` da fragmentos baratos y componibles; `preguntar_agente` da una respuesta elaborada pero es una caja negra lenta.
+
 ## Glosario
 
 - **Agente:** sistema donde el LLM decide, en un bucle, qué herramientas usar y cuándo terminar.

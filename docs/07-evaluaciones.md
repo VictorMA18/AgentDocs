@@ -100,3 +100,45 @@ Indexa los documentos de cada caso, lanza la consulta literal y mide **hit@k** (
 - Ejecutarlo **antes y después** de cada cambio importante (chunking, descripción de herramientas, skill, cambio a Chroma).
 - Guardar en `docs/09` una tabla de "cambio → efecto en la evaluación". Esa tabla es oro para el portafolio.
 - Cada fallo real que encuentres → conviértelo en un caso nuevo.
+
+## Resultados (resumen; detalle en `docs/09`)
+
+30 casos × 2 repeticiones, Haiku 5.5, embeddings MiniLM, 4 casos a la vez (≈ 19.000 tokens y 3,6 min por pasada). Cada fila es un cambio y su efecto medido; el detalle está en `docs/09`.
+
+| Pasada | Casos acertados | Tasa media | Lectura |
+|---|---|---|---|
+| Línea base | 29/30 (97 %) | 95 % | Dos fallos: una regla mal planteada y un «No such tool available» raro |
+| 1 · regla de robustez (mencionar ≠ obedecer) | 30/30 | 100 % | Corrección del instrumento (mismas respuestas); el agente no cambió |
+| 2 · guarda de herramienta nativa | 30/30 | 100 % | Efecto no medible: el fallo es ≈ 1 de cada 96 ejecuciones |
+| 3 · sin el paso «Evalúa la evidencia» | 30/30 | 98 % | La abstención no depende solo de ese paso (hay redundancia con la regla fija) |
+| 4a · `MIN_SCORE=0` | 30/30 | 100 % | El umbral no decide la abstención; +4 % de tokens |
+| 4b · `MIN_SCORE=0,5` | 29/30 | 93 % | **Regresión**: se pierden fragmentos relevantes (recuperación 97 %, contenido 90 %) |
+| 5 · `VECTOR_STORE=chroma` | 30/30 | 100 % | Mismo comportamiento que JSON (tras corregir una frase de la regla de abstención) |
+
+### Búsqueda híbrida (Fase 7.B)
+
+Con 30/30 el dataset ya no discriminaba, así que se añadieron 9 casos difíciles (códigos de error casi idénticos, flags parecidos, dos versiones de una guía, paráfrasis). La búsqueda vectorial falló en uno: el agente dijo que `E-4021` «no aparece en la documentación» estando indexado. Se midió la recuperación **sin gastar tokens** (`python -m evals.retrieval`, 25 casos con evidencia y 7 fuera de alcance):
+
+| Modo | hit@5 | hit@3 | MRR (k=5) | Fragmentos admitidos fuera de alcance |
+|---|---|---|---|---|
+| `vector` | 24/25 | 20/25 | 0,79 | 22 |
+| `lexical` (solo BM25) | 25/25 | 24/25 | 0,95 | 22 |
+| `hybrid` (por defecto) | 25/25 | 24/25 | 0,84 | 23 |
+
+La pasada completa en `hybrid` (38 casos × 2) dio 38/38 y `dificil-error-e4021` pasó de 50 % a 100 %. La léxica sola tiene mejor MRR porque las preguntas del dataset repiten palabras del documento, pero falla con paráfrasis; la híbrida es el compromiso seguro. `SEARCH_MODE=vector` restaura el comportamiento anterior. Detalle y calibración de `LEXICAL_MIN` en `docs/09`.
+
+**Prueba de uso real** (`docs/09`): documentación pública de httpx (15 archivos, 14 preguntas: 14/14 correctas), el manual PDF de `requests` (418 fragmentos), el servidor MCP con Claude Code y el CLI. Encontró un fallo que el dataset no veía: con el PDF, la fusión RRF enterraba una coincidencia exacta fuerte (`HTTPAdapter(pool_connections: int = 10, …)`) y el agente decía que no estaba documentada. Se arregló reservando en el top-k los 3 mejores resultados BM25 (ADR-019): 5/5 después, sin cambios en el resto de métricas. También se corrigió que el CLI mandara `/foo` al modelo.
+
+Validación posterior de BM25 (`docs/09`). Con el modelo: la abstención se mantiene (21/21 en `hybrid` y en `vector`, incluidas 4 preguntas con palabras compartidas) y, en 4 casos clave × 5 repeticiones, `hybrid` acierta 20/20 frente al 85 % de `vector` (`E-4021` 5/5 frente a 3/5). Sin tokens: con **Chroma real** da exactamente lo mismo que con JSON; la **búsqueda por palabras exactas no empeora la abstención** (4 preguntas fuera de alcance que comparten palabras con los documentos: 23 fragmentos admitidos frente a 22 de la vectorial, y la propia vectorial ya admite fragmentos en casi todas); el índice BM25 se reconstruye en cada búsqueda, lo que cuesta ≈ 26 ms con 500 fragmentos, ≈ 290 ms con 5.000 y ≈ 1,1 s con 20.000; y `invalidatePrefix` (lowerCamelCase) ahora encuentra `invalidate_prefix`.
+
+Con 2 repeticiones, un 50 % en un caso es una sola ejecución fallida: las diferencias de un punto o dos son ruido. Lo que sí enseñan los datos es que `MIN_SCORE=0,5` perjudica y que la abstención está protegida por varias capas a la vez.
+
+### Proveedores del LLM (ADR-024)
+
+| Muestra de 15 casos × 2 | Aciertos | Tokens por ejecución | Segundos |
+|---|---|---|---|
+| Claude Haiku 5.5 (CLI) | 15/15 | 16.161 | 11,7 |
+| Gemini 3.5 Flash Lite | 15/15 | 6.815 | 9,3 |
+| Gemini 3.6 Flash | 5/5 ejecuciones antes de agotar la cuota diaria | ≈ 3-7 mil | 3-8 |
+
+Con el plan gratuito de Gemini conviene `--workers 1`: `gemini-3.6-flash` admite 20 peticiones al día y `gemini-3.5-flash-lite`, 500.
