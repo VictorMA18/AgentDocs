@@ -59,10 +59,16 @@ def test_core_and_rag_do_not_import_the_api() -> None:
 
 
 def test_api_only_touches_the_core_through_its_public_entry_points() -> None:
-    text = (SRC / "api" / "main.py").read_text(encoding="utf-8")
-    imports = set(re.findall(r"^\s*from (techdoc_agent[\w.]*) import", text, flags=re.M))
+    """Revisa todos los archivos de la API (main, app, routers…); los imports entre ellos no cuentan."""
+    imports = {
+        module
+        for file in (SRC / "api").rglob("*.py")
+        for module in re.findall(r"^\s*from (techdoc_agent[\w.]*) import", file.read_text(encoding="utf-8"), flags=re.M)
+        if not module.startswith("techdoc_agent.api")
+    }
     assert imports <= {
         "techdoc_agent", "techdoc_agent.core.agent", "techdoc_agent.core.llm", "techdoc_agent.rag.embeddings",
         "techdoc_agent.rag.ingest", "techdoc_agent.rag.store", "techdoc_agent.bootstrap",
         "techdoc_agent.rag.factory", "techdoc_agent.core.memory", "techdoc_agent.core.transcripts",
         "techdoc_agent.logging_setup", "techdoc_agent.outputs.artifacts", "techdoc_agent.core.llm_factory"}, imports
+

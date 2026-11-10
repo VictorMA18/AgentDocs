@@ -83,9 +83,9 @@ def test_waiting_turn_announces_the_queue(make_api: Callable[..., Api]) -> None:
 
 def test_keepalive_comments_are_ignored_by_the_parser_and_sent_when_idle(monkeypatch: pytest.MonkeyPatch,
                                                                          make_api: Callable[..., Api]) -> None:
-    from techdoc_agent.api import main as api_main
+    from techdoc_agent.api.routers import chat as api_chat
 
-    monkeypatch.setattr(api_main, "STREAM_KEEPALIVE_S", 0.01)
+    monkeypatch.setattr(api_chat, "STREAM_KEEPALIVE_S", 0.01)
     api = make_api([final("Hola.")])
     core = api.client.app.state.core
     core.lock.acquire()
