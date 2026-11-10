@@ -279,7 +279,19 @@ obtener la línea base. Muéstrame los fallos y propón (sin aplicar aún) mejor
 ## Extra · Gemini como proveedor alternativo (hecho, ADR-024)
 `LLM_PROVIDER=claude|gemini` elige el cliente al arrancar (`core/llm_factory.py`). `GeminiClient` habla con la API REST de Gemini con el mismo protocolo JSON de herramientas, así que el resto del agente no cambia. Con el plan gratuito el modelo por defecto es `gemini-3.5-flash-lite` (500 peticiones al día): 15/15 en la muestra de evaluación, igual que Claude.
 
-## Fase 9 · Elegir el proveedor del LLM desde la interfaz (pendiente)
+## Fase 9 · Separar backend y frontend
+**Concepto:** el backend expone una API HTTP y el frontend es una aplicación aparte que solo habla con ella. El refactor cambia la *forma* del código, no su *comportamiento*: los tests existentes son la red de seguridad.
+
+### 9.A · Backend (hecha, ADR-025)
+- Todo el código Python se movió a `backend/` con `git mv` (historial conservado); los comandos se ejecutan desde `backend/`.
+- `api/main.py` (355 líneas) se dividió en `app.py` (ensamblado), `deps.py` (`Core`, `get_core`), `schemas.py`, `security.py` y `routers/` (chat, conversaciones, documentos, artefactos, salud). `uvicorn techdoc_agent.api.main:app` no cambia.
+- Único añadido: CORS con `CORS_ORIGINS` para el frontend.
+- **Criterios:** los 597 tests anteriores pasan (solo cambió la ruta de importación de un test y el test de frontera ahora revisa todos los archivos de `api/`) y 5 tests nuevos de CORS; una foto de las 28 respuestas de la API antes y después del refactor coincide (salvo el id aleatorio de los artefactos y la cabecera `Vary` de CORS); CLI, MCP y servidor arrancan; prueba de humo 3/3 con Claude y con Gemini.
+
+### 9.B · Frontend en Next.js (pendiente)
+Next.js 16 con shadcn/ui, TanStack Query (estado del servidor), Zustand (estado de la interfaz) y Zod (validación de lo que llega de la API), con paridad con la web actual: chat con progreso por SSE, Markdown y Mermaid seguros, documentos, conversaciones, pasos del agente y artefactos. Extras: modo oscuro, toasts, tests con Vitest y E2E con Playwright. Al alcanzar la paridad se retira la web estática y el backend queda como API pura.
+
+## Fase 10 · Elegir el proveedor del LLM desde la interfaz (pendiente)
 **Concepto:** hoy el proveedor se fija con una variable de entorno al arrancar. En esta fase se podrá cambiar entre Claude y Gemini desde la interfaz web, sin reiniciar.
 
 **Ideas a concretar en el plan de la fase:**

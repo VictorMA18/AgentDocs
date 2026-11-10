@@ -1,15 +1,28 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
 
+# Backend: secretos y datos locales
 .env
-logs/
-/outputs/
-data/documents/
-data/index/
-evals/results/
-.DS_Store
-data/conversations/
+backend/logs/
+backend/outputs/
+backend/data/documents/
+backend/data/index/
+backend/data/conversations/
+backend/evals/results/
+
+# Node (mermaid-cli y frontend)
 node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env*.local
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/next-env.d.ts
+*.tsbuildinfo
+
+.DS_Store

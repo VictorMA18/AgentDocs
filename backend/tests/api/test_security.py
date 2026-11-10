@@ -1,11 +1,15 @@
 """Cabeceras de seguridad, estáticos y frontera de arquitectura."""
 
+import dataclasses
 import re
+from collections.abc import Callable
 from pathlib import Path
 
+import pytest
 from conftest import Api
 
 import techdoc_agent
+from techdoc_agent import config
 from techdoc_agent.api.main import STATIC_DIR
 
 SRC = Path(techdoc_agent.__file__).parent
@@ -59,10 +63,55 @@ def test_core_and_rag_do_not_import_the_api() -> None:
 
 
 def test_api_only_touches_the_core_through_its_public_entry_points() -> None:
-    text = (SRC / "api" / "main.py").read_text(encoding="utf-8")
-    imports = set(re.findall(r"^\s*from (techdoc_agent[\w.]*) import", text, flags=re.M))
+    """Revisa todos los archivos de la API (main, app, routers…); los imports entre ellos no cuentan."""
+    imports = {
+        module
+        for file in (SRC / "api").rglob("*.py")
+        for module in re.findall(r"^\s*from (techdoc_agent[\w.]*) import", file.read_text(encoding="utf-8"), flags=re.M)
+        if not module.startswith("techdoc_agent.api")
+    }
     assert imports <= {
         "techdoc_agent", "techdoc_agent.core.agent", "techdoc_agent.core.llm", "techdoc_agent.rag.embeddings",
         "techdoc_agent.rag.ingest", "techdoc_agent.rag.store", "techdoc_agent.bootstrap",
         "techdoc_agent.rag.factory", "techdoc_agent.core.memory", "techdoc_agent.core.transcripts",
         "techdoc_agent.logging_setup", "techdoc_agent.outputs.artifacts", "techdoc_agent.core.llm_factory"}, imports
+
+
+# --- CORS (ADR-025): solo los orígenes del frontend configurados ---
+
+FRONT = "http://localhost:3000"
+
+
+def test_configured_frontend_origin_gets_cors_headers(api: Api) -> None:
+    response = api.client.get("/healthz", headers={"Origin": FRONT})
+    assert response.headers["access-control-allow-origin"] == FRONT
+    assert "default-src 'self'" in response.headers["content-security-policy"]  # el guard sigue actuando
+
+
+def test_preflight_allows_the_methods_the_frontend_uses(api: Api) -> None:
+    response = api.client.options("/api/documents/x.md", headers={
+        "Origin": FRONT, "Access-Control-Request-Method": "DELETE", "Access-Control-Request-Headers": "content-type"})
+    assert response.status_code == 200 and response.headers["access-control-allow-origin"] == FRONT
+    assert "DELETE" in response.headers["access-control-allow-methods"]
+    put = api.client.options("/api/documents", headers={"Origin": FRONT, "Access-Control-Request-Method": "PUT"})
+    assert put.status_code == 400  # método no permitido
+
+
+def test_early_413_is_readable_by_the_frontend(api: Api) -> None:
+    """CORS va por fuera del guard: el rechazo por Content-Length también lleva su cabecera."""
+    huge = str(config.settings.max_upload_mb * 1024 * 1024 * 2)
+    response = api.client.post("/api/documents", headers={"Origin": FRONT, "Content-Length": huge,
+                                                           "Content-Type": "multipart/form-data; boundary=x"}, content=b"")
+    assert response.status_code == 413 and response.headers["access-control-allow-origin"] == FRONT
+
+
+def test_empty_cors_origins_disables_cors(make_api: Callable[..., Api], monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "settings", dataclasses.replace(config.settings, cors_origins=()))
+    response = make_api().client.get("/healthz", headers={"Origin": FRONT})
+    assert not any(h.lower().startswith("access-control-") for h in response.headers)
+
+
+def test_cors_origins_default_and_parsing() -> None:
+    assert config.load_settings({}).cors_origins == ("http://localhost:3000", "http://127.0.0.1:3000")
+    assert config.load_settings({"CORS_ORIGINS": " https://a.example , "}).cors_origins == ("https://a.example",)
+    assert config.load_settings({"CORS_ORIGINS": ""}).cors_origins == config.load_settings({}).cors_origins  # vacía = por defecto

@@ -111,7 +111,9 @@ flowchart LR
 | Diagramas | El LLM escribe Mermaid; la herramienta valida | El feedback de errores permite que el agente se autocorrija |
 
 ## Estructura de carpetas
-Ver `AGENTS.md`, secciones "Mapa de ubicaciones" y "Estructura objetivo".
+Desde la Fase 9 (ADR-025) el repositorio tiene dos partes: **`backend/`** (todo el código Python: núcleo, RAG, salidas, API, CLI, MCP, tests, evaluaciones, skill y datos) y **`frontend/`** (la interfaz web en Next.js, Fase 9.B). La documentación (`docs/`) y las reglas (`AGENTS.md`) quedan en la raíz. Las rutas de este documento que empiezan por `data/`, `outputs/`, `src/` o `skills/` son relativas a `backend/`. El frontend es otro adaptador más: solo habla con la API HTTP, nunca con el núcleo.
+
+Detalle en `AGENTS.md`, secciones "Mapa de ubicaciones" y "Estructura objetivo".
 
 ## Datos en disco
 ```

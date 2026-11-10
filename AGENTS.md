@@ -29,81 +29,84 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | **Fases, entregables, criterios de aceptación y prompts por fase** | `docs/08-roadmap-fases.md` |
 | Decisiones tomadas (ADR), tabla de experimentos, fallos encontrados, glosario | `docs/09-decisiones-y-glosario.md` |
 
-### B. Código fuente (`src/techdoc_agent/`)
+### B. Código fuente (`backend/src/techdoc_agent/`)
 
 | Si necesitas… | Está en… | Se crea en |
 |---|---|---|
-| Variables de entorno / configuración | `src/techdoc_agent/config.py` | Fase 0 |
-| Logging JSONL | `src/techdoc_agent/logging_setup.py` | Fase 0 |
-| Cliente LLM (`LLMClient`, CLI de Claude Code) y protocolo JSON de herramientas | `src/techdoc_agent/core/llm.py` | Fase 1 |
-| Cliente de la API de Gemini (proveedor alternativo) | `src/techdoc_agent/core/llm_gemini.py` | ADR-024 |
-| Elección del proveedor (`LLM_PROVIDER`: `claude` o `gemini`) | `src/techdoc_agent/core/llm_factory.py` | ADR-024 |
-| Bucle del agente | `src/techdoc_agent/core/agent.py` | Fase 1 |
-| Registro y despacho de herramientas | `src/techdoc_agent/core/tools.py` | Fase 1 |
-| Historial por sesión | `src/techdoc_agent/core/memory.py` | Fase 1 |
-| Resumen de turnos antiguos (recorte de memoria) | `src/techdoc_agent/core/summarizer.py` | tras Fase 3 (ADR-011) |
-| Transcripciones de conversaciones y archivos JSON por sesión | `src/techdoc_agent/core/transcripts.py`, `core/storage.py` | Fase 5 (ADR-015) |
-| Construcción del system prompt | `src/techdoc_agent/core/prompts.py` | Fase 3 |
-| Carga de skills (y de sus guías `guias/*.md`) | `src/techdoc_agent/core/skills.py` | Fase 3 (guías: 8) |
-| Herramienta `cargar_guia` (divulgación progresiva de la skill) | `src/techdoc_agent/core/tools_skill.py` | Fase 8 |
-| Lectura de archivos (.md/.txt/.pdf/código) | `src/techdoc_agent/rag/loaders.py` | Fase 2 |
-| Chunking | `src/techdoc_agent/rag/chunking.py` | Fase 2 |
-| Embeddings (`Embedder`) | `src/techdoc_agent/rag/embeddings.py` | Fase 2 |
-| Interfaz `VectorStore`, `Chunk`, `SearchHit` | `src/techdoc_agent/rag/store.py` | Fase 2 |
-| Almacén JSON + numpy | `src/techdoc_agent/rag/store_json.py` | Fase 2 |
-| Almacén ChromaDB | `src/techdoc_agent/rag/store_chroma.py` | Fase 4 |
-| Selección del almacén (`VECTOR_STORE`) | `src/techdoc_agent/rag/factory.py` | Fase 4 |
-| Orquestación de la ingesta y script de consola | `src/techdoc_agent/rag/ingest.py` | Fase 2 |
-| Recuperación (consulta de texto → fragmentos; modos `vector`, `lexical`, `hybrid`) | `src/techdoc_agent/rag/retrieval.py` | Fase 2 (modos: 7.B) |
-| BM25 hecho a mano (tokenización y puntuación) | `src/techdoc_agent/rag/lexical.py` | Fase 7.B |
-| Fusión de rankings RRF | `src/techdoc_agent/rag/hybrid.py` | Fase 7.B |
-| Herramientas `buscar_documentos` y `listar_documentos` (registro) | `src/techdoc_agent/core/tools_rag.py` | Fase 3 |
-| Herramientas `generar_diagrama` y `generar_requisitos` (registro) | `src/techdoc_agent/core/tools_outputs.py` | Fase 3b |
-| Validación y guardado de Mermaid | `src/techdoc_agent/outputs/diagrams.py` | Fase 3b |
-| Validación real de Mermaid con `mmdc` (opcional, `MERMAID_VALIDATE=cli`) | `src/techdoc_agent/outputs/mermaid_cli.py` y `tools/mermaid/` | Fase 8 |
-| Nombres de archivo generados (slug + id) | `src/techdoc_agent/outputs/naming.py` | Fase 3b |
-| Validación y render de requisitos | `src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
-| Archivos guardados por las herramientas de salida en un turno (API y evals) | `src/techdoc_agent/outputs/artifacts.py` | Fase 7 |
-| API web (endpoints) | `src/techdoc_agent/api/main.py` | Fase 5 |
-| Interfaz HTML/JS/CSS | `src/techdoc_agent/api/static/` (`index.html`, `app.js`, `app.css`) | Fase 5 |
-| Ensamblado del agente (CLI y API) | `src/techdoc_agent/bootstrap.py` | Fase 5 |
-| Servidor MCP | `src/techdoc_agent/mcp_server.py` | Fase 6 |
-| Chat por consola | `src/techdoc_agent/cli.py` | Fase 1 |
+| Variables de entorno / configuración | `backend/src/techdoc_agent/config.py` | Fase 0 |
+| Logging JSONL | `backend/src/techdoc_agent/logging_setup.py` | Fase 0 |
+| Cliente LLM (`LLMClient`, CLI de Claude Code) y protocolo JSON de herramientas | `backend/src/techdoc_agent/core/llm.py` | Fase 1 |
+| Cliente de la API de Gemini (proveedor alternativo) | `backend/src/techdoc_agent/core/llm_gemini.py` | ADR-024 |
+| Elección del proveedor (`LLM_PROVIDER`: `claude` o `gemini`) | `backend/src/techdoc_agent/core/llm_factory.py` | ADR-024 |
+| Bucle del agente | `backend/src/techdoc_agent/core/agent.py` | Fase 1 |
+| Registro y despacho de herramientas | `backend/src/techdoc_agent/core/tools.py` | Fase 1 |
+| Historial por sesión | `backend/src/techdoc_agent/core/memory.py` | Fase 1 |
+| Resumen de turnos antiguos (recorte de memoria) | `backend/src/techdoc_agent/core/summarizer.py` | tras Fase 3 (ADR-011) |
+| Transcripciones de conversaciones y archivos JSON por sesión | `backend/src/techdoc_agent/core/transcripts.py`, `core/storage.py` | Fase 5 (ADR-015) |
+| Construcción del system prompt | `backend/src/techdoc_agent/core/prompts.py` | Fase 3 |
+| Carga de skills (y de sus guías `guias/*.md`) | `backend/src/techdoc_agent/core/skills.py` | Fase 3 (guías: 8) |
+| Herramienta `cargar_guia` (divulgación progresiva de la skill) | `backend/src/techdoc_agent/core/tools_skill.py` | Fase 8 |
+| Lectura de archivos (.md/.txt/.pdf/código) | `backend/src/techdoc_agent/rag/loaders.py` | Fase 2 |
+| Chunking | `backend/src/techdoc_agent/rag/chunking.py` | Fase 2 |
+| Embeddings (`Embedder`) | `backend/src/techdoc_agent/rag/embeddings.py` | Fase 2 |
+| Interfaz `VectorStore`, `Chunk`, `SearchHit` | `backend/src/techdoc_agent/rag/store.py` | Fase 2 |
+| Almacén JSON + numpy | `backend/src/techdoc_agent/rag/store_json.py` | Fase 2 |
+| Almacén ChromaDB | `backend/src/techdoc_agent/rag/store_chroma.py` | Fase 4 |
+| Selección del almacén (`VECTOR_STORE`) | `backend/src/techdoc_agent/rag/factory.py` | Fase 4 |
+| Orquestación de la ingesta y script de consola | `backend/src/techdoc_agent/rag/ingest.py` | Fase 2 |
+| Recuperación (consulta de texto → fragmentos; modos `vector`, `lexical`, `hybrid`) | `backend/src/techdoc_agent/rag/retrieval.py` | Fase 2 (modos: 7.B) |
+| BM25 hecho a mano (tokenización y puntuación) | `backend/src/techdoc_agent/rag/lexical.py` | Fase 7.B |
+| Fusión de rankings RRF | `backend/src/techdoc_agent/rag/hybrid.py` | Fase 7.B |
+| Herramientas `buscar_documentos` y `listar_documentos` (registro) | `backend/src/techdoc_agent/core/tools_rag.py` | Fase 3 |
+| Herramientas `generar_diagrama` y `generar_requisitos` (registro) | `backend/src/techdoc_agent/core/tools_outputs.py` | Fase 3b |
+| Validación y guardado de Mermaid | `backend/src/techdoc_agent/outputs/diagrams.py` | Fase 3b |
+| Validación real de Mermaid con `mmdc` (opcional, `MERMAID_VALIDATE=cli`) | `backend/src/techdoc_agent/outputs/mermaid_cli.py` y `backend/tools/mermaid/` | Fase 8 |
+| Nombres de archivo generados (slug + id) | `backend/src/techdoc_agent/outputs/naming.py` | Fase 3b |
+| Validación y render de requisitos | `backend/src/techdoc_agent/outputs/requirements_doc.py` | Fase 3b |
+| Archivos guardados por las herramientas de salida en un turno (API y evals) | `backend/src/techdoc_agent/outputs/artifacts.py` | Fase 7 |
+| API web: punto de entrada (`app`) | `backend/src/techdoc_agent/api/main.py` | Fase 5 |
+| API web: ensamblado (middleware, CORS, routers) | `backend/src/techdoc_agent/api/app.py` | Fase 9 (ADR-025) |
+| API web: endpoints por recurso (chat, conversaciones, documentos, artefactos, salud) | `backend/src/techdoc_agent/api/routers/` | Fase 9 |
+| API web: núcleo compartido (`Core`, `get_core`), modelos de entrada y frontera de seguridad | `backend/src/techdoc_agent/api/deps.py`, `schemas.py`, `security.py` | Fase 9 |
+| Interfaz HTML/JS/CSS | `backend/src/techdoc_agent/api/static/` (`index.html`, `app.js`, `app.css`) | Fase 5 |
+| Ensamblado del agente (CLI y API) | `backend/src/techdoc_agent/bootstrap.py` | Fase 5 |
+| Servidor MCP | `backend/src/techdoc_agent/mcp_server.py` | Fase 6 |
+| Chat por consola | `backend/src/techdoc_agent/cli.py` | Fase 1 |
 
 ### C. Contenido que el agente usa en ejecución
 
 | Qué | Dónde | Notas |
 |---|---|---|
-| **Skill del agente** (método general y guías de diagramas y requisitos) | `skills/documentacion-tecnica/SKILL.md` y `skills/documentacion-tecnica/guias/*.md` | Se inserta en el system prompt. Cambiar el comportamiento del agente = editar este archivo. **No** es documentación del proyecto. |
+| **Skill del agente** (método general y guías de diagramas y requisitos) | `backend/skills/documentacion-tecnica/SKILL.md` y `backend/skills/documentacion-tecnica/guias/*.md` | Se inserta en el system prompt. Cambiar el comportamiento del agente = editar este archivo. **No** es documentación del proyecto. |
 | Skill activa | variable `ACTIVE_SKILL` en `.env` | |
-| Documentos de ejemplo para probar el RAG | `data/sample_docs/taskflow.md` | Documentación ficticia, versionada en git |
-| Documentos subidos por el usuario | `data/documents/` | En `.gitignore`; nombres saneados por el sistema (ADR-014) |
-| Conversaciones guardadas (web) | `data/conversations/` | En `.gitignore`; contienen texto de las conversaciones |
-| Índice vectorial | `data/index/` (`index.json` + `vectors.npy`, o `chroma/`) | En `.gitignore` |
-| Artefactos generados (diagramas `.mmd`, requisitos `.md`) | `outputs/` | En `.gitignore`; nombres generados (slug + id) |
-| Logs del agente | `logs/agent-YYYYMMDD.jsonl` | En `.gitignore` |
+| Documentos de ejemplo para probar el RAG | `backend/data/sample_docs/taskflow.md` | Documentación ficticia, versionada en git |
+| Documentos subidos por el usuario | `backend/data/documents/` | En `.gitignore`; nombres saneados por el sistema (ADR-014) |
+| Conversaciones guardadas (web) | `backend/data/conversations/` | En `.gitignore`; contienen texto de las conversaciones |
+| Índice vectorial | `backend/data/index/` (`index.json` + `vectors.npy`, o `chroma/`) | En `.gitignore` |
+| Artefactos generados (diagramas `.mmd`, requisitos `.md`) | `backend/outputs/` | En `.gitignore`; nombres generados (slug + id) |
+| Logs del agente | `backend/logs/agent-YYYYMMDD.jsonl` | En `.gitignore` |
 
 ### D. Pruebas y evaluaciones
 
 | Qué | Dónde |
 |---|---|
-| Tests unitarios y de integración | `tests/` (reflejan la estructura de `src/techdoc_agent/`, p. ej. `tests/rag/test_chunking.py`) |
-| Casos de evaluación de ejemplo | `evals/dataset.example.jsonl` |
-| Dataset de evaluación real (Fase 7) | `evals/dataset.jsonl` |
-| Documentos auxiliares de evaluación (p. ej. documento envenenado) | `evals/fixtures/` |
-| Runner de evaluación (`--workers`, `--repeat`, `--only`, `--label`) | `evals/run.py` (Fase 7) |
-| Formato y validación del dataset | `evals/dataset.py` (Fase 7) |
-| Reglas de evaluación (pasa/falla por métrica) | `evals/rules.py` (Fase 7) |
-| Comparación de modos de búsqueda sin LLM (hit@k, MRR) | `evals/retrieval.py` (Fase 7.B) |
-| Resultados de ejecuciones | `evals/results/` (en `.gitignore`) |
+| Tests unitarios y de integración | `backend/tests/` (reflejan la estructura de `backend/src/techdoc_agent/`, p. ej. `backend/tests/rag/test_chunking.py`) |
+| Casos de evaluación de ejemplo | `backend/evals/dataset.example.jsonl` |
+| Dataset de evaluación real (Fase 7) | `backend/evals/dataset.jsonl` |
+| Documentos auxiliares de evaluación (p. ej. documento envenenado) | `backend/evals/fixtures/` |
+| Runner de evaluación (`--workers`, `--repeat`, `--only`, `--label`) | `backend/evals/run.py` (Fase 7) |
+| Formato y validación del dataset | `backend/evals/dataset.py` (Fase 7) |
+| Reglas de evaluación (pasa/falla por métrica) | `backend/evals/rules.py` (Fase 7) |
+| Comparación de modos de búsqueda sin LLM (hit@k, MRR) | `backend/evals/retrieval.py` (Fase 7.B) |
+| Resultados de ejecuciones | `backend/evals/results/` (en `.gitignore`) |
 
 ### E. Configuración y raíz
 
 | Qué | Dónde |
 |---|---|
-| Plantilla de variables de entorno | `.env.example` (el `.env` real no se versiona ni se lee/imprime) |
-| Dependencias | `requirements.txt` |
-| Empaquetado del proyecto | `pyproject.toml` (Fase 0) |
+| Plantilla de variables de entorno | `backend/.env.example` (el `.env` real no se versiona ni se lee/imprime) |
+| Dependencias | `backend/requirements.txt` |
+| Empaquetado del proyecto | `backend/pyproject.toml` (Fase 0) |
 | Reglas de git | `.gitignore` |
 | Presentación del proyecto | `README.md` |
 | Este archivo (reglas para agentes) | `AGENTS.md` (`CLAUDE.md` solo lo importa) |
@@ -112,16 +115,16 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 
 | Si vas a crear… | Ponlo en… |
 |---|---|
-| Una herramienta nueva del agente | Función en `core/` u `outputs/` + registro en `core/tools.py` + schema documentado en `docs/04` + caso en `evals/` |
-| Un loader de un formato nuevo | `rag/loaders.py` + extensión en `ALLOWED_EXTENSIONS` (`.env.example`) + test |
-| Otro almacén vectorial | `rag/store_<nombre>.py` implementando `VectorStore` + tests parametrizados |
-| Un endpoint | `api/main.py` (solo adaptación; la lógica va al núcleo) |
+| Una herramienta nueva del agente | Función en `core/` u `outputs/` (código) + registro en `core/tools.py` + schema documentado en `docs/04` + caso en `backend/evals/` |
+| Un loader de un formato nuevo | `backend/src/techdoc_agent/rag/loaders.py` + extensión en `ALLOWED_EXTENSIONS` (`backend/.env.example`) + test |
+| Otro almacén vectorial | `backend/src/techdoc_agent/rag/store_<nombre>.py` implementando `VectorStore` + tests parametrizados |
+| Un endpoint | `api/routers/<recurso>.py` + `include_router` en `api/app.py` (solo adaptación; la lógica va al núcleo) |
 | Una herramienta MCP | `mcp_server.py` (solo adaptación; la lógica va al núcleo) |
-| Otra skill | `skills/<nombre>/SKILL.md` |
-| Instrucciones detalladas de una skill que no hace falta en cada llamada | `skills/<nombre>/guias/<guia>.md` (con `description` en el frontmatter; el agente las carga con `cargar_guia`) |
+| Otra skill | `backend/skills/<nombre>/SKILL.md` |
+| Instrucciones detalladas de una skill que no hace falta en cada llamada | `backend/skills/<nombre>/guias/<guia>.md` (con `description` en el frontmatter; el agente las carga con `cargar_guia`) |
 | Una decisión de diseño | Entrada nueva en `docs/09-decisiones-y-glosario.md` |
-| Un fallo reproducible | Fila en la tabla de fallos de `docs/09` + caso en `evals/dataset.jsonl` |
-| Una variable de configuración | `config.py` + `.env.example` + mención en el doc afectado |
+| Un fallo reproducible | Fila en la tabla de fallos de `docs/09` + caso en `backend/evals/dataset.jsonl` |
+| Una variable de configuración | `config.py` + `backend/.env.example` + mención en el doc afectado |
 
 ### Evita estas confusiones
 - **"Documentos"** puede significar tres cosas distintas:
@@ -130,7 +133,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
   3. `skills/` → instrucciones que el agente **carga** (comportamiento).
   Ante la duda, pregunta cuál se pretende.
 - **Skill ≠ conocimiento.** La skill dice *cómo* trabajar; el conocimiento vive en los documentos indexados.
-- **`outputs/` (carpeta raíz)** son artefactos que genera el agente; **`src/techdoc_agent/outputs/`** es el código que los valida y guarda. No mezclar.
+- **`backend/outputs/`** son artefactos que genera el agente; **`backend/src/techdoc_agent/outputs/`** es el código que los valida y guarda. No mezclar.
 - Los **nombres de herramientas** (`buscar_documentos`, …) y sus schemas se definen en `docs/04`; el código debe coincidir con ese documento (si cambia uno, actualizar el otro).
 
 ---
@@ -158,7 +161,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 - CLI `claude` (Claude Code) como LLM — modelo configurable por `LLM_MODEL` (por defecto `claude-haiku-5-5`)
 - Alternativa: API de Gemini con `httpx` (`LLM_PROVIDER=gemini`, `GEMINI_API_KEY`, `GEMINI_MODEL`, por defecto `gemini-3.5-flash-lite`, la que da cuota con el plan gratuito); la clave solo en `.env`, nunca en código, logs ni git
 - `numpy` + `sentence-transformers` (embeddings locales, multilingüe) → luego `chromadb`
-- `fastapi` + `uvicorn` + HTML/JS puro (sin framework de frontend)
+- `fastapi` + `uvicorn` (API; CORS para el frontend con `CORS_ORIGINS`). Interfaz: HTML/JS puro hasta la Fase 9.B; después, Next.js en `frontend/`
 - `mcp` 2.x (SDK oficial de Python, `MCPServer`; antes `FastMCP`)
 - `pytest`
 
@@ -171,37 +174,43 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 - Funciones pequeñas, una responsabilidad. Sin abstracciones "por si acaso".
 
 ## Comandos
+El backend se ejecuta **desde `backend/`** (las rutas `./data`, `./skills`, `./outputs` son relativas a esa carpeta). El `.venv` vive en la raíz.
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env            # y comprobar que `claude` está instalado y con sesión iniciada
+python -m venv .venv && source .venv/bin/activate        # en la raíz del repositorio
+pip install -r backend/requirements.txt && pip install -e backend/
+cd backend && cp .env.example .env                        # y comprobar que `claude` está instalado y con sesión iniciada
 
-pytest                                                   # tests
+pytest                                                   # tests (desde backend/)
 python -m techdoc_agent.cli                              # chat por consola (/ingestar <ruta>, /nuevo, /salir)
-uvicorn techdoc_agent.api.main:app --reload              # web (Fase 5)
+uvicorn techdoc_agent.api.main:app --reload              # API (y web antigua hasta la Fase 9.B)
 python -m techdoc_agent.mcp_server                       # MCP por stdio (Fase 6)
 python -m evals.run                                      # evaluaciones (Fase 7)
 ```
 
 ## Estructura objetivo
 ```
-AGENTS.md  CLAUDE.md  README.md  requirements.txt  pyproject.toml  .env.example
+AGENTS.md  CLAUDE.md  README.md  LICENSE  .gitignore
 docs/                  # documentación del proyecto (01-09)
-skills/documentacion-tecnica/SKILL.md  guias/
-tools/mermaid/         # mermaid-cli opcional (package.json); node_modules fuera de git
-src/techdoc_agent/
-  config.py  logging_setup.py  bootstrap.py  cli.py  mcp_server.py
-  core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  tools_skill.py  prompts.py  skills.py
-             memory.py  summarizer.py  transcripts.py  storage.py  llm.py  llm_gemini.py  llm_factory.py
-  rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py  lexical.py  hybrid.py
-             store_json.py  store_chroma.py  factory.py  ingest.py
-  outputs/   diagrams.py  mermaid_cli.py  requirements_doc.py  naming.py  artifacts.py
-  api/       main.py  static/index.html  static/app.js  static/app.css
-tests/
-evals/       dataset.example.jsonl  dataset.jsonl  dataset.py  rules.py  run.py  retrieval.py  fixtures/  results/
-data/        sample_docs/  documents/  index/  conversations/
-outputs/     # artefactos generados (runtime)
-logs/        # JSONL (runtime)
+backend/
+  pyproject.toml  requirements.txt  .env.example
+  skills/documentacion-tecnica/SKILL.md  guias/
+  tools/mermaid/       # mermaid-cli opcional (package.json); node_modules fuera de git
+  src/techdoc_agent/
+    config.py  logging_setup.py  bootstrap.py  cli.py  mcp_server.py
+    core/      agent.py  tools.py  tools_rag.py  tools_outputs.py  tools_skill.py  prompts.py  skills.py
+               memory.py  summarizer.py  transcripts.py  storage.py  llm.py  llm_gemini.py  llm_factory.py
+    rag/       loaders.py  chunking.py  embeddings.py  store.py  retrieval.py  lexical.py  hybrid.py
+               store_json.py  store_chroma.py  factory.py  ingest.py
+    outputs/   diagrams.py  mermaid_cli.py  requirements_doc.py  naming.py  artifacts.py
+    api/       main.py  app.py  deps.py  schemas.py  security.py
+               routers/  chat.py  conversations.py  documents.py  artifacts.py  health.py
+               static/   index.html  app.js  app.css      # web antigua: se retira en la Fase 9.B
+  tests/
+  evals/       dataset.example.jsonl  dataset.jsonl  dataset.py  rules.py  run.py  retrieval.py  fixtures/  results/
+  data/        sample_docs/  documents/  index/  conversations/
+  outputs/     # artefactos generados (runtime)
+  logs/        # JSONL (runtime)
+frontend/      # Next.js (Fase 9.B)
 ```
 
 ## Definición de "terminado" para cualquier fase

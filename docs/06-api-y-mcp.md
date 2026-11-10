@@ -71,14 +71,18 @@ Una sola página (`index.html`, con `app.js` y `app.css` propios: sin scripts in
 
 ### Reglas
 - Límite de tamaño de subida (`MAX_UPLOAD_MB`) y lista blanca de extensiones. Se rechaza antes de leer el cuerpo si `Content-Length` ya lo supera (mejor esfuerzo: sin esa cabecera, el servidor puede haber recibido parte del archivo) y se aborta durante la lectura al pasar el límite.
-- Nombre de archivo **saneado** (ADR-014): sin carpetas, solo `[A-Za-z0-9._-]`, sin punto inicial, hasta 100 caracteres. No se genera uno nuevo porque ese nombre es la fuente de las citas (`[archivo#n]`); subir el mismo nombre reemplaza el documento. Se guarda en `data/documents/`.
+- Nombre de archivo **saneado** (ADR-014): sin carpetas, solo `[A-Za-z0-9._-]`, sin punto inicial, hasta 100 caracteres. No se genera uno nuevo porque ese nombre es la fuente de las citas (`[archivo#n]`); subir el mismo nombre reemplaza el documento. Se guarda en `backend/data/documents/`.
 - `GET /api/artifacts/{name}`: solo `^[a-z0-9][a-z0-9._-]*$` con extensión `.mmd` o `.md`, sin `..`, resuelto dentro de `outputs/` (un enlace simbólico que salga se rechaza). Se sirve como `text/plain` con `Content-Disposition: attachment`.
-- CORS cerrado por defecto (mismo origen). Cabeceras en todas las respuestas: `Content-Security-Policy` (scripts solo propios y de `cdn.jsdelivr.net`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. `/docs`, `/redoc` y `/openapi.json` están desactivados.
+- **CORS** (Fase 9, ADR-025): solo los orígenes de `CORS_ORIGINS` (por defecto `http://localhost:3000` y `http://127.0.0.1:3000`, el frontend Next.js en desarrollo), métodos `GET`, `POST` y `DELETE` y cabecera `Content-Type`; cualquier otro origen no recibe cabeceras `Access-Control-*`. El middleware de CORS va por fuera del de seguridad, así que también el rechazo temprano (413) lleva la cabecera y el frontend puede leer el error. Cabeceras en todas las respuestas: `Content-Security-Policy` (scripts solo propios y de `cdn.jsdelivr.net`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. `/docs`, `/redoc` y `/openapi.json` están desactivados.
 - Un único candado serializa chat, subida y borrado (la memoria y el almacén JSON no son seguros ante hilos). Pensado para un usuario local; con varios usuarios habría que usar un candado por sesión.
 - `POST /api/chat/stream`: SSE de progreso (ver arriba); `/api/chat` se conserva.
 
+### Organización del código (Fase 9.A, ADR-025)
+`api/main.py` es solo el punto de entrada (`app`). `api/app.py` ensambla la aplicación (lifespan, middleware de seguridad, CORS, routers); `api/routers/` tiene un módulo por recurso (`chat.py`, `conversations.py`, `documents.py`, `artifacts.py`, `health.py`); `api/deps.py` define `Core` y la dependencia `get_core`; `api/schemas.py`, los modelos de entrada; y `api/security.py`, la CSP, el tope de subida y la validación de nombres.
+
 ### Cómo arrancar
 ```bash
+cd backend
 uvicorn techdoc_agent.api.main:app --reload     # http://127.0.0.1:8000
 ```
 Al arrancar carga el modelo de embeddings y abre el almacén según `VECTOR_STORE`. `create_app(agent, store, embedder)` permite inyectar un núcleo falso en los tests (`tests/api/`).
@@ -117,7 +121,7 @@ claude mcp add --transport stdio techdoc -- /ruta/al/proyecto/.venv/bin/python -
 claude mcp list          # estado de los servidores; dentro de una sesión: /mcp
 claude mcp remove techdoc
 ```
-Con rutas de datos propias: `claude mcp add --env DATA_DIR=/ruta/data --transport stdio techdoc -- …`. `MCP_TIMEOUT` (arranque) y `MCP_TOOL_TIMEOUT` (herramienta) se ajustan al lanzar `claude`; conviene subir el segundo si usas `preguntar_agente`.
+El servidor se sitúa solo en `backend/` (donde está `pyproject.toml`), así que encuentra `./data` y `./skills` aunque el cliente lo lance desde otra carpeta. Con rutas de datos propias: `claude mcp add --env DATA_DIR=/ruta/data --transport stdio techdoc -- …`. `MCP_TIMEOUT` (arranque) y `MCP_TOOL_TIMEOUT` (herramienta) se ajustan al lanzar `claude`; conviene subir el segundo si usas `preguntar_agente`.
 
 **Claude Desktop** (macOS y Windows; `claude_desktop_config.json`, rutas **absolutas**, reiniciar la aplicación):
 ```json
@@ -126,7 +130,7 @@ Con rutas de datos propias: `claude mcp add --env DATA_DIR=/ruta/data --transpor
     "techdoc": {
       "command": "/ruta/al/proyecto/.venv/bin/python",
       "args": ["-m", "techdoc_agent.mcp_server"],
-      "env": {"DATA_DIR": "/ruta/al/proyecto/data"}
+      "env": {"DATA_DIR": "/ruta/al/proyecto/backend/data"}
     }
   }
 }
