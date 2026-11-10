@@ -56,6 +56,7 @@ class Settings:
     mermaid_cli_path: Path
     mermaid_timeout_s: int
     mermaid_puppeteer_config: str
+    cors_origins: tuple[str, ...]
 
     # --- Evaluaciones ---
     eval_min_pass: float
@@ -156,6 +157,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         mermaid_cli_path=_get_path(env, "MERMAID_CLI_PATH", "./tools/mermaid/node_modules/.bin/mmdc"),
         mermaid_timeout_s=_get_int(env, "MERMAID_TIMEOUT_S", 30),
         mermaid_puppeteer_config=_get_str(env, "MERMAID_PUPPETEER_CONFIG", ""),
+        cors_origins=_get_list(env, "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"),
         eval_min_pass=_get_float(env, "EVAL_MIN_PASS", 0.8),
     )
 

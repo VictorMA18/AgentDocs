@@ -11,9 +11,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from techdoc_agent import config
 from techdoc_agent.api.deps import Core, build_core, conversations_dir
 from techdoc_agent.api.routers import artifacts, chat, conversations, documents, health
 from techdoc_agent.api.security import add_security_middleware
@@ -41,6 +43,11 @@ def create_app(
     app.state.core = Core(agent, store, embedder, Transcripts(conversations_dir())) if injected else None
 
     add_security_middleware(app)
+    # CORS se añade después para quedar por fuera: así también las respuestas del guard (p. ej. un 413)
+    # llevan sus cabeceras y el frontend puede leer el error. Solo los orígenes de CORS_ORIGINS.
+    if config.settings.cors_origins:
+        app.add_middleware(CORSMiddleware, allow_origins=list(config.settings.cors_origins),
+                           allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type"])
 
     # --- páginas (web estática; se retira cuando el frontend Next.js tenga paridad) ---
 
