@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-green)
-![Tests](https://img.shields.io/badge/tests-597%20pasan-brightgreen)
+![Tests](https://img.shields.io/badge/tests-602%20pasan-brightgreen)
 ![Evaluación](https://img.shields.io/badge/evaluaci%C3%B3n-46%2F46-brightgreen)
 ![LLM](https://img.shields.io/badge/LLM-Claude%20%7C%20Gemini-8A2BE2)
 ![Sin frameworks de agentes](https://img.shields.io/badge/frameworks%20de%20agentes-ninguno-lightgrey)
@@ -83,7 +83,7 @@ Herramientas que puede usar el modelo:
 | Web | FastAPI + `uvicorn` + HTML/JS sin framework, SSE para el progreso | Interfaz ligera; el progreso del agente se ve en vivo |
 | Integración | `mcp` 2.x (SDK oficial) | Usa el agente desde Claude Code, Claude Desktop u otros clientes MCP |
 | Diagramas | Mermaid; validación real opcional con `mermaid-cli` | Comprueba que el diagrama se dibuja de verdad |
-| Pruebas | `pytest` (597 tests) + evaluaciones propias (`evals/`) | Lógica sin red ni modelo; comportamiento con el modelo real |
+| Pruebas | `pytest` (602 tests) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; comportamiento con el modelo real |
 | Registros | JSONL en `logs/` | Cada paso del agente queda registrado (herramienta, argumentos, tokens, duración) |
 
 ## Arquitectura
@@ -128,7 +128,7 @@ Reglas de diseño (no negociables):
 4. **Los documentos indexados son datos no confiables:** su contenido nunca se trata como instrucciones.
 5. **Todo se registra y todo tiene límites:** máximo de iteraciones, tiempo por llamada, tamaño y tipo de archivo.
 
-**Skill ≠ conocimiento.** La *skill* (`skills/documentacion-tecnica/`) dice **cómo** trabajar: cuándo buscar, cómo citar, cuándo abstenerse. El **conocimiento** vive en los documentos indexados. Cambiar el comportamiento del agente es editar la skill, sin tocar código.
+**Skill ≠ conocimiento.** La *skill* (`backend/skills/documentacion-tecnica/`) dice **cómo** trabajar: cuándo buscar, cómo citar, cuándo abstenerse. El **conocimiento** vive en los documentos indexados. Cambiar el comportamiento del agente es editar la skill, sin tocar código.
 
 Detalle en [`docs/03-arquitectura.md`](docs/03-arquitectura.md) y [`docs/04-diseno-agente.md`](docs/04-diseno-agente.md).
 
@@ -172,13 +172,16 @@ cd techdoc-agent
 python3 -m venv .venv && source .venv/bin/activate
 
 pip install torch --index-url https://download.pytorch.org/whl/cpu   # primero: evita ~4 GB de CUDA
-pip install -r requirements.txt
-pip install -e .
+pip install -r backend/requirements.txt
+pip install -e backend/
+cd backend                                                           # el backend se ejecuta desde aquí
 cp .env.example .env                                                 # configuración
 pytest                                                               # todos los tests deben pasar
 ```
 
-**Para usar Gemini** en vez de Claude, añade en `.env` (nunca en el código ni en git):
+Todos los comandos de Python de esta guía se ejecutan **desde `backend/`**: las rutas `./data`, `./skills` y `./outputs` son relativas a esa carpeta.
+
+**Para usar Gemini** en vez de Claude, añade en `backend/.env` (nunca en el código ni en git):
 
 ```bash
 LLM_PROVIDER=gemini
@@ -221,7 +224,7 @@ La página tiene tres zonas:
 Expone el proyecto a otros clientes por stdio con cuatro herramientas: `buscar_documentos` y `listar_documentos` (el modelo del cliente razona con tu RAG), `ingestar_documento` y `preguntar_agente` (el agente completo, con citas).
 
 ```bash
-claude mcp add --transport stdio techdoc -- /ruta/al/proyecto/.venv/bin/python -m techdoc_agent.mcp_server
+claude mcp add --transport stdio techdoc -- /ruta/al/proyecto/.venv/bin/python -m techdoc_agent.mcp_server   # se sitúa solo en backend/
 ```
 
 Después, en Claude Code: *"lista mis documentos"*. La configuración de Claude Desktop está en [`docs/06-api-y-mcp.md`](docs/06-api-y-mcp.md).
@@ -234,7 +237,7 @@ python -m evals.run --repeat 2 --workers 4                                # eval
 python -m evals.retrieval                                                 # comparar modos de búsqueda (0 tokens)
 ```
 
-**Validación real de Mermaid (opcional):** `cd tools/mermaid && npm install` y `MERMAID_VALIDATE=cli` en `.env`. Necesita Node y descarga Chromium (≈ 170 MB). Si `mmdc` no arranca, el agente sigue con la validación heurística.
+**Validación real de Mermaid (opcional):** `cd backend/tools/mermaid && npm install` y `MERMAID_VALIDATE=cli` en `backend/.env`. Necesita Node y descarga Chromium (≈ 170 MB). Si `mmdc` no arranca, el agente sigue con la validación heurística.
 
 ## Configuración
 
@@ -259,7 +262,7 @@ La lista completa está en `.env.example`.
 
 ## Evaluación y resultados
 
-El comportamiento se mide con un **dataset de 46 casos** (`evals/dataset.jsonl`) que se ejecutan con el modelo real y se evalúan con **reglas comprobables**: herramientas usadas, recuperación del fragmento correcto, contenido, citas, abstención, artefactos válidos y resistencia a inyección. Cada caso corre aislado y se repite para separar el ruido de los cambios reales.
+El comportamiento se mide con un **dataset de 46 casos** (`backend/evals/dataset.jsonl`) que se ejecutan con el modelo real y se evalúan con **reglas comprobables**: herramientas usadas, recuperación del fragmento correcto, contenido, citas, abstención, artefactos válidos y resistencia a inyección. Cada caso corre aislado y se repite para separar el ruido de los cambios reales.
 
 | Medición | Resultado |
 |---|---|
@@ -296,18 +299,20 @@ La defensa contra la inyección es de **mejor esfuerzo**: por eso se mide en la 
 ## Estructura del repositorio
 
 ```text
-src/techdoc_agent/
-  core/        bucle del agente, herramientas, memoria, prompt, skill, clientes LLM (Claude, Gemini)
-  rag/         lectura, chunking, embeddings, búsqueda híbrida, almacenes JSON y Chroma, ingesta
-  outputs/     validación y guardado de diagramas y requisitos
-  api/         web FastAPI + static/ (HTML, JS, CSS)
-  cli.py  mcp_server.py  bootstrap.py  config.py
-skills/documentacion-tecnica/   SKILL.md + guias/ (cómo trabaja el agente)
-evals/         dataset, runner, reglas y comparación de búsqueda
-tests/         tests unitarios y de integración (reflejan src/)
-docs/          documentación del proyecto (01-09)
-data/          sample_docs/ (documentación de ejemplo) · documents/ · index/ · conversations/ (locales)
-tools/mermaid/ mermaid-cli opcional
+backend/                     API, agente y RAG (Python)
+  src/techdoc_agent/
+    core/      bucle del agente, herramientas, memoria, prompt, skill, clientes LLM (Claude, Gemini)
+    rag/       lectura, chunking, embeddings, búsqueda híbrida, almacenes JSON y Chroma, ingesta
+    outputs/   validación y guardado de diagramas y requisitos
+    api/       FastAPI: app.py, routers/ (chat, documentos, conversaciones, artefactos), seguridad
+    cli.py  mcp_server.py  bootstrap.py  config.py
+  skills/documentacion-tecnica/   SKILL.md + guias/ (cómo trabaja el agente)
+  evals/       dataset, runner, reglas y comparación de búsqueda
+  tests/       tests unitarios y de integración (reflejan src/)
+  data/        sample_docs/ (documentación de ejemplo) · documents/ · index/ · conversations/ (locales)
+  tools/mermaid/  mermaid-cli opcional
+frontend/                    interfaz web en Next.js (Fase 9.B)
+docs/                        documentación del proyecto (01-09)
 ```
 
 [`AGENTS.md`](AGENTS.md) tiene el **mapa de ubicaciones** completo (dónde está cada cosa) y las reglas del proyecto.
@@ -331,7 +336,9 @@ tools/mermaid/ mermaid-cli opcional
 - **Fases 0 a 8:** bucle del agente, RAG como herramienta con skill, memoria con resumen, diagramas y requisitos validados, ChromaDB seleccionable, web con conversaciones guardadas, servidor MCP, evaluaciones repetibles, búsqueda híbrida, prueba con documentos reales, progreso en vivo, skill con divulgación progresiva y validación real de Mermaid.
 - **Extra:** Gemini como proveedor alternativo del LLM.
 
-**Siguiente — Fase 9:** elegir el proveedor del LLM (Claude o Gemini) desde la interfaz web, sin reiniciar el servidor y guardando la elección en cada conversación. Detalle en [`docs/08-roadmap-fases.md`](docs/08-roadmap-fases.md).
+**En curso — Fase 9:** separar backend y frontend. **9.A (hecha):** el backend vive en `backend/` y la API está dividida en routers, sin cambios de comportamiento, con CORS para el frontend (ADR-025). **9.B:** interfaz nueva en Next.js (shadcn/ui, TanStack Query, Zustand, Zod) con paridad con la web actual, que después se retira.
+
+**Siguiente — Fase 10:** elegir el proveedor del LLM (Claude o Gemini) desde la interfaz web, sin reiniciar el servidor y guardando la elección en cada conversación. Detalle en [`docs/08-roadmap-fases.md`](docs/08-roadmap-fases.md).
 
 ## Licencia
 
