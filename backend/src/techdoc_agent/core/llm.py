@@ -64,6 +64,29 @@ class LLMError(Exception):
     """Fallo al llamar al LLM (CLI ausente, timeout, error del proceso)."""
 
 
+class LLMUnavailableError(LLMError):
+    """El proveedor no se puede usar ahora (falta la clave, cuota agotada, CLI ausente o sin sesión).
+
+    Su mensaje está pensado para el usuario (dice qué hacer, sin trazas ni claves): la API lo muestra
+    tal cual con un 503, a diferencia del resto de ``LLMError``, que se ocultan tras un mensaje genérico.
+    """
+
+
+# Señales de que el CLI de Claude Code no tiene sesión iniciada (texto de su error, en minúsculas).
+# Específicas a propósito: «log in» o «login» sueltos aparecen en errores normales («catalog in…») y en
+# cualquier texto que hable de un login, y harían pasar un fallo cualquiera por «sin sesión».
+_AUTH_HINTS = ("not logged in", "/login", "please log in", "authentication", "unauthorized", "invalid api key",
+               "oauth token")
+CLAUDE_LOGIN_MESSAGE = (
+    "Claude Code no tiene sesión iniciada. Ejecuta `claude` en una terminal, inicia sesión y vuelve a "
+    "intentarlo, o elige otro proveedor."
+)
+
+
+def _claude_auth_error(text: str) -> bool:
+    return any(hint in text.lower() for hint in _AUTH_HINTS)
+
+
 class LLMProtocolError(LLMError):
     """El modelo respondió, pero no con el protocolo esperado (recuperable)."""
 
@@ -162,7 +185,10 @@ def parse_output(stdout: str) -> LLMReply:
     if not isinstance(data, dict):
         raise LLMError("La salida del CLI no es un objeto JSON.")
     if data.get("is_error"):
-        raise LLMError(f"El CLI devolvió un error: {data.get('result', '')!s:.300}")
+        result = str(data.get("result", ""))
+        if _claude_auth_error(result):
+            raise LLMUnavailableError(CLAUDE_LOGIN_MESSAGE)
+        raise LLMError(f"El CLI devolvió un error: {result:.300}")
 
     structured = data.get("structured_output")
     result_text = str(data.get("result", ""))
@@ -233,9 +259,14 @@ class ClaudeCliClient:
                 cwd=tempfile.gettempdir(),
             )
         except FileNotFoundError:
-            raise LLMError(f"No se encontró el CLI {self.cli_path!r} (CLAUDE_CLI_PATH).") from None
+            raise LLMUnavailableError(
+                f"No se encontró el CLI de Claude Code ({self.cli_path!r}, CLAUDE_CLI_PATH). Instálalo e inicia "
+                "sesión, o elige otro proveedor."
+            ) from None
         except subprocess.TimeoutExpired:
             raise LLMError(f"El CLI superó el tiempo máximo ({self.timeout_s} s).") from None
         if proc.returncode != 0:
+            if _claude_auth_error(proc.stderr + proc.stdout):
+                raise LLMUnavailableError(CLAUDE_LOGIN_MESSAGE)
             raise LLMError(f"El CLI terminó con código {proc.returncode}: {proc.stderr.strip()[:300]}")
         return parse_output(proc.stdout)

@@ -106,7 +106,7 @@ class Agent:
         self.system_prompt = system_prompt
         self.max_iterations = max_iterations or config.settings.max_agent_iterations
 
-    def _maybe_compact(self, session_id: str) -> None:
+    def _maybe_compact(self, session_id: str, llm: LLMClient) -> None:
         """Si el historial es grande, resume los turnos antiguos (no rompe el turno si falla)."""
         keep = config.settings.memory_keep_turns
         if (self.memory.turn_count(session_id) <= keep
@@ -116,7 +116,7 @@ class Agent:
         old = self.memory.old_messages(session_id, keep)
         chars_before = sum(len(m["content"]) for m in self.memory.get(session_id))
         try:
-            summary = summarize(self.llm, self.memory.summary(session_id), old)
+            summary = summarize(llm, self.memory.summary(session_id), old)
         except LLMError as exc:  # se reintenta en el siguiente turno
             log_event(session=session_id, event="memory_compact_error", error=str(exc))
             return
@@ -128,9 +128,17 @@ class Agent:
                   chars_before=chars_before, chars_after=chars_after,
                   summary_chars=len(summary), duration_ms=_ms(started))
 
-    def run(self, session_id: str, user_message: str, on_event: EventCallback | None = None) -> AgentResult:
+    def run(
+        self,
+        session_id: str,
+        user_message: str,
+        on_event: EventCallback | None = None,
+        llm: LLMClient | None = None,
+    ) -> AgentResult:
+        """Un turno completo. ``llm`` permite que el adaptador elija el proveedor de este turno
+        (ADR-028); sin él se usa el del constructor. El núcleo no sabe de dónde viene la elección."""
         try:
-            return self._run(session_id, user_message, on_event)
+            return self._run(session_id, user_message, on_event, llm or self.llm)
         finally:  # también tras un error o el tope de iteraciones: el disco refleja el estado final
             self._persist(session_id)
 
@@ -141,8 +149,10 @@ class Agent:
         except OSError as exc:
             log_event(session=session_id, event="memory_save_error", error=str(exc))
 
-    def _run(self, session_id: str, user_message: str, on_event: EventCallback | None) -> AgentResult:
-        self._maybe_compact(session_id)
+    def _run(
+        self, session_id: str, user_message: str, on_event: EventCallback | None, llm: LLMClient
+    ) -> AgentResult:
+        self._maybe_compact(session_id, llm)
         history = self.memory.get(session_id)
         self.memory.mark_turn(session_id)
         history.append({"role": "user", "content": user_message})
@@ -156,7 +166,7 @@ class Agent:
             _emit(on_event, {"tipo": "pensando", "iter": iteration})
             try:
                 system = with_summary(self.system_prompt, self.memory.summary(session_id))
-                reply = self.llm.complete(system, history, self.tools.specs())
+                reply = llm.complete(system, history, self.tools.specs())
             except LLMProtocolError as exc:
                 # Recuperable: se lo devolvemos al modelo para que se corrija.
                 log_event(session=session_id, iter=iteration, event="llm_protocol_error",

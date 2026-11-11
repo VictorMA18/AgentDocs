@@ -24,6 +24,7 @@ from techdoc_agent.core.llm import (
     LLMError,
     LLMProtocolError,
     LLMReply,
+    LLMUnavailableError,
     Message,
     build_system_text,
     reply_from_structured,
@@ -128,10 +129,14 @@ class GeminiClient:
 
     def complete(self, system: str, messages: list[Message], tools: list[ToolSpec]) -> LLMReply:
         if not self._api_key:
-            raise LLMError("Falta GEMINI_API_KEY: ponla en .env para usar LLM_PROVIDER=gemini.")
+            raise LLMUnavailableError(
+                "Falta GEMINI_API_KEY: ponla en backend/.env para usar Gemini, o elige otro proveedor.")
         response = self._post(self._body(system, messages, tools))
         if response.status_code != 200:
-            raise LLMError(self._api_error(response))
+            message = self._api_error(response)
+            if response.status_code == 429:  # cuota (diaria o por minuto tras los reintentos): se puede mostrar
+                raise LLMUnavailableError(f"{message} Mientras tanto, puedes elegir otro proveedor.")
+            raise LLMError(message)
         return parse_response(response.json())
 
 
