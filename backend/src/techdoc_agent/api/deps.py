@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from fastapi import Request
 
 from techdoc_agent import config
 from techdoc_agent.core.agent import Agent
+from techdoc_agent.core.llm import LLMClient
+from techdoc_agent.core.llm_factory import build_llm, provider_status
 from techdoc_agent.core.memory import Memory
 from techdoc_agent.core.transcripts import Transcripts
 from techdoc_agent.rag.embeddings import Embedder
@@ -25,6 +29,17 @@ class Core:
     embedder: Embedder
     transcripts: Transcripts
     lock: threading.Lock = field(default_factory=threading.Lock)
+    # Proveedores del LLM (ADR-028): cada cliente se crea la primera vez que se pide y se reutiliza.
+    # Los tests inyectan una factoría y un estado falsos para no depender de claves ni del CLI.
+    llm_factory: Callable[[str], LLMClient] = build_llm
+    provider_status: Callable[[], list[dict[str, Any]]] = provider_status
+    llms: dict[str, LLMClient] = field(default_factory=dict)
+
+    def get_llm(self, provider: str) -> LLMClient:
+        """Cliente del proveedor (llamar con el candado tomado)."""
+        if provider not in self.llms:
+            self.llms[provider] = self.llm_factory(provider)
+        return self.llms[provider]
 
 
 def documents_dir() -> Path:
@@ -38,13 +53,15 @@ def conversations_dir() -> Path:
 def build_core() -> Core:
     """Construye el núcleo real (carga el modelo de embeddings: tarda unos segundos)."""
     from techdoc_agent.bootstrap import build_agent
-    from techdoc_agent.core.llm_factory import build_llm
     from techdoc_agent.rag.embeddings import SentenceTransformerEmbedder
     from techdoc_agent.rag.factory import build_store
 
     embedder, store = SentenceTransformerEmbedder(), build_store()
-    agent = build_agent(build_llm(), store, embedder, Memory(conversations_dir()))
-    return Core(agent, store, embedder, Transcripts(conversations_dir()))
+    default = build_llm()  # el de LLM_PROVIDER: lo usa el agente si un turno no elige otro
+    agent = build_agent(default, store, embedder, Memory(conversations_dir()))
+    core = Core(agent, store, embedder, Transcripts(conversations_dir()))
+    core.llms[config.settings.llm_provider] = default
+    return core
 
 
 def get_core(request: Request) -> Core:

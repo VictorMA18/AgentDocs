@@ -11,6 +11,7 @@ import { useConversation } from "@/lib/api/queries";
 import { useChatStore } from "@/stores/chat-store";
 
 import { Composer } from "./composer";
+import { ProviderSelect } from "./provider-select";
 import { MessageList } from "./message-list";
 
 function EmptyState() {
@@ -44,7 +45,7 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
 
   // Ruta `/c/<id>`: cuando llega la conversación guardada, se vuelca en el store.
   useEffect(() => {
-    if (needsLoad && saved.data) useChatStore.getState().load(saved.data.id, saved.data.turns);
+    if (needsLoad && saved.data) useChatStore.getState().load(saved.data.id, saved.data.turns, saved.data.provider);
   }, [needsLoad, saved.data]);
 
   let body: React.ReactNode;
@@ -76,6 +77,9 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
           y cada paso nuevo (una región viva que se monta ya con su texto no se anuncia). */}
       <div className="min-h-0 flex-1 overflow-y-auto" role="log" aria-label="Conversación">
         {body}
+      </div>
+      <div className="mx-auto w-full max-w-3xl px-4 pb-2">
+        <ProviderSelect disabled={busy || needsLoad} />
       </div>
       <Composer onSend={(text) => void send(text)} disabled={busy || needsLoad} />
     </div>

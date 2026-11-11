@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { ProgressEvent, StoredTurn, TurnResult } from "@/lib/api/schemas";
+import type { ProgressEvent, ProviderId, StoredTurn, TurnResult } from "@/lib/api/schemas";
 
 // Estado de la interfaz del chat (Zustand): la conversación en pantalla, lo que se está enviando y
 // el progreso en vivo. Lo que vive en el servidor (listas, conversaciones guardadas) va en TanStack Query.
@@ -20,9 +20,12 @@ type ChatState = {
   /** Progreso del turno en curso; `null` si no hay ninguno. */
   progress: Progress | null;
   busy: boolean;
+  /** Proveedor elegido para el próximo turno; `null` = el de por defecto del backend. */
+  provider: ProviderId | null;
 
   reset: () => void;
-  load: (sessionId: string, turns: StoredTurn[]) => void;
+  load: (sessionId: string, turns: StoredTurn[], provider?: ProviderId | null) => void;
+  setProvider: (provider: ProviderId) => void;
   start: (sessionId: string, text: string) => void;
   advance: (sessionId: string, event: ProgressEvent) => void;
   finish: (sessionId: string, turn: TurnResult) => void;
@@ -51,14 +54,18 @@ export const useChatStore = create<ChatState>()((set, get) => {
     messages: [],
     progress: null,
     busy: false,
+    provider: null,
 
-    reset: () => set({ sessionId: null, messages: [], progress: null, busy: false }),
+    reset: () => set({ sessionId: null, messages: [], progress: null, busy: false, provider: null }),
 
-    load: (sessionId, turns) =>
+    setProvider: (provider) => set({ provider }),
+
+    load: (sessionId, turns, provider = null) =>
       set({
         sessionId,
         progress: null,
         busy: false,
+        provider, // cada conversación sigue con el último proveedor que usó
         messages: turns.flatMap(({ message, ts: _ts, ...turn }): ChatMessage[] => [
           { id: newId(), role: "user", text: message },
           { id: newId(), role: "agent", turn },

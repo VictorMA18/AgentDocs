@@ -49,6 +49,17 @@ describe("chat-store", () => {
     ]);
   });
 
+  it("cada conversación recuerda su proveedor y una nueva vuelve al de por defecto", () => {
+    store().load("s4", [], "gemini");
+    expect(store().provider).toBe("gemini");
+    store().setProvider("claude");
+    expect(store().provider).toBe("claude");
+    store().reset();
+    expect(store().provider).toBeNull();
+    store().load("s5", []); // conversación antigua, sin proveedor guardado
+    expect(store().provider).toBeNull();
+  });
+
   it("los ids de sesión cumplen el patrón del backend", () => {
     expect(newSessionId()).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
   });

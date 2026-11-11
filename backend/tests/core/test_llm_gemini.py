@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from techdoc_agent import config
-from techdoc_agent.core.llm import ClaudeCliClient, LLMError, LLMProtocolError
+from techdoc_agent.core.llm import ClaudeCliClient, LLMError, LLMProtocolError, LLMUnavailableError
 from techdoc_agent.core.llm_factory import build_llm, llm_description
 from techdoc_agent.core.llm_gemini import RESPONSE_SCHEMA, GeminiClient, parse_response
 from techdoc_agent.core.tools import ToolSpec
@@ -157,7 +157,7 @@ def test_daily_quota_is_not_retried_and_says_so() -> None:
         {"violations": [{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}]}, {"retryDelay": "20s"}]}}
     api = FakeApi(httpx.Response(429, json=daily))
     c = client(api)
-    with pytest.raises(LLMError, match="límite diario") as exc:
+    with pytest.raises(LLMUnavailableError, match="límite diario.*elegir otro proveedor") as exc:
         c.complete("s", MESSAGES, [])
     assert "PerDay" in str(exc.value) and len(api.requests) == 1 and c.sleeps == []  # type: ignore[attr-defined]
 
@@ -167,6 +167,7 @@ def test_auth_errors_are_not_retried_and_never_include_the_key() -> None:
     with pytest.raises(LLMError) as exc:
         client(api).complete("s", MESSAGES, [])
     assert "API key not valid" in str(exc.value) and KEY not in str(exc.value) and len(api.requests) == 1
+    assert not isinstance(exc.value, LLMUnavailableError)  # un 400 no es «no disponible»: mensaje genérico
 
 
 def test_timeout_and_connection_errors_become_llm_errors() -> None:
@@ -184,7 +185,7 @@ def test_timeout_and_connection_errors_become_llm_errors() -> None:
 
 def test_missing_key_is_a_clear_error_before_any_request() -> None:
     api = FakeApi()
-    with pytest.raises(LLMError, match="Falta GEMINI_API_KEY"):
+    with pytest.raises(LLMUnavailableError, match="Falta GEMINI_API_KEY"):
         GeminiClient(api_key="", transport=httpx.MockTransport(api)).complete("s", MESSAGES, [])
     assert api.requests == []
 

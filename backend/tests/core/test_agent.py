@@ -206,3 +206,12 @@ def test_a_failing_listener_does_not_break_the_turn(logs_dir) -> None:
 def test_without_listener_nothing_changes() -> None:
     agent, llm = make_agent([final("hola")])
     assert agent.run("s1", "hola").iterations == 1 and len(llm.seen) == 1
+
+
+def test_run_uses_the_turn_llm_when_given_and_the_constructor_one_otherwise() -> None:
+    agent, default = make_agent([final("por defecto")])
+    other = FakeLLMClient([final("del turno")])
+    assert agent.run("s1", "hola", llm=other).text == "del turno"
+    assert agent.run("s1", "otra").text == "por defecto"
+    assert len(other.seen) == 1 and len(default.seen) == 1
+    assert [m["content"] for m in default.seen[0] if m["role"] == "user"] == ["hola", "otra"]  # misma memoria

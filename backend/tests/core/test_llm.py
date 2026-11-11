@@ -7,9 +7,11 @@ from typing import Any
 import pytest
 
 from techdoc_agent.core.llm import (
+    CLAUDE_LOGIN_MESSAGE,
     ClaudeCliClient,
     LLMError,
     LLMProtocolError,
+    LLMUnavailableError,
     ToolCall,
     parse_output,
 )
@@ -161,10 +163,27 @@ def test_timeout_is_llm_error(monkeypatch: pytest.MonkeyPatch) -> None:
         client().complete("s", [{"role": "user", "content": "x"}], [])
 
 
-def test_missing_cli_is_llm_error(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_cli_is_an_unavailable_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(subprocess, "run", FakeRun(error=FileNotFoundError()))
-    with pytest.raises(LLMError, match="CLAUDE_CLI_PATH"):
+    with pytest.raises(LLMUnavailableError, match="CLAUDE_CLI_PATH.*elige otro proveedor"):
         client().complete("s", [{"role": "user", "content": "x"}], [])
+
+
+def test_cli_without_session_is_an_unavailable_error_with_what_to_do() -> None:
+    with pytest.raises(LLMUnavailableError) as exc:
+        parse_output(json.dumps({"is_error": True, "result": "Not logged in · Please run /login"}))
+    assert str(exc.value) == CLAUDE_LOGIN_MESSAGE
+
+
+@pytest.mark.parametrize("result", [
+    "sobrecarga del servicio",
+    "model claude-x not found in catalog in this region",  # contiene «log in»
+    "API Error: 500 while processing the login flow diagram",  # habla de un login, no es la sesión
+])
+def test_other_cli_errors_stay_generic(result: str) -> None:
+    with pytest.raises(LLMError) as exc:
+        parse_output(json.dumps({"is_error": True, "result": result}))
+    assert not isinstance(exc.value, LLMUnavailableError)
 
 
 def test_nonzero_exit_is_llm_error(monkeypatch: pytest.MonkeyPatch) -> None:

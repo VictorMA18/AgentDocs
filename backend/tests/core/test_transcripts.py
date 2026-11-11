@@ -60,7 +60,7 @@ def test_list_is_newest_first_without_the_turns(transcripts: Transcripts, tmp_pa
         path.write_text(json.dumps(data), encoding="utf-8")
     listing = transcripts.list()
     assert [c["id"] for c in listing] == ["nueva-1", "vieja-1"]
-    assert listing[0]["turns"] == 2 and set(listing[0]) == {"id", "title", "updated", "turns"}
+    assert listing[0]["turns"] == 2 and set(listing[0]) == {"id", "title", "updated", "turns", "provider"}
 
 
 def test_list_is_capped(transcripts: Transcripts) -> None:

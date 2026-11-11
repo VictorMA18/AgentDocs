@@ -11,6 +11,10 @@ export const TOOL_LABELS: Record<string, string> = {
 
 export const toolLabel = (tool: string) => TOOL_LABELS[tool] ?? tool;
 
+/** Nombre del proveedor del LLM para mostrar (Fase 10). */
+export const PROVIDER_LABELS: Record<string, string> = { claude: "Claude", gemini: "Gemini" };
+export const providerLabel = (id: string) => PROVIDER_LABELS[id] ?? id;
+
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function formatDate(iso: string): string {

@@ -63,7 +63,7 @@ class Transcripts:
 
     def get(self, session_id: str) -> dict[str, Any] | None:
         data = self._read(session_id)
-        return None if data is None else {"id": session_id, **data}
+        return None if data is None else {"id": session_id, **data, "provider": _last_provider(data)}
 
     def list(self) -> list[dict[str, Any]]:
         """Resumen de cada conversación (sin los turnos), las más recientes primero."""
@@ -75,7 +75,7 @@ class Transcripts:
             data = self._read(session_id)
             if data is not None:
                 found.append({"id": session_id, "title": data["title"], "updated": data["updated"],
-                              "turns": len(data["turns"])})
+                              "turns": len(data["turns"]), "provider": _last_provider(data)})
         return sorted(found, key=lambda c: c["updated"], reverse=True)[:MAX_LISTED]
 
     def delete(self, session_id: str) -> bool:
@@ -84,3 +84,12 @@ class Transcripts:
         existed = path.is_file()
         path.unlink(missing_ok=True)
         return existed
+
+
+def _last_provider(data: dict[str, Any]) -> str | None:
+    """Proveedor del último turno que lo registró (ADR-028); ``None`` en conversaciones anteriores."""
+    for turn in reversed(data["turns"]):
+        llm = turn.get("llm")
+        if isinstance(llm, dict) and isinstance(llm.get("provider"), str):
+            return llm["provider"]
+    return None

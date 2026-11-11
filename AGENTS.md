@@ -37,7 +37,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Logging JSONL | `backend/src/techdoc_agent/logging_setup.py` | Fase 0 |
 | Cliente LLM (`LLMClient`, CLI de Claude Code) y protocolo JSON de herramientas | `backend/src/techdoc_agent/core/llm.py` | Fase 1 |
 | Cliente de la API de Gemini (proveedor alternativo) | `backend/src/techdoc_agent/core/llm_gemini.py` | ADR-024 |
-| Elección del proveedor (`LLM_PROVIDER`: `claude` o `gemini`) | `backend/src/techdoc_agent/core/llm_factory.py` | ADR-024 |
+| Elección del proveedor (`LLM_PROVIDER` por defecto; `build_llm(provider)`, `provider_status()`) | `backend/src/techdoc_agent/core/llm_factory.py` | ADR-024, Fase 10 (ADR-028) |
 | Bucle del agente | `backend/src/techdoc_agent/core/agent.py` | Fase 1 |
 | Registro y despacho de herramientas | `backend/src/techdoc_agent/core/tools.py` | Fase 1 |
 | Historial por sesión | `backend/src/techdoc_agent/core/memory.py` | Fase 1 |
@@ -66,7 +66,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Archivos guardados por las herramientas de salida en un turno (API y evals) | `backend/src/techdoc_agent/outputs/artifacts.py` | Fase 7 |
 | API web: punto de entrada (`app`) | `backend/src/techdoc_agent/api/main.py` | Fase 5 |
 | API web: ensamblado (middleware, CORS, routers) | `backend/src/techdoc_agent/api/app.py` | Fase 9 (ADR-025) |
-| API web: endpoints por recurso (chat, conversaciones, documentos, artefactos, salud) | `backend/src/techdoc_agent/api/routers/` | Fase 9 |
+| API web: endpoints por recurso (chat, conversaciones, documentos, artefactos, salud, proveedores) | `backend/src/techdoc_agent/api/routers/` | Fase 9 (`providers.py`: Fase 10) |
 | API web: núcleo compartido (`Core`, `get_core`), modelos de entrada y frontera de seguridad | `backend/src/techdoc_agent/api/deps.py`, `schemas.py`, `security.py` | Fase 9 |
 | Ensamblado del agente (CLI y API) | `backend/src/techdoc_agent/bootstrap.py` | Fase 5 |
 | Servidor MCP | `backend/src/techdoc_agent/mcp_server.py` | Fase 6 |
@@ -79,7 +79,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Rutas: armazón y proveedores, conversación nueva, conversación guardada (`/c/<id>`) | `frontend/src/app/layout.tsx`, `page.tsx`, `c/[id]/page.tsx` |
 | Componentes de shadcn/ui (generados con `pnpm dlx shadcn add`, editables) | `frontend/src/components/ui/` |
 | Armazón de 3 columnas, proveedores (Query, tema, toasts), modo oscuro, estado de la API, confirmación | `frontend/src/components/` |
-| Chat: vista, mensajes, compositor, progreso, Markdown seguro, Mermaid, artefactos | `frontend/src/features/chat/` |
+| Chat: vista, mensajes, compositor, selector de proveedor, progreso, Markdown seguro, Mermaid, artefactos | `frontend/src/features/chat/` (`provider-select.tsx`: Fase 10) |
 | Documentos (subir, listar, quitar) · conversaciones · pasos del agente | `frontend/src/features/documents/`, `conversations/`, `trace/` |
 | **Schemas Zod** de cada respuesta y evento SSE (contrato con la API) | `frontend/src/lib/api/schemas.ts` |
 | Cliente HTTP (`ApiError`), lector SSE sobre POST, hooks de TanStack Query | `frontend/src/lib/api/client.ts`, `sse.ts`, `queries.ts` |

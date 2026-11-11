@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { ToolCall } from "@/lib/api/schemas";
-import { plural } from "@/lib/labels";
+import { plural, providerLabel } from "@/lib/labels";
 import { agentTurns, useChatStore } from "@/stores/chat-store";
 
 function Step({ call }: { call: ToolCall }) {
@@ -48,6 +48,7 @@ export function AgentTrace() {
             <Badge variant="secondary" className="tabular-nums">
               {turn.usage.input_tokens} / {turn.usage.output_tokens} tokens
             </Badge>
+            {turn.llm && <Badge variant="outline">{providerLabel(turn.llm.provider)}</Badge>}
           </div>
           {turn.tool_calls.length === 0 ? (
             <p className="text-xs text-muted-foreground">Respondió sin usar herramientas.</p>

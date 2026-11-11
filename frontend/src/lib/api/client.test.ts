@@ -18,6 +18,15 @@ describe("api", () => {
     );
     const conv = await api.conversation("abc12345");
     expect(conv.turns[0]).toMatchObject({ artifacts: [], truncated: false });
+    expect(conv.turns[0].llm).toBeUndefined(); // anterior a la Fase 10: sin proveedor
+  });
+
+  it("valida la lista de proveedores y rechaza uno desconocido", async () => {
+    const claude = { id: "claude", label: "Claude", model: "m", available: true, reason: null, default: true };
+    server.use(http.get(`${API}/api/providers`, () => HttpResponse.json([claude])));
+    await expect(api.providers()).resolves.toEqual([claude]);
+    server.use(http.get(`${API}/api/providers`, () => HttpResponse.json([{ ...claude, id: "openai" }])));
+    await expect(api.providers()).rejects.toThrow(UNEXPECTED_MESSAGE);
   });
 
   it("rechaza una respuesta con forma inesperada", async () => {

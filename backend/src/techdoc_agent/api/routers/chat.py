@@ -13,7 +13,8 @@ from fastapi.responses import StreamingResponse
 from techdoc_agent import config
 from techdoc_agent.api.deps import Core, get_core
 from techdoc_agent.api.schemas import ChatRequest
-from techdoc_agent.core.llm import LLMError
+from techdoc_agent.core.llm import LLMError, LLMUnavailableError
+from techdoc_agent.core.llm_factory import llm_description
 from techdoc_agent.logging_setup import log_event
 from techdoc_agent.outputs.artifacts import turn_artifacts
 
@@ -22,13 +23,34 @@ STREAM_KEEPALIVE_S = 15
 router = APIRouter()
 
 
+def resolve_provider(core: Core, body: ChatRequest) -> str:
+    """Proveedor del turno: el pedido, si no el último de la conversación, si no ``LLM_PROVIDER``.
+
+    409 si no se puede usar (p. ej. falta la clave de Gemini), con el motivo para mostrarlo.
+    """
+    saved = core.transcripts.get(body.session_id) if body.provider is None else None
+    provider = body.provider or (saved or {}).get("provider") or config.settings.llm_provider
+    status = {p["id"]: p for p in core.provider_status()}.get(provider)
+    if status is None or not status["available"]:
+        reason = status["reason"] if status else "proveedor desconocido"
+        raise HTTPException(409, f"{status['label'] if status else provider} no está disponible: {reason} "
+                                 "Elige otro proveedor.")
+    return provider
+
+
 def run_turn(core: Core, body: ChatRequest, on_event: Any = None) -> dict[str, Any]:
     """Un turno de chat completo bajo el candado: agente, respuesta documentada y transcripción."""
+    provider = resolve_provider(core, body)
     with core.lock:
         try:
-            result = core.agent.run(body.session_id, body.message, on_event=on_event)
+            result = core.agent.run(body.session_id, body.message, on_event=on_event, llm=core.get_llm(provider))
+        except LLMUnavailableError as exc:  # cuota, clave, CLI sin sesión: el mensaje dice qué hacer
+            log_event(session=body.session_id, event="llm_unavailable", provider=provider, error=str(exc))
+            raise HTTPException(503, str(exc)) from None
         except LLMError:  # el detalle ya está en el log; al cliente, un mensaje genérico
             raise HTTPException(502, "El modelo no respondió correctamente. Inténtalo de nuevo.") from None
+        llm = llm_description(provider)
+        log_event(session=body.session_id, event="turn_llm", **llm)
         response = {
             "reply": result.text,
             "tool_calls": [
@@ -38,6 +60,7 @@ def run_turn(core: Core, body: ChatRequest, on_event: Any = None) -> dict[str, A
             "artifacts": turn_artifacts(result.tool_calls, config.settings.outputs_dir),
             "usage": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
             "truncated": result.truncated,
+            "llm": llm,
         }
         try:
             core.transcripts.append(body.session_id, {"message": body.message, **response})

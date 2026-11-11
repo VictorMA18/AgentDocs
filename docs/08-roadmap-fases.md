@@ -307,13 +307,23 @@ Aplicación en `frontend/`: Next.js 16 con shadcn/ui, TanStack Query (estado del
 ### Pulido posterior: auditoría de interfaz (ADR-027)
 Revisión del frontend con las skills `better-*` (accesibilidad, layout, textos, tipografía, color y UI) y medición en el navegador: 14 de 15 hallazgos corregidos (6 HIGH), con contraste ≥ 4,5:1 medido en claro y oscuro, foco visible, movimiento reducido y errores que no caducan. E2E: 10 recorridos; Vitest: 29 tests. Queda pendiente mostrar los tipos y el tamaño aceptados antes de subir (la API no los expone).
 
-## Fase 10 · Elegir el proveedor del LLM desde la interfaz (pendiente)
-**Concepto:** hoy el proveedor se fija con una variable de entorno al arrancar. En esta fase se podrá cambiar entre Claude y Gemini desde la interfaz web, sin reiniciar.
+## Fase 10 · Elegir el proveedor del LLM desde la interfaz (hecha, ADR-028)
+**Concepto:** el adaptador elige el `LLMClient` de cada turno y se lo pasa al agente (`Agent.run(..., llm=)`); el núcleo no sabe de dónde viene la elección (regla 2). La API dice qué proveedores hay sin exponer la clave y distingue los errores de disponibilidad.
 
-**Ideas a concretar en el plan de la fase:**
-- Un selector de proveedor (y de modelo) en la web; la elección se guarda por conversación.
-- La API indica qué proveedores están disponibles (p. ej. Gemini solo si hay `GEMINI_API_KEY`), sin exponer nunca la clave.
-- El agente construye su `LLMClient` según la elección; el núcleo no importa nada de la API (regla de arquitectura 2).
-- Mensajes claros cuando un proveedor falla (cuota diaria de Gemini agotada, CLI de Claude sin sesión).
+**Entregables:**
+- `Agent.run(..., llm=None)`: todo el turno (también el resumen de memoria) usa ese cliente.
+- `LLMUnavailableError` con mensaje para el usuario: falta `GEMINI_API_KEY`, cuota de Gemini agotada (429), CLI de Claude ausente o sin sesión.
+- `core/llm_factory`: `build_llm(provider)`, `llm_description(provider)` y `provider_status()`.
+- API: `GET /api/providers`, `ChatRequest.provider`, proveedor recordado por conversación, `llm` en cada respuesta y transcripción, 409 (no disponible) y 503 (no se puede usar ahora).
+- Interfaz: selector de modelo encima del cuadro de texto e indicación de quién respondió en cada mensaje y en el panel de pasos.
+- Decisiones del autor: solo se elige el proveedor (el modelo es el de `.env`) y se puede cambiar en cualquier turno.
 
-**Criterios de aceptación (borrador):** cambiar de proveedor en la web sin reiniciar el servidor; cada conversación recuerda el suyo; los logs y los resultados registran qué proveedor respondió; tests de la API con proveedores falsos.
+**Criterios:**
+- [x] Cambiar de proveedor en la web sin reiniciar el servidor; la conversación recuerda el último y una nueva vuelve al de por defecto (E2E).
+- [x] `GET /api/providers` nunca contiene la clave (test que la busca).
+- [x] Respuesta, transcripción y log (`turn_llm`) registran proveedor y modelo.
+- [x] Mensajes claros para cuota, falta de clave y CLI ausente o sin sesión (503 con motivo; 409 si no está disponible).
+- [x] CLI, MCP y evaluaciones siguen igual (usan `LLM_PROVIDER`).
+- [x] Prueba manual con los dos modelos reales: Claude respondió «concurrencia 4» con cita `[taskflow.md#4]`; tras cambiar a Gemini en la misma conversación, «¿y cómo la cambio a 8?» se respondió con el contexto (`Worker(cola, concurrency=8)`); al recargar seguía Gemini seleccionado.
+- [x] Auditoría de lo cambiado (código e interfaz): corregidos el aviso de `Select` no controlado, el desbordamiento a 320 px con un proveedor no disponible, pistas de «sin sesión» demasiado amplias y la ruta local del CLI en `/api/providers`; el E2E falla ahora también con avisos de consola.
+- [x] `pytest` 619, Vitest 36, Playwright 12 recorridos, lint, typecheck y build en verde.
