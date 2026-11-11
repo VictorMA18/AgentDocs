@@ -84,3 +84,16 @@ test("un tipo de archivo no permitido muestra el error legible del backend", asy
   });
   await expect(page.getByText("Tipo de archivo no permitido: .exe")).toBeVisible();
 });
+
+test.describe("con el sistema en modo oscuro", () => {
+  // El tema solo se conoce en el navegador: si algo del HTML inicial dependiera de él, React avisaría
+  // de un desajuste al hidratar (lo recoge el afterEach). Con el tema claro por defecto no se vería.
+  test.use({ colorScheme: "dark" });
+
+  test("la página hidrata sin desajustes y el botón cambia el tema", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveClass(/dark/);
+    await page.getByRole("button", { name: "Cambiar entre modo claro y oscuro" }).click();
+    await expect(page.locator("html")).not.toHaveClass(/dark/);
+  });
+});

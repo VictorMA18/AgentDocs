@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-green)
-![Tests](https://img.shields.io/badge/tests-601%20%2B%2028%20%2B%204%20E2E-brightgreen)
+![Tests](https://img.shields.io/badge/tests-601%20%2B%2028%20%2B%205%20E2E-brightgreen)
 ![Next.js](https://img.shields.io/badge/frontend-Next.js%2016-black?logo=nextdotjs)
 ![Evaluación](https://img.shields.io/badge/evaluaci%C3%B3n-46%2F46-brightgreen)
 ![LLM](https://img.shields.io/badge/LLM-Claude%20%7C%20Gemini-8A2BE2)
@@ -85,7 +85,7 @@ Herramientas que puede usar el modelo:
 | Interfaz web | Next.js 16 + TypeScript, Tailwind 4 y shadcn/ui; TanStack Query (estado del servidor), Zustand (estado de la interfaz), Zod (valida lo que llega de la API) | Aplicación aparte que solo habla con la API; progreso del agente en vivo, modo oscuro y diseño responsive |
 | Integración | `mcp` 2.x (SDK oficial) | Usa el agente desde Claude Code, Claude Desktop u otros clientes MCP |
 | Diagramas | Mermaid; validación real opcional con `mermaid-cli` | Comprueba que el diagrama se dibuja de verdad |
-| Pruebas | `pytest` (601 tests), Vitest + MSW (28) y Playwright (4 recorridos E2E) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; la interfaz contra el backend real con un LLM guionizado; comportamiento con el modelo real |
+| Pruebas | `pytest` (601 tests), Vitest + MSW (28) y Playwright (5 recorridos E2E) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; la interfaz contra el backend real con un LLM guionizado; comportamiento con el modelo real |
 | Registros | JSONL en `logs/` | Cada paso del agente queda registrado (herramienta, argumentos, tokens, duración) |
 
 ## Arquitectura
