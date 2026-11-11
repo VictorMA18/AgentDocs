@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // E2E de punta a punta: el backend real (create_app) con un LLM falso guionizado
-// (backend/tests/e2e_server.py) y el frontend compilado apuntando a él. Puertos propios para no
-// chocar con los de desarrollo (8000 y 3000).
+// (backend/tests/e2e_server.py) y el frontend en modo desarrollo apuntando a él. Se usa `next dev`
+// y no la versión compilada porque React solo avisa de los desajustes de hidratación en desarrollo.
+// Puertos propios para no chocar con los de desarrollo (8000 y 3000).
 const API_PORT = 8001;
 const WEB_PORT = 3100;
 const WEB_URL = `http://127.0.0.1:${WEB_PORT}`;
@@ -25,7 +26,7 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: `pnpm build && pnpm start --hostname 127.0.0.1 --port ${WEB_PORT}`,
+      command: `pnpm dev --hostname 127.0.0.1 --port ${WEB_PORT}`,
       url: WEB_URL,
       env: { NEXT_PUBLIC_API_URL: `http://127.0.0.1:${API_PORT}`, NEXT_DIST_DIR: ".next-e2e" },
       reuseExistingServer: false,
