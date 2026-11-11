@@ -32,7 +32,8 @@ describe("DocumentList", () => {
     expect(screen.getByText("1 fragmento")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Quitar taskflow.md" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Quitar" }));
+    expect(await screen.findByRole("alertdialog", { name: "¿Quitar «taskflow.md» del índice?" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Quitar documento" }));
     await waitFor(() => expect(screen.queryByText("taskflow.md")).not.toBeInTheDocument());
     expect(screen.getByText("api.md")).toBeInTheDocument();
   });

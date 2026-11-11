@@ -26,7 +26,8 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: `pnpm dev --hostname 127.0.0.1 --port ${WEB_PORT}`,
+      // Se borra la compilación previa: la caché de Turbopack llegó a servir CSS de una versión anterior.
+      command: `rm -rf .next-e2e && pnpm dev --hostname 127.0.0.1 --port ${WEB_PORT}`,
       url: WEB_URL,
       env: { NEXT_PUBLIC_API_URL: `http://127.0.0.1:${API_PORT}`, NEXT_DIST_DIR: ".next-e2e" },
       reuseExistingServer: false,

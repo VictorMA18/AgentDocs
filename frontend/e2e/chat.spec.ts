@@ -2,6 +2,8 @@ import path from "node:path";
 
 import { expect, test } from "@playwright/test";
 
+import { contrastRatio } from "./contrast";
+
 // Recorridos principales contra el backend real con LLM guionizado (ver playwright.config.ts).
 // Comparten un backend con estado y se ejecutan en orden: el tercero quita lo que crean los primeros.
 const SAMPLE = path.resolve(__dirname, "../../backend/data/sample_docs/taskflow.md");
@@ -68,12 +70,12 @@ test("quitar una conversación y un documento con confirmación", async ({ page 
   const first = conversations.getByRole("listitem").first();
   const title = (await first.getByRole("link").locator("span").first().textContent()) ?? "";
   await first.getByRole("button", { name: /Quitar la conversación/ }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Quitar" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Quitar conversación" }).click();
   await expect(page.getByText(`Conversación «${title}» quitada.`)).toBeVisible();
 
   const docs = page.getByRole("list", { name: "Documentos indexados" });
   await docs.getByRole("button", { name: "Quitar taskflow.md" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Quitar" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Quitar documento" }).click();
   await expect(page.getByText("Aún no hay documentos indexados.")).toBeVisible();
 });
 
@@ -97,3 +99,88 @@ test.describe("con el sistema en modo oscuro", () => {
     await expect(page.locator("html")).not.toHaveClass(/dark/);
   });
 });
+
+test.describe("accesibilidad (auditoría de interfaz)", () => {
+  test("la zona de subida muestra el foco del teclado y un nombre largo se lee entero", async ({ page }) => {
+    await page.goto("/");
+    const input = page.locator("aside input[type=file]").first();
+    const shadow = () => input.evaluate((el) => getComputedStyle(el.closest("label")!).boxShadow);
+    const before = await shadow();
+    await input.focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab"); // foco por teclado, no programático: activa :focus-visible
+    await expect(input).toBeFocused();
+    expect(await shadow()).not.toBe(before); // aparece el anillo en la zona (el input es invisible)
+
+    const long = "guia-de-integracion-del-sistema-de-colas-distribuidas-version-2-con-ejemplos.md";
+    await input.setInputFiles({ name: long, mimeType: "text/markdown", buffer: Buffer.from("# Colas\n\nTexto de prueba.") });
+    const success = page.getByText(`${long} indexado`, { exact: false });
+    await expect(success).toBeVisible();
+    expect(await contrastRatio(success)).toBeGreaterThanOrEqual(4.5);
+    const name = page.getByRole("list", { name: "Documentos indexados" }).getByText(long, { exact: true });
+    await expect(name).toBeVisible();
+    expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await page.getByRole("button", { name: `Quitar ${long}` }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Quitar documento" }).click();
+  });
+
+  test("un error de subida no desaparece solo", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("aside input[type=file]").first().setInputFiles({
+      name: "malo.exe", mimeType: "application/octet-stream", buffer: Buffer.from("MZ"),
+    });
+    const toast = page.getByText("Tipo de archivo no permitido: .exe");
+    await expect(toast).toBeVisible();
+    await page.waitForTimeout(5_000); // sonner cierra los avisos normales a los 4 s
+    await expect(toast).toBeVisible();
+    expect(await contrastRatio(toast)).toBeGreaterThanOrEqual(4.5);
+    await page.getByRole("button", { name: "Cerrar aviso" }).click();
+    await expect(toast).toBeHidden();
+  });
+
+  test.describe("con movimiento reducido", () => {
+    test.use({ reducedMotion: "reduce", viewport: { width: 390, height: 800 } });
+
+    test("el panel lateral aparece sin deslizarse", async ({ page }) => {
+      await page.goto("/");
+      await page.getByRole("button", { name: "Abrir conversaciones y documentos" }).click();
+      const shift = await page
+        .locator("[data-slot=sheet-content]")
+        .evaluate((el) => getComputedStyle(el).getPropertyValue("--tw-enter-translate-x").trim());
+      expect(shift).toBe("0");
+    });
+  });
+});
+
+// Texto pequeño: 4,5:1 (WCAG 1.4.3). Pares que fallaban antes de la auditoría de interfaz.
+for (const scheme of ["light", "dark"] as const) {
+  test(`contraste del texto en tema ${scheme === "light" ? "claro" : "oscuro"}`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto("/");
+    const box = page.getByLabel("Mensaje");
+    await box.fill("¿Qué es TaskFlow?");
+    await box.press("Enter");
+    await expect(page).toHaveURL(/\/c\//, { timeout: 30_000 });
+
+    // texto secundario de la conversación actual (sobre bg-muted)
+    const current = page.locator("aside [aria-current=page] .text-muted-foreground").first();
+    expect(await contrastRatio(current)).toBeGreaterThanOrEqual(4.5);
+
+    // botón destructivo del diálogo de confirmación
+    await page.getByRole("button", { name: /Quitar la conversación/ }).first().click();
+    const confirm = page.getByRole("alertdialog").getByRole("button", { name: "Quitar conversación" });
+    await expect(confirm).toBeVisible();
+    expect(await contrastRatio(confirm)).toBeGreaterThanOrEqual(4.5);
+    await page.keyboard.press("Escape");
+
+    // mensaje de error del chat (rojo sobre su tinte)
+    await page.route("**/api/chat/stream", (route) =>
+      route.fulfill({ status: 502, contentType: "application/json", body: JSON.stringify({ detail: "El modelo no respondió correctamente. Inténtalo de nuevo." }) }),
+    );
+    await box.fill("otra pregunta");
+    await box.press("Enter");
+    const error = page.locator("main [role=alert]");
+    await expect(error).toBeVisible();
+    expect(await contrastRatio(error)).toBeGreaterThanOrEqual(4.5);
+  });
+}

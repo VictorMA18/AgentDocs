@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { API, server } from "@/test/server";
 
-import { api, ApiError, OFFLINE_MESSAGE } from "./client";
+import { api, ApiError, OFFLINE_MESSAGE, UNEXPECTED_MESSAGE } from "./client";
 
 describe("api", () => {
   it("valida la respuesta con Zod y aplica valores por defecto", async () => {
@@ -22,7 +22,7 @@ describe("api", () => {
 
   it("rechaza una respuesta con forma inesperada", async () => {
     server.use(http.get(`${API}/api/documents`, () => HttpResponse.json([{ source: 1 }])));
-    await expect(api.documents()).rejects.toThrow("La API devolvió una respuesta inesperada.");
+    await expect(api.documents()).rejects.toThrow(UNEXPECTED_MESSAGE);
   });
 
   it("usa el detail del backend (413, 415…) y el código de estado", async () => {
@@ -34,9 +34,9 @@ describe("api", () => {
     expect(error).toMatchObject({ message: "Tipo de archivo no permitido: .exe", status: 415 });
   });
 
-  it("los 422 de FastAPI (detail en lista) se muestran como 'Error 422'", async () => {
+  it("los 422 de FastAPI (detail en lista) dan un mensaje con el código y qué hacer", async () => {
     server.use(http.get(`${API}/api/documents`, () => HttpResponse.json({ detail: [{ msg: "x" }] }, { status: 422 })));
-    await expect(api.documents()).rejects.toThrow("Error 422");
+    await expect(api.documents()).rejects.toThrow("La API respondió con un error (422). Vuelve a intentarlo en unos segundos.");
   });
 
   it("un fallo de red da un mensaje legible", async () => {
