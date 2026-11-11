@@ -12,7 +12,7 @@ export function contrastRatio(locator: Locator): Promise<number> {
     for (let node: Element | null = el; node; node = node.parentElement) {
       layers.unshift(getComputedStyle(node).backgroundColor);
     }
-    const ctx = document.createElement("canvas").getContext("2d")!;
+    const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
     const paint = (color: string) => {
       ctx.fillStyle = color;
       ctx.fillRect(0, 0, 1, 1);

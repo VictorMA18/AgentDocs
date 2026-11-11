@@ -8,14 +8,16 @@ import { contrastRatio } from "./contrast";
 // Comparten un backend con estado y se ejecutan en orden: el tercero quita lo que crean los primeros.
 const SAMPLE = path.resolve(__dirname, "../../backend/data/sample_docs/taskflow.md");
 
-// Ningún error en la consola: una violación de la CSP o un fallo de hidratación aparecen ahí.
-// Los 4xx esperados (p. ej. el 415) los registra el navegador como recurso fallido y se ignoran.
+// Ni errores ni avisos en la consola: una violación de la CSP, un fallo de hidratación o un componente
+// que pasa de no controlado a controlado aparecen ahí. Los 4xx esperados (p. ej. el 415) los registra
+// el navegador como recurso fallido y se ignoran.
 let consoleErrors: string[] = [];
 test.beforeEach(({ page }) => {
   consoleErrors = [];
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   page.on("console", (msg) => {
-    if (msg.type() === "error" && !msg.text().startsWith("Failed to load resource")) consoleErrors.push(msg.text());
+    const relevant = msg.type() === "error" || msg.type() === "warning";
+    if (relevant && !msg.text().startsWith("Failed to load resource")) consoleErrors.push(`[${msg.type()}] ${msg.text()}`);
   });
 });
 test.afterEach(() => expect(consoleErrors).toEqual([]));
@@ -184,3 +186,63 @@ for (const scheme of ["light", "dark"] as const) {
     expect(await contrastRatio(error)).toBeGreaterThanOrEqual(4.5);
   });
 }
+
+test("cambiar de proveedor a mitad de una conversación y que la recuerde al recargar", async ({ page }) => {
+  await page.goto("/");
+  const box = page.getByLabel("Mensaje");
+  const select = page.getByRole("combobox", { name: "Modelo" });
+  await expect(select).toContainText("Claude");
+  const claudeModel = ((await select.textContent()) ?? "").replace("Claude", "").trim();
+
+  await box.fill("¿Qué es TaskFlow?");
+  await box.press("Enter");
+  const answers = page.getByTestId("agent-message");
+  await expect(answers).toHaveCount(1);
+  await expect(answers.nth(0).getByTestId("answered-by")).toHaveText(`Respondió Claude · ${claudeModel}`);
+
+  await select.click();
+  await page.getByRole("option", { name: /Gemini/ }).click();
+  await expect(select).toContainText("Gemini");
+  const geminiModel = ((await select.textContent()) ?? "").replace("Gemini", "").trim();
+  await box.fill("¿Y cómo se reintenta?");
+  await box.press("Enter");
+  await expect(answers).toHaveCount(2);
+  await expect(answers.nth(1)).toContainText("[gemini] Según la documentación");
+  await expect(answers.nth(1).getByTestId("answered-by")).toHaveText(`Respondió Gemini · ${geminiModel}`);
+  expect(await contrastRatio(answers.nth(1).getByTestId("answered-by"))).toBeGreaterThanOrEqual(4.5);
+  const trace = page.getByRole("complementary", { name: "Pasos del agente" });
+  await expect(trace.getByText("Claude", { exact: true })).toBeVisible();
+  await expect(trace.getByText("Gemini", { exact: true })).toBeVisible();
+
+  // la conversación recuerda el último proveedor
+  await expect(page).toHaveURL(/\/c\//, { timeout: 30_000 });
+  await page.reload();
+  await expect(page.getByTestId("agent-message")).toHaveCount(2);
+  await expect(page.getByRole("combobox", { name: "Modelo" })).toContainText("Gemini");
+
+  // una conversación nueva vuelve al proveedor por defecto
+  await page.getByRole("link", { name: "Nueva conversación" }).click();
+  await expect(page.getByRole("combobox", { name: "Modelo" })).toContainText("Claude");
+});
+
+test.describe("selector de proveedor en pantalla estrecha", () => {
+  test.use({ viewport: { width: 320, height: 700 } });
+
+  test("con un proveedor no disponible seleccionado no desborda y el motivo se lee en la lista", async ({ page }) => {
+    const reason = "Falta GEMINI_API_KEY en backend/.env, así que Gemini no se puede usar todavía.";
+    await page.route("**/api/providers", (route) =>
+      route.fulfill({
+        json: [
+          { id: "claude", label: "Claude", model: "claude-haiku-5-5", available: true, reason: null, default: false },
+          { id: "gemini", label: "Gemini", model: "gemini-3.5-flash-lite", available: false, reason, default: true },
+        ],
+      }),
+    );
+    await page.goto("/");
+    const select = page.getByRole("combobox", { name: "Modelo" });
+    await expect(select).toContainText("Gemini");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    await select.click();
+    await expect(page.getByRole("option", { name: /Gemini/ })).toContainText(reason);
+  });
+});

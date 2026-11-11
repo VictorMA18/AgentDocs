@@ -95,3 +95,14 @@ def test_new_conversation_forgets_summary() -> None:
     agent.memory.clear("s")
     agent.run("s", "hola")
     assert llm.systems[-1] == BASE
+
+
+def test_the_turn_llm_answers_and_also_writes_the_summary() -> None:
+    """ADR-028: con ``llm=`` el turno entero (incluido el resumen de memoria) usa ese cliente."""
+    agent, default = make([final("r1"), final("r2"), final("r3")])
+    for n in (1, 2, 3):
+        long_turn(agent, n)
+    other = FakeLLMClient([final("RESUMEN"), final("r4")])
+    result = agent.run("s", "pregunta 4 " + "x" * 300, llm=other)
+    assert result.text == "r4" and len(other.seen) == 2 and len(default.seen) == 3
+    assert agent.memory.summary("s") == "RESUMEN"

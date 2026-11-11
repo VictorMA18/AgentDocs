@@ -9,6 +9,7 @@ from fakes import calls, final
 
 from techdoc_agent import config
 from techdoc_agent.core.llm import LLMError
+from techdoc_agent.core.llm_factory import llm_description
 
 SID = "sesion-prueba-1"
 DIAGRAM = {"tipo": "flujo", "titulo": "Cola de trabajos", "codigo": "flowchart TD\n    A[Encolar] --> B[Procesar]"}
@@ -22,7 +23,8 @@ def test_simple_turn_has_the_documented_shape(make_api: Callable[..., Api]) -> N
     api = make_api([final("¡Hola!", input_tokens=7, output_tokens=3)])
     body = post(api).json()
     assert body == {"reply": "¡Hola!", "tool_calls": [], "artifacts": [],
-                    "usage": {"input_tokens": 7, "output_tokens": 3}, "truncated": False}
+                    "usage": {"input_tokens": 7, "output_tokens": 3}, "truncated": False,
+                    "llm": llm_description()}  # ADR-028: quién respondió (el proveedor por defecto)
 
 
 def test_tool_calls_are_listed(make_api: Callable[..., Api]) -> None:

@@ -37,18 +37,27 @@ class Api:
         return self.root / "data" / "conversations"
 
 
+def all_providers_available() -> list[dict[str, object]]:
+    """Estado fijo de los proveedores: no depende de si hay clave de Gemini o CLI de Claude."""
+    return [{"id": p, "label": p.title(), "model": f"{p}-modelo", "available": True, "reason": None,
+             "default": p == config.settings.llm_provider} for p in ("claude", "gemini")]
+
+
 @pytest.fixture
 def make_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[..., Api]:
     settings = dataclasses.replace(
         config.settings, data_dir=tmp_path / "data", outputs_dir=tmp_path / "outputs",
-        logs_dir=tmp_path / "logs")
+        logs_dir=tmp_path / "logs", llm_provider="claude")  # fijo: no depende del .env de quien ejecuta
     monkeypatch.setattr(config, "settings", settings)
 
-    def make(script: list[LLMReply | Exception] | None = None) -> Api:
+    def make(script: list[LLMReply | Exception] | None = None, *,
+             llm_factory: Callable[[str], object] | None = None,
+             provider_status: Callable[[], list[dict[str, object]]] = all_providers_available) -> Api:
         llm = FakeLLMClient(script or [])
         store, embedder = JsonVectorStore(tmp_path / "idx"), HashingEmbedder()
         memory = Memory(settings.data_dir / "conversations")
-        app = create_app(build_agent(llm, store, embedder, memory), store, embedder)
+        app = create_app(build_agent(llm, store, embedder, memory), store, embedder,
+                         llm_factory=llm_factory, provider_status=provider_status)  # type: ignore[arg-type]
         return Api(TestClient(app), llm, store, tmp_path)
 
     return make

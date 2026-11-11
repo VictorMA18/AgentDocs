@@ -32,7 +32,7 @@ def test_list_shows_newest_first_and_without_turns(make_api: Callable[..., Api])
     chat(api, "más sobre la segunda", "conversacion-b")
     listing = api.client.get("/api/conversations").json()
     assert [(c["id"], c["turns"]) for c in listing] == [("conversacion-b", 2), ("conversacion-a", 1)]
-    assert set(listing[0]) == {"id", "title", "updated", "turns"}
+    assert set(listing[0]) == {"id", "title", "updated", "turns", "provider"}  # provider: ADR-028
 
 
 def test_failed_chat_creates_no_conversation(make_api: Callable[..., Api]) -> None:
