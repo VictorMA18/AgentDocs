@@ -29,7 +29,8 @@ export function useChatStream() {
       if (store.sessionId === null) router.replace(`/c/${sessionId}`); // la conversación vive en la URL
 
       try {
-        const turn = await streamChat({ session_id: sessionId, message: text }, (event) =>
+        const provider = store.provider ?? undefined;
+        const turn = await streamChat({ session_id: sessionId, message: text, provider }, (event) =>
           useChatStore.getState().advance(sessionId, event),
         );
         useChatStore.getState().finish(sessionId, turn);

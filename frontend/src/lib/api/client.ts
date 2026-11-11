@@ -9,6 +9,7 @@ import {
   deletedDocumentSchema,
   documentListSchema,
   healthSchema,
+  providerListSchema,
   uploadResultSchema,
 } from "./schemas";
 
@@ -68,6 +69,7 @@ const enc = encodeURIComponent;
 
 export const api = {
   health: () => getJson("/healthz", healthSchema),
+  providers: () => getJson("/api/providers", providerListSchema),
 
   documents: () => getJson("/api/documents", documentListSchema),
   uploadDocument: (file: File) => {

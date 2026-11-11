@@ -1,5 +1,5 @@
 import { ApiError, errorFromResponse, request } from "./client";
-import { streamEventSchema, type ProgressEvent, type TurnResult } from "./schemas";
+import { streamEventSchema, type ProgressEvent, type ProviderId, type TurnResult } from "./schemas";
 
 // El chat usa POST con respuesta en streaming: EventSource solo admite GET, así que se lee el
 // cuerpo con un ReadableStream y se separan los eventos SSE a mano.
@@ -33,7 +33,8 @@ export function createSseParser(onData: (data: unknown) => void) {
 export const CLOSED_MESSAGE =
   "La conexión se cortó antes de la respuesta. La pregunta puede haberse guardado: abre la conversación o vuelve a enviarla.";
 
-export type ChatBody = { session_id: string; message: string };
+/** Sin `provider`, el backend usa el último de la conversación o el de por defecto (ADR-028). */
+export type ChatBody = { session_id: string; message: string; provider?: ProviderId };
 
 /** Un turno por /api/chat/stream: avisa del progreso y devuelve el evento `final`. */
 export async function streamChat(

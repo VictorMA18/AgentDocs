@@ -3,6 +3,7 @@
 import { AlertTriangleIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { providerLabel } from "@/lib/labels";
 import type { ChatMessage, Progress } from "@/stores/chat-store";
 
 import { ArtifactCard } from "./artifact-card";
@@ -35,6 +36,11 @@ function Message({ message }: { message: ChatMessage }) {
       {turn.artifacts.map((artifact) => (
         <ArtifactCard key={artifact.name} artifact={artifact} />
       ))}
+      {turn.llm && (
+        <p className="mt-2 text-xs text-muted-foreground" data-testid="answered-by">
+          Respondió {providerLabel(turn.llm.provider)} · <span className="font-mono">{turn.llm.model}</span>
+        </p>
+      )}
     </article>
   );
 }

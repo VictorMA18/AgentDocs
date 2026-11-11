@@ -7,6 +7,7 @@ import { api } from "./client";
 
 export const queryKeys = {
   health: ["health"] as const,
+  providers: ["providers"] as const,
   documents: ["documents"] as const,
   conversations: ["conversations"] as const,
   conversation: (id: string) => ["conversation", id] as const,
@@ -15,6 +16,11 @@ export const queryKeys = {
 
 export function useHealth() {
   return useQuery({ queryKey: queryKeys.health, queryFn: api.health, refetchInterval: 30_000, retry: false });
+}
+
+/** Proveedores del LLM y si se pueden usar (cambia poco: se refresca cada minuto). */
+export function useProviders() {
+  return useQuery({ queryKey: queryKeys.providers, queryFn: api.providers, staleTime: 60_000 });
 }
 
 export function useDocuments() {

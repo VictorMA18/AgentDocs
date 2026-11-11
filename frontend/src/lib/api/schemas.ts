@@ -12,6 +12,22 @@ export const messageSchema = z
   .min(1, "Escribe un mensaje.")
   .max(MAX_MESSAGE_CHARS, `Máximo ${MAX_MESSAGE_CHARS} caracteres.`);
 
+/** Proveedores del LLM que se pueden elegir (Fase 10, ADR-028). */
+export const providerIdSchema = z.enum(["claude", "gemini"]);
+
+export const providerSchema = z.object({
+  id: providerIdSchema,
+  label: z.string(),
+  model: z.string(),
+  available: z.boolean(),
+  reason: z.string().nullable(),
+  default: z.boolean(),
+});
+export const providerListSchema = z.array(providerSchema);
+
+/** Quién respondió un turno. Las transcripciones anteriores a la Fase 10 no lo tienen. */
+export const llmSchema = z.object({ provider: providerIdSchema, model: z.string() });
+
 export const toolCallSchema = z.object({
   tool: z.string(),
   args: z.unknown(),
@@ -37,6 +53,7 @@ export const turnResultSchema = z.object({
   artifacts: z.array(artifactSchema).default([]), // las transcripciones antiguas no lo tienen
   usage: usageSchema.default({ input_tokens: 0, output_tokens: 0 }),
   truncated: z.boolean().default(false),
+  llm: llmSchema.optional(),
 });
 
 export const documentSchema = z.object({ source: z.string(), chunks: z.number() });
@@ -55,6 +72,7 @@ export const conversationSummarySchema = z.object({
   title: z.string(),
   updated: z.string(),
   turns: z.number(),
+  provider: providerIdSchema.nullable().optional(), // el del último turno
 });
 export const conversationListSchema = z.array(conversationSummarySchema);
 
@@ -69,6 +87,7 @@ export const conversationSchema = z.object({
   created: z.string(),
   updated: z.string(),
   turns: z.array(storedTurnSchema),
+  provider: providerIdSchema.nullable().optional(),
 });
 
 export const deletedConversationSchema = z.object({ id: z.string() });
@@ -94,6 +113,8 @@ export const streamEventSchema = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("error"), detalle: z.string() }),
 ]);
 
+export type ProviderId = z.infer<typeof providerIdSchema>;
+export type Provider = z.infer<typeof providerSchema>;
 export type ToolCall = z.infer<typeof toolCallSchema>;
 export type Artifact = z.infer<typeof artifactSchema>;
 export type TurnResult = z.infer<typeof turnResultSchema>;
