@@ -302,7 +302,7 @@ Aplicación en `frontend/`: Next.js 16 con shadcn/ui, TanStack Query (estado del
 - [x] Volver a la conversación al recargar (ahora por la URL `/c/<id>` en vez de `localStorage`).
 - **Extras:** modo oscuro, *toasts*, diseño responsive (paneles deslizantes en móvil), *skeletons* de carga, estado de la API en la cabecera, confirmación con diálogo en vez de `confirm()`.
 
-**Criterios:** `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test` (28 tests) y `pnpm e2e` (4 recorridos con el backend real y un LLM guionizado, sin errores en la consola) en verde; `pytest` en verde tras retirar la web (601 tests); prueba manual con el modelo real de los dos recorridos (pregunta con cita y diagrama).
+**Criterios:** `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test` (28 tests) y `pnpm e2e` (5 recorridos con el backend real y un LLM guionizado, también con el sistema en modo oscuro, sin errores en la consola) en verde; `pytest` en verde tras retirar la web (601 tests); prueba manual con el modelo real de los dos recorridos (pregunta con cita y diagrama).
 
 ## Fase 10 · Elegir el proveedor del LLM desde la interfaz (pendiente)
 **Concepto:** hoy el proveedor se fija con una variable de entorno al arrancar. En esta fase se podrá cambiar entre Claude y Gemini desde la interfaz web, sin reiniciar.

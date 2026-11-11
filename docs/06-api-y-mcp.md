@@ -185,6 +185,6 @@ pnpm dev                        # http://localhost:3000 (su origen debe estar en
 ```bash
 pnpm lint && pnpm typecheck
 pnpm test        # Vitest + Testing Library + MSW (src/**/*.test.ts[x])
-pnpm e2e         # Playwright: levanta backend/tests/e2e_server.py y el frontend compilado
+pnpm e2e         # Playwright: levanta backend/tests/e2e_server.py y el frontend con `next dev`
 ```
-El E2E usa la `create_app` real con un **LLM falso guionizado** (sin tokens) y el embedder de hash de los tests, en una carpeta temporal y con puertos propios (8001 y 3100). La primera vez hay que instalar el navegador: `pnpm exec playwright install --only-shell chromium`.
+El E2E usa la `create_app` real con un **LLM falso guionizado** (sin tokens) y el embedder de hash de los tests, en una carpeta temporal y con puertos propios (8001 y 3100). El frontend corre en modo desarrollo porque React solo avisa de los desajustes de hidratación ahí; un recorrido usa el sistema en modo oscuro, ya que el tema solo se conoce en el navegador. La primera vez hay que instalar el navegador: `pnpm exec playwright install --only-shell chromium`.
