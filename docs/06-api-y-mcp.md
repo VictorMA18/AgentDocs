@@ -1,13 +1,12 @@
-# 06 · API web (FastAPI) y servidor MCP
+# 06 · API (FastAPI), interfaz web (Next.js) y servidor MCP
 
-Ambos son **adaptadores delgados**: validan entrada, llaman al núcleo, formatean salida. Ninguna lógica de agente ni de RAG vive aquí.
+La API y el servidor MCP son **adaptadores delgados**: validan entrada, llaman al núcleo, formatean salida. Ninguna lógica de agente ni de RAG vive aquí. La interfaz web es una aplicación aparte (`frontend/`) que **solo** habla con la API por HTTP (sección C).
 
 ## A. FastAPI
 
 ### Endpoints
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/` | Sirve `static/index.html` |
 | GET | `/healthz` | `{"status":"ok","documents":N,"chunks":M}` |
 | POST | `/api/chat` | Cuerpo: `{"session_id": "...", "message": "..."}` |
 | POST | `/api/chat/stream` | Mismo cuerpo; respuesta SSE (`text/event-stream`) con el progreso del turno y, al final, `final` o `error` |
@@ -59,21 +58,16 @@ Es **progreso, no tokens**: el modelo devuelve su respuesta dentro de un JSON es
 | `final` | los mismos campos que la respuesta de `/api/chat` | el turno terminó bien (último evento) |
 | `error` | `detalle` (mensaje genérico, sin trazas) | el modelo falló o hubo un error interno (último evento) |
 
-Cada 15 s sin eventos se envía un comentario `: keepalive` para que un proxy no cierre la conexión. Cabeceras `Cache-Control: no-cache` y `X-Accel-Buffering: no`. La validación del cuerpo (422) ocurre antes de empezar a transmitir. El turno corre en un hilo y usa el mismo candado y la misma transcripción que `/api/chat`; si el cliente se desconecta, el turno termina y se guarda igualmente. La interfaz lo lee con `fetch` (EventSource solo admite GET) y pinta el texto con `textContent`.
+Cada 15 s sin eventos se envía un comentario `: keepalive` para que un proxy no cierre la conexión. Cabeceras `Cache-Control: no-cache` y `X-Accel-Buffering: no`. La validación del cuerpo (422) ocurre antes de empezar a transmitir. El turno corre en un hilo y usa el mismo candado y la misma transcripción que `/api/chat`; si el cliente se desconecta, el turno termina y se guarda igualmente. La interfaz lo lee con `fetch` (EventSource solo admite GET) y valida cada evento con Zod (sección C).
 
-### Interfaz (`static/`)
-Una sola página (`index.html`, con `app.js` y `app.css` propios: sin scripts inline para poder usar una CSP estricta), JS puro con `fetch`:
-- Panel izquierdo: **conversaciones guardadas** (abrir, quitar; la actual se marca) y, debajo, subir documento y lista de documentos (con botón eliminar).
-- Centro: chat. Los bloques de código con botón "copiar". Los artefactos Mermaid se **renderizan** con la librería `mermaid` (cargada por CDN con versión fija).
-- Panel derecho (plegable): "Qué hizo el agente" → herramientas y argumentos del turno.
-- `session_id` aleatorio guardado en `localStorage`: al recargar o reabrir la pestaña vuelve a la última conversación. "Nueva conversación" crea un id nuevo; nada se guarda hasta el primer mensaje.
-- Markdown renderizado con una librería pequeña (p. ej. `marked`) **sanitizando** el HTML (p. ej. `DOMPurify`) — la salida del modelo no es confiable.
+### Sin páginas (Fase 9.B, ADR-026)
+El backend es una **API pura**: no sirve HTML ni estáticos (`/` responde 404). La antigua página en HTML/JS puro (`api/static/`) se retiró al alcanzar la paridad con el frontend Next.js (sección C).
 
 ### Reglas
 - Límite de tamaño de subida (`MAX_UPLOAD_MB`) y lista blanca de extensiones. Se rechaza antes de leer el cuerpo si `Content-Length` ya lo supera (mejor esfuerzo: sin esa cabecera, el servidor puede haber recibido parte del archivo) y se aborta durante la lectura al pasar el límite.
 - Nombre de archivo **saneado** (ADR-014): sin carpetas, solo `[A-Za-z0-9._-]`, sin punto inicial, hasta 100 caracteres. No se genera uno nuevo porque ese nombre es la fuente de las citas (`[archivo#n]`); subir el mismo nombre reemplaza el documento. Se guarda en `backend/data/documents/`.
 - `GET /api/artifacts/{name}`: solo `^[a-z0-9][a-z0-9._-]*$` con extensión `.mmd` o `.md`, sin `..`, resuelto dentro de `outputs/` (un enlace simbólico que salga se rechaza). Se sirve como `text/plain` con `Content-Disposition: attachment`.
-- **CORS** (Fase 9, ADR-025): solo los orígenes de `CORS_ORIGINS` (por defecto `http://localhost:3000` y `http://127.0.0.1:3000`, el frontend Next.js en desarrollo), métodos `GET`, `POST` y `DELETE` y cabecera `Content-Type`; cualquier otro origen no recibe cabeceras `Access-Control-*`. El middleware de CORS va por fuera del de seguridad, así que también el rechazo temprano (413) lleva la cabecera y el frontend puede leer el error. Cabeceras en todas las respuestas: `Content-Security-Policy` (scripts solo propios y de `cdn.jsdelivr.net`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. `/docs`, `/redoc` y `/openapi.json` están desactivados.
+- **CORS** (Fase 9, ADR-025): solo los orígenes de `CORS_ORIGINS` (por defecto `http://localhost:3000` y `http://127.0.0.1:3000`, el frontend Next.js en desarrollo), métodos `GET`, `POST` y `DELETE` y cabecera `Content-Type`; cualquier otro origen no recibe cabeceras `Access-Control-*`. El middleware de CORS va por fuera del de seguridad, así que también el rechazo temprano (413) lleva la cabecera y el frontend puede leer el error. Cabeceras en todas las respuestas: `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; …` (API pura: nada que cargar ni ejecutar; la CSP de la interfaz está en `frontend/next.config.ts`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. `/docs`, `/redoc` y `/openapi.json` están desactivados.
 - Un único candado serializa chat, subida y borrado (la memoria y el almacén JSON no son seguros ante hilos). Pensado para un usuario local; con varios usuarios habría que usar un candado por sesión.
 - `POST /api/chat/stream`: SSE de progreso (ver arriba); `/api/chat` se conserva.
 
@@ -83,8 +77,9 @@ Una sola página (`index.html`, con `app.js` y `app.css` propios: sin scripts in
 ### Cómo arrancar
 ```bash
 cd backend
-uvicorn techdoc_agent.api.main:app --reload     # http://127.0.0.1:8000
+uvicorn techdoc_agent.api.main:app --reload     # API en http://127.0.0.1:8000
 ```
+La interfaz se arranca aparte desde `frontend/` (sección C).
 Al arrancar carga el modelo de embeddings y abre el almacén según `VECTOR_STORE`. `create_app(agent, store, embedder)` permite inyectar un núcleo falso en los tests (`tests/api/`).
 
 ## B. Servidor MCP
@@ -145,3 +140,51 @@ Sintaxis verificada en la documentación vigente de Claude Code y de MCP (octubr
 - `ingestar_documento` solo acepta rutas dentro de `ALLOWED_INGEST_DIR` (el error indica que basta el nombre del archivo, sin revelar rutas ajenas).
 - Describir bien cada herramienta (es lo que el cliente lee para decidir).
 - Tratar los argumentos como no confiables, igual que en la web.
+
+## C. Interfaz web (`frontend/`, Fase 9.B, ADR-026)
+
+Aplicación **Next.js** (App Router, TypeScript estricto, `pnpm`) que solo habla con la API. Se arranca en otra terminal:
+```bash
+cd frontend
+pnpm install
+cp .env.example .env.local      # NEXT_PUBLIC_API_URL (por defecto http://127.0.0.1:8000)
+pnpm dev                        # http://localhost:3000 (su origen debe estar en CORS_ORIGINS del backend)
+```
+
+### Pantalla
+- **Izquierda:** conversaciones guardadas (abrir, quitar con confirmación; la actual se marca) y documentos (subir con clic o arrastrando, lista con fragmentos, quitar con confirmación). Los errores del backend (413, 415, 400) se muestran tal cual en un *toast*.
+- **Centro:** chat. Progreso en vivo (en cola, pensando, cada herramienta con su resumen y sus ms), respuesta en Markdown con botón **Copiar** en los bloques de código, y artefactos con vista previa (diagrama Mermaid dibujado o requisitos en Markdown) y botón **Descargar**. Enter envía, Shift+Enter añade una línea, máximo 8.000 caracteres.
+- **Derecha:** pasos del agente por respuesta (herramienta, argumentos desplegables, duración, error, tokens).
+- **Cabecera:** estado de la API (`/healthz`), nueva conversación y modo claro/oscuro. En pantallas pequeñas los laterales se abren como paneles deslizantes.
+- **La conversación vive en la URL** (`/c/<id>`): recargar o compartir el enlace la reabre desde el servidor. `/` es una conversación nueva; al enviar el primer mensaje se genera el id (32 hex, válido para `session_id`) y la URL cambia sin perder el turno en curso.
+
+### Organización
+| Carpeta | Qué hay |
+|---|---|
+| `src/app/` | Rutas: `layout.tsx` (proveedores y armazón), `page.tsx` (nueva), `c/[id]/page.tsx` (guardada) |
+| `src/components/ui/` | Componentes de **shadcn/ui** (se copian al repo y se pueden editar) |
+| `src/components/` | Armazón de 3 columnas, proveedores, modo oscuro, estado de la API, diálogo de confirmación |
+| `src/features/` | Una carpeta por funcionalidad: `chat/`, `documents/`, `conversations/`, `trace/` |
+| `src/lib/api/` | `schemas.ts` (Zod de cada respuesta y evento SSE), `client.ts` (`fetch` + `ApiError`), `sse.ts` (lector SSE sobre POST), `queries.ts` (hooks de TanStack Query) |
+| `src/hooks/` | `use-chat-stream` (envía y vuelca el progreso en el store), `use-copy-to-clipboard` |
+| `src/stores/` | Zustand: `chat-store` (conversación en pantalla, turno en curso, progreso) y `ui-store` (paneles en móvil) |
+| `src/env.ts` | `NEXT_PUBLIC_API_URL` validada con Zod |
+
+### Dos tipos de estado
+- **Del servidor** (documentos, conversaciones, salud, artefactos): **TanStack Query**. Caché, estados de carga y error, y las mutaciones invalidan las listas afectadas.
+- **De la interfaz** (qué conversación está en pantalla, si hay un turno en curso, el progreso, los paneles): **Zustand**. El turno escribe en el store y no en el estado del componente, así sobrevive al cambio de `/` a `/c/<id>`; los eventos de una conversación que ya no está en pantalla se descartan.
+- **Zod en el borde:** toda respuesta se valida antes de usarse. Si el backend cambia de forma, el error es «La API devolvió una respuesta inesperada» y no un `undefined` en la vista. Los campos que faltan en transcripciones antiguas (`artifacts`, `truncated`) tienen valor por defecto.
+
+### Seguridad
+- La salida del modelo nunca entra como HTML: `react-markdown` crea elementos de React y `rehype-sanitize` quita scripts, manejadores `on*` y URLs `javascript:`. Los enlaces se abren con `target="_blank" rel="noopener noreferrer"`.
+- Mermaid con `securityLevel: "strict"`; solo su SVG se inserta. Se carga bajo demanda y solo en el navegador.
+- Sin CDN: todo (fuentes incluidas) se sirve desde el propio origen. CSP en `next.config.ts` con `connect-src` limitado a la API. Lleva `'unsafe-inline'` en scripts porque el arranque de Next lo exige sin nonces; la defensa principal es lo anterior.
+- Llamadas directas a la API con CORS (no por el proxy de Next, que puede retener el SSE en búfer).
+
+### Pruebas
+```bash
+pnpm lint && pnpm typecheck
+pnpm test        # Vitest + Testing Library + MSW (src/**/*.test.ts[x])
+pnpm e2e         # Playwright: levanta backend/tests/e2e_server.py y el frontend compilado
+```
+El E2E usa la `create_app` real con un **LLM falso guionizado** (sin tokens) y el embedder de hash de los tests, en una carpeta temporal y con puertos propios (8001 y 3100). La primera vez hay que instalar el navegador: `pnpm exec playwright install --only-shell chromium`.

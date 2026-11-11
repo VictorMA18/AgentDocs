@@ -2,7 +2,8 @@
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-green)
-![Tests](https://img.shields.io/badge/tests-602%20pasan-brightgreen)
+![Tests](https://img.shields.io/badge/tests-601%20%2B%2028%20%2B%204%20E2E-brightgreen)
+![Next.js](https://img.shields.io/badge/frontend-Next.js%2016-black?logo=nextdotjs)
 ![Evaluación](https://img.shields.io/badge/evaluaci%C3%B3n-46%2F46-brightgreen)
 ![LLM](https://img.shields.io/badge/LLM-Claude%20%7C%20Gemini-8A2BE2)
 ![Sin frameworks de agentes](https://img.shields.io/badge/frameworks%20de%20agentes-ninguno-lightgrey)
@@ -80,19 +81,21 @@ Herramientas que puede usar el modelo:
 | Búsqueda | Vectorial + BM25 propio fusionados con RRF | La vectorial entiende paráfrasis; BM25 encuentra identificadores exactos como `E-4021` |
 | Almacén vectorial | JSON + `numpy` (por defecto) o ChromaDB | Detrás de una interfaz `VectorStore`: se cambia con una variable |
 | Documentos | `pypdf` y lectores propios | Markdown, texto, PDF y código fuente |
-| Web | FastAPI + `uvicorn` + HTML/JS sin framework, SSE para el progreso | Interfaz ligera; el progreso del agente se ve en vivo |
+| API | FastAPI + `uvicorn`, SSE para el progreso, CORS para el frontend | Adaptador delgado: valida, llama al núcleo y responde JSON |
+| Interfaz web | Next.js 16 + TypeScript, Tailwind 4 y shadcn/ui; TanStack Query (estado del servidor), Zustand (estado de la interfaz), Zod (valida lo que llega de la API) | Aplicación aparte que solo habla con la API; progreso del agente en vivo, modo oscuro y diseño responsive |
 | Integración | `mcp` 2.x (SDK oficial) | Usa el agente desde Claude Code, Claude Desktop u otros clientes MCP |
 | Diagramas | Mermaid; validación real opcional con `mermaid-cli` | Comprueba que el diagrama se dibuja de verdad |
-| Pruebas | `pytest` (602 tests) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; comportamiento con el modelo real |
+| Pruebas | `pytest` (601 tests), Vitest + MSW (28) y Playwright (4 recorridos E2E) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; la interfaz contra el backend real con un LLM guionizado; comportamiento con el modelo real |
 | Registros | JSONL en `logs/` | Cada paso del agente queda registrado (herramienta, argumentos, tokens, duración) |
 
 ## Arquitectura
 
 ```mermaid
 flowchart TD
+    UI["Frontend Next.js<br/>frontend/"]
     subgraph ADAPT["Adaptadores (delgados)"]
         CLI["Consola<br/>cli.py"]
-        WEB["Web FastAPI + SSE<br/>api/"]
+        WEB["API FastAPI + SSE<br/>api/"]
         MCP["Servidor MCP<br/>mcp_server.py"]
     end
     BOOT["bootstrap.py<br/>ensambla el agente"]
@@ -108,6 +111,7 @@ flowchart TD
     RAG["rag/<br/>loaders · chunking · embeddings<br/>búsqueda híbrida (vector + BM25)"]
     VS[("VectorStore<br/>JSON o Chroma")]
     OUT["outputs/<br/>validan y guardan<br/>Mermaid y requisitos"]
+    UI -- "HTTP · CORS" --> WEB
     CLI --> BOOT
     WEB --> BOOT
     MCP --> BOOT
@@ -122,7 +126,7 @@ flowchart TD
 
 Reglas de diseño (no negociables):
 
-1. **Núcleo + adaptadores:** `core/` y `rag/` no conocen la web ni MCP. Las interfaces solo traducen y llaman al núcleo.
+1. **Núcleo + adaptadores:** `core/` y `rag/` no conocen la API ni MCP. Las interfaces solo traducen y llaman al núcleo; el frontend solo habla con la API HTTP.
 2. **Todo detrás de interfaces:** el LLM (`LLMClient`) y el almacén (`VectorStore`) se pueden cambiar sin tocar el agente.
 3. **El agente decide:** nunca se busca automáticamente antes de llamar al modelo.
 4. **Los documentos indexados son datos no confiables:** su contenido nunca se trata como instrucciones.
@@ -159,7 +163,7 @@ sequenceDiagram
 
 ## Instalación
 
-Necesitas **Python 3.11+** (probado con 3.12), `git` y **uno** de estos proveedores de LLM:
+Necesitas **Python 3.11+** (probado con 3.12), **Node 22+ con `pnpm`** (para la interfaz web), `git` y **uno** de estos proveedores de LLM:
 
 - el CLI [`claude`](https://claude.com/claude-code) instalado y con sesión iniciada (por defecto, sin API key), o
 - una clave de la API de Gemini, que se crea gratis en Google AI Studio.
@@ -177,6 +181,10 @@ pip install -e backend/
 cd backend                                                           # el backend se ejecuta desde aquí
 cp .env.example .env                                                 # configuración
 pytest                                                               # todos los tests deben pasar
+
+cd ../frontend                                                       # interfaz web
+pnpm install
+cp .env.example .env.local                                           # NEXT_PUBLIC_API_URL (por defecto http://127.0.0.1:8000)
 ```
 
 Todos los comandos de Python de esta guía se ejecutan **desde `backend/`**: las rutas `./data`, `./skills` y `./outputs` son relativas a esa carpeta.
@@ -206,18 +214,23 @@ Comandos: `/ingestar <ruta>` (indexa un archivo o una carpeta), `/nuevo` (reinic
 
 ### Web
 
+Dos terminales: la API y la interfaz.
+
 ```bash
-uvicorn techdoc_agent.api.main:app --reload    # http://127.0.0.1:8000
+cd backend && uvicorn techdoc_agent.api.main:app --reload    # API en http://127.0.0.1:8000
+cd frontend && pnpm dev                                      # interfaz en http://localhost:3000
 ```
 
 <!-- Captura del chat con un diagrama: docs/img/chat-diagrama.png
 ![Chat con un diagrama generado](docs/img/chat-diagrama.png)
 -->
 
-La página tiene tres zonas:
-- **Conversaciones y documentos:** subir, listar y quitar documentos; las conversaciones se guardan y sobreviven a reinicios.
+La interfaz tiene tres zonas (en móvil, los laterales se abren como paneles):
+- **Conversaciones y documentos:** subir (clic o arrastrar), listar y quitar documentos; las conversaciones se guardan y sobreviven a reinicios.
 - **Chat:** Markdown saneado, botón para copiar código, diagramas Mermaid dibujados y artefactos descargables. Mientras el agente trabaja muestra su progreso en vivo ("Buscando en la documentación…").
-- **Pasos del agente:** qué herramientas usó cada respuesta, con argumentos y duración.
+- **Pasos del agente:** qué herramientas usó cada respuesta, con argumentos, duración y tokens.
+
+Cada conversación tiene su URL (`/c/<id>`): recargar o compartir el enlace la reabre. Incluye modo oscuro y avisos (*toasts*) con los errores del backend. Tests de la interfaz: `pnpm test` (Vitest) y `pnpm e2e` (Playwright).
 
 ### Servidor MCP (Claude Code, Claude Desktop…)
 
@@ -290,7 +303,7 @@ Las tablas de cada pasada están en [`docs/07-evaluaciones.md`](docs/07-evaluaci
 | Inyección de instrucciones en los documentos | Fragmentos en etiquetas `<documento>` con el cierre neutralizado, regla fija en el prompt y medición con documentos envenenados |
 | Subidas maliciosas | Lista blanca de extensiones, tamaño máximo y nombres saneados por el sistema |
 | Acceso a archivos fuera de lugar | Artefactos solo con nombres generados dentro de `outputs/`; la ingesta por MCP, limitada a `ALLOWED_INGEST_DIR` |
-| XSS en la web | CSP sin scripts inline, Markdown saneado con DOMPurify, librerías con hash SRI |
+| XSS en la web | La salida del modelo nunca entra como HTML (`react-markdown` + `rehype-sanitize`), Mermaid en modo estricto, sin CDN y CSP con `connect-src` limitado a la API; el backend es una API pura con `default-src 'none'` |
 | Claves | Solo en `.env` (fuera de git). La clave de Gemini viaja en una cabecera y nunca aparece en logs ni errores |
 | Bucles sin fin o llamadas colgadas | Máximo de iteraciones y tiempo máximo por llamada al LLM |
 
@@ -311,7 +324,12 @@ backend/                     API, agente y RAG (Python)
   tests/       tests unitarios y de integración (reflejan src/)
   data/        sample_docs/ (documentación de ejemplo) · documents/ · index/ · conversations/ (locales)
   tools/mermaid/  mermaid-cli opcional
-frontend/                    interfaz web en Next.js (Fase 9.B)
+frontend/                    interfaz web (Next.js)
+  src/app/       rutas: nueva conversación y /c/<id>
+  src/features/  chat · documentos · conversaciones · pasos del agente
+  src/lib/api/   schemas Zod, cliente HTTP, lector SSE, hooks de TanStack Query
+  src/stores/    Zustand (estado de la interfaz)
+  e2e/           pruebas de punta a punta con Playwright
 docs/                        documentación del proyecto (01-09)
 ```
 
@@ -325,7 +343,7 @@ docs/                        documentación del proyecto (01-09)
 | [`03-arquitectura`](docs/03-arquitectura.md) | Componentes, flujos y datos en disco |
 | [`04-diseno-agente`](docs/04-diseno-agente.md) | Bucle, herramientas (schemas), system prompt, memoria, seguridad y logs |
 | [`05-rag`](docs/05-rag.md) | Ingesta, chunking, embeddings, almacenes y búsqueda híbrida |
-| [`06-api-y-mcp`](docs/06-api-y-mcp.md) | Endpoints, interfaz web y servidor MCP |
+| [`06-api-y-mcp`](docs/06-api-y-mcp.md) | Endpoints, interfaz web (Next.js) y servidor MCP |
 | [`07-evaluaciones`](docs/07-evaluaciones.md) | Dataset, reglas, runner y resultados |
 | [`08-roadmap-fases`](docs/08-roadmap-fases.md) | Fases, entregables y criterios de aceptación |
 | [`09-decisiones-y-glosario`](docs/09-decisiones-y-glosario.md) | Decisiones (ADR-001 a ADR-024), experimentos, fallos, lecciones y glosario |
@@ -335,8 +353,7 @@ docs/                        documentación del proyecto (01-09)
 **Completado:**
 - **Fases 0 a 8:** bucle del agente, RAG como herramienta con skill, memoria con resumen, diagramas y requisitos validados, ChromaDB seleccionable, web con conversaciones guardadas, servidor MCP, evaluaciones repetibles, búsqueda híbrida, prueba con documentos reales, progreso en vivo, skill con divulgación progresiva y validación real de Mermaid.
 - **Extra:** Gemini como proveedor alternativo del LLM.
-
-**En curso — Fase 9:** separar backend y frontend. **9.A (hecha):** el backend vive en `backend/` y la API está dividida en routers, sin cambios de comportamiento, con CORS para el frontend (ADR-025). **9.B:** interfaz nueva en Next.js (shadcn/ui, TanStack Query, Zustand, Zod) con paridad con la web actual, que después se retira.
+- **Fase 9:** backend en `backend/` con la API dividida en routers y CORS (ADR-025), e interfaz nueva en Next.js con shadcn/ui, TanStack Query, Zustand y Zod, con tests de Vitest y E2E de Playwright; la web antigua en HTML/JS se retiró y el backend es una API pura (ADR-026).
 
 **Siguiente — Fase 10:** elegir el proveedor del LLM (Claude o Gemini) desde la interfaz web, sin reiniciar el servidor y guardando la elección en cada conversación. Detalle en [`docs/08-roadmap-fases.md`](docs/08-roadmap-fases.md).
 

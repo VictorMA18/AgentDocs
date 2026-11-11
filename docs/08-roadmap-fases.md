@@ -288,8 +288,21 @@ obtener la línea base. Muéstrame los fallos y propón (sin aplicar aún) mejor
 - Único añadido: CORS con `CORS_ORIGINS` para el frontend.
 - **Criterios:** los 597 tests anteriores pasan (solo cambió la ruta de importación de un test y el test de frontera ahora revisa todos los archivos de `api/`) y 5 tests nuevos de CORS; una foto de las 28 respuestas de la API antes y después del refactor coincide (salvo el id aleatorio de los artefactos y la cabecera `Vary` de CORS); CLI, MCP y servidor arrancan; prueba de humo 3/3 con Claude y con Gemini.
 
-### 9.B · Frontend en Next.js (pendiente)
-Next.js 16 con shadcn/ui, TanStack Query (estado del servidor), Zustand (estado de la interfaz) y Zod (validación de lo que llega de la API), con paridad con la web actual: chat con progreso por SSE, Markdown y Mermaid seguros, documentos, conversaciones, pasos del agente y artefactos. Extras: modo oscuro, toasts, tests con Vitest y E2E con Playwright. Al alcanzar la paridad se retira la web estática y el backend queda como API pura.
+### 9.B · Frontend en Next.js (hecha, ADR-026)
+Aplicación en `frontend/`: Next.js 16 con shadcn/ui, TanStack Query (estado del servidor), Zustand (estado de la interfaz) y Zod (validación de todo lo que llega de la API). El backend queda como API pura: se retiró `api/static/`. Detalle en `docs/06`, sección C.
+
+**Paridad con la web anterior:**
+- [x] Chat con progreso en vivo por SSE (en cola, pensando, cada herramienta con resumen y ms).
+- [x] Markdown saneado con botón Copiar en los bloques de código.
+- [x] Diagramas Mermaid dibujados (modo estricto) y requisitos en Markdown; artefactos descargables.
+- [x] Subir (clic y arrastrar), listar y quitar documentos; errores 413/415/400 legibles.
+- [x] Listar, abrir y quitar conversaciones; nueva conversación; la actual se marca.
+- [x] Panel de pasos del agente (herramienta, argumentos, duración, error, tokens).
+- [x] Enter envía, Shift+Enter añade una línea, tope de 8.000 caracteres.
+- [x] Volver a la conversación al recargar (ahora por la URL `/c/<id>` en vez de `localStorage`).
+- **Extras:** modo oscuro, *toasts*, diseño responsive (paneles deslizantes en móvil), *skeletons* de carga, estado de la API en la cabecera, confirmación con diálogo en vez de `confirm()`.
+
+**Criterios:** `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test` (28 tests) y `pnpm e2e` (4 recorridos con el backend real y un LLM guionizado, sin errores en la consola) en verde; `pytest` en verde tras retirar la web (601 tests); prueba manual con el modelo real de los dos recorridos (pregunta con cita y diagrama).
 
 ## Fase 10 · Elegir el proveedor del LLM desde la interfaz (pendiente)
 **Concepto:** hoy el proveedor se fija con una variable de entorno al arrancar. En esta fase se podrá cambiar entre Claude y Gemini desde la interfaz web, sin reiniciar.

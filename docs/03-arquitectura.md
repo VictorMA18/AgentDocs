@@ -2,12 +2,13 @@
 
 ## Principio: un núcleo, dos adaptadores
 
-El agente, el RAG y las herramientas se escriben **una vez** en el núcleo. FastAPI (web) y MCP (otros clientes) son adaptadores delgados que solo traducen entrada/salida.
+El agente, el RAG y las herramientas se escriben **una vez** en el núcleo. FastAPI (API para la interfaz web) y MCP (otros clientes) son adaptadores delgados que solo traducen entrada/salida; el frontend Next.js es una aplicación aparte que solo habla con la API.
 
 ```mermaid
 flowchart TB
+    UI["Frontend Next.js<br/>(frontend/, navegador)"]
     subgraph Adaptadores
-        WEB["FastAPI + HTML<br/>(chat web)"]
+        WEB["API FastAPI<br/>(JSON + SSE)"]
         MCP["Servidor MCP<br/>(clientes sin interfaz)"]
         CLI["CLI<br/>(desarrollo)"]
     end
@@ -33,6 +34,7 @@ flowchart TB
     LLM[("CLI de Claude Code<br/>(claude -p)")]
     FS[("data/ · outputs/ · logs/")]
 
+    UI -- HTTP + CORS --> WEB
     WEB --> AG
     MCP --> AG
     MCP --> TR
@@ -107,11 +109,11 @@ flowchart LR
 | Almacén vectorial | Interfaz `VectorStore`; JSON+numpy → Chroma | Aprender el mecanismo y luego usar una librería |
 | Embeddings | Locales, multilingües | Sin costo ni API key adicional; el contenido suele estar en español |
 | Memoria | Por `session_id`; los turnos antiguos se resumen (ADR-011); en disco si el adaptador lo pide (la web, ADR-015) | Controla el contexto enviado en cada llamada y permite retomar una conversación tras reiniciar |
-| Frontend | HTML + JS puro | El foco es el agente, no el frontend |
+| Frontend | Next.js + TanStack Query + Zustand + Zod + shadcn/ui (Fase 9.B; antes HTML + JS puro) | Aplicación aparte que solo habla con la API; separa estado del servidor y de la interfaz (ADR-026) |
 | Diagramas | El LLM escribe Mermaid; la herramienta valida | El feedback de errores permite que el agente se autocorrija |
 
 ## Estructura de carpetas
-Desde la Fase 9 (ADR-025) el repositorio tiene dos partes: **`backend/`** (todo el código Python: núcleo, RAG, salidas, API, CLI, MCP, tests, evaluaciones, skill y datos) y **`frontend/`** (la interfaz web en Next.js, Fase 9.B). La documentación (`docs/`) y las reglas (`AGENTS.md`) quedan en la raíz. Las rutas de este documento que empiezan por `data/`, `outputs/`, `src/` o `skills/` son relativas a `backend/`. El frontend es otro adaptador más: solo habla con la API HTTP, nunca con el núcleo.
+Desde la Fase 9 (ADR-025) el repositorio tiene dos partes: **`backend/`** (todo el código Python: núcleo, RAG, salidas, API, CLI, MCP, tests, evaluaciones, skill y datos) y **`frontend/`** (la interfaz web en Next.js, Fase 9.B, ADR-026; detalle en `docs/06`, sección C). La documentación (`docs/`) y las reglas (`AGENTS.md`) quedan en la raíz. Las rutas de este documento que empiezan por `data/`, `outputs/`, `src/` o `skills/` son relativas a `backend/`. El frontend es otro adaptador más: solo habla con la API HTTP, nunca con el núcleo.
 
 Detalle en `AGENTS.md`, secciones "Mapa de ubicaciones" y "Estructura objetivo".
 

@@ -24,7 +24,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Componentes, flujos, diagramas, datos en disco, decisiones de diseño clave | `docs/03-arquitectura.md` |
 | Bucle del agente, **schemas JSON de las herramientas**, estructura del system prompt, memoria, **seguridad**, formato de logs | `docs/04-diseno-agente.md` |
 | Ingesta, loaders, chunking, interfaz `Embedder`, interfaz `VectorStore`, JSON/Chroma, recuperación | `docs/05-rag.md` |
-| Endpoints FastAPI, interfaz web, herramientas MCP, configuración de clientes MCP | `docs/06-api-y-mcp.md` |
+| Endpoints FastAPI, frontend Next.js (sección C), herramientas MCP, configuración de clientes MCP | `docs/06-api-y-mcp.md` |
 | Métricas de evaluación, formato del dataset, cómo se ejecuta el runner | `docs/07-evaluaciones.md` |
 | **Fases, entregables, criterios de aceptación y prompts por fase** | `docs/08-roadmap-fases.md` |
 | Decisiones tomadas (ADR), tabla de experimentos, fallos encontrados, glosario | `docs/09-decisiones-y-glosario.md` |
@@ -68,10 +68,26 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | API web: ensamblado (middleware, CORS, routers) | `backend/src/techdoc_agent/api/app.py` | Fase 9 (ADR-025) |
 | API web: endpoints por recurso (chat, conversaciones, documentos, artefactos, salud) | `backend/src/techdoc_agent/api/routers/` | Fase 9 |
 | API web: núcleo compartido (`Core`, `get_core`), modelos de entrada y frontera de seguridad | `backend/src/techdoc_agent/api/deps.py`, `schemas.py`, `security.py` | Fase 9 |
-| Interfaz HTML/JS/CSS | `backend/src/techdoc_agent/api/static/` (`index.html`, `app.js`, `app.css`) | Fase 5 |
 | Ensamblado del agente (CLI y API) | `backend/src/techdoc_agent/bootstrap.py` | Fase 5 |
 | Servidor MCP | `backend/src/techdoc_agent/mcp_server.py` | Fase 6 |
 | Chat por consola | `backend/src/techdoc_agent/cli.py` | Fase 1 |
+
+### B2. Frontend (`frontend/`, Next.js — Fase 9.B, ADR-026)
+
+| Si necesitas… | Está en… |
+|---|---|
+| Rutas: armazón y proveedores, conversación nueva, conversación guardada (`/c/<id>`) | `frontend/src/app/layout.tsx`, `page.tsx`, `c/[id]/page.tsx` |
+| Componentes de shadcn/ui (generados con `pnpm dlx shadcn add`, editables) | `frontend/src/components/ui/` |
+| Armazón de 3 columnas, proveedores (Query, tema, toasts), modo oscuro, estado de la API, confirmación | `frontend/src/components/` |
+| Chat: vista, mensajes, compositor, progreso, Markdown seguro, Mermaid, artefactos | `frontend/src/features/chat/` |
+| Documentos (subir, listar, quitar) · conversaciones · pasos del agente | `frontend/src/features/documents/`, `conversations/`, `trace/` |
+| **Schemas Zod** de cada respuesta y evento SSE (contrato con la API) | `frontend/src/lib/api/schemas.ts` |
+| Cliente HTTP (`ApiError`), lector SSE sobre POST, hooks de TanStack Query | `frontend/src/lib/api/client.ts`, `sse.ts`, `queries.ts` |
+| Hook del chat (envía y vuelca el progreso en el store) | `frontend/src/hooks/use-chat-stream.ts` |
+| Stores de Zustand (chat en pantalla, paneles) | `frontend/src/stores/` |
+| Variable `NEXT_PUBLIC_API_URL` validada · CSP y cabeceras | `frontend/src/env.ts` · `frontend/next.config.ts` |
+| Tests unitarios (junto al código) · utilidades de test (MSW) · E2E | `frontend/src/**/*.test.ts[x]` · `frontend/src/test/` · `frontend/e2e/` |
+| Servidor de la API para el E2E (núcleo real, LLM guionizado) | `backend/tests/e2e_server.py` |
 
 ### C. Contenido que el agente usa en ejecución
 
@@ -104,8 +120,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 
 | Qué | Dónde |
 |---|---|
-| Plantilla de variables de entorno | `backend/.env.example` (el `.env` real no se versiona ni se lee/imprime) |
-| Dependencias | `backend/requirements.txt` |
+| Plantilla de variables de entorno | `backend/.env.example` (el `.env` real no se versiona ni se lee/imprime) · `frontend/.env.example` (se copia a `.env.local`) |
+| Dependencias | `backend/requirements.txt` · `frontend/package.json` (+ `pnpm-lock.yaml`) |
 | Empaquetado del proyecto | `backend/pyproject.toml` (Fase 0) |
 | Reglas de git | `.gitignore` |
 | Presentación del proyecto | `README.md` |
@@ -118,7 +134,11 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Una herramienta nueva del agente | Función en `core/` u `outputs/` (código) + registro en `core/tools.py` + schema documentado en `docs/04` + caso en `backend/evals/` |
 | Un loader de un formato nuevo | `backend/src/techdoc_agent/rag/loaders.py` + extensión en `ALLOWED_EXTENSIONS` (`backend/.env.example`) + test |
 | Otro almacén vectorial | `backend/src/techdoc_agent/rag/store_<nombre>.py` implementando `VectorStore` + tests parametrizados |
-| Un endpoint | `api/routers/<recurso>.py` + `include_router` en `api/app.py` (solo adaptación; la lógica va al núcleo) |
+| Un endpoint | `api/routers/<recurso>.py` + `include_router` en `api/app.py` (solo adaptación; la lógica va al núcleo) + su schema Zod en `frontend/src/lib/api/schemas.ts` si lo usa la interfaz |
+| Una llamada a la API desde el frontend | Función en `frontend/src/lib/api/client.ts` (validada con un schema Zod) + hook en `queries.ts` (`useQuery`/`useMutation` con invalidación) |
+| Una pantalla o funcionalidad de la interfaz | `frontend/src/features/<funcionalidad>/` (+ test `*.test.tsx` al lado) |
+| Un componente de shadcn/ui | `pnpm dlx shadcn@<versión> add <nombre>` desde `frontend/` (queda en `src/components/ui/`) |
+| Estado que solo existe en la pantalla | Un store de Zustand en `frontend/src/stores/` (lo que viene del servidor va en TanStack Query, no aquí) |
 | Una herramienta MCP | `mcp_server.py` (solo adaptación; la lógica va al núcleo) |
 | Otra skill | `backend/skills/<nombre>/SKILL.md` |
 | Instrucciones detalladas de una skill que no hace falta en cada llamada | `backend/skills/<nombre>/guias/<guia>.md` (con `description` en el frontmatter; el agente las carga con `cargar_guia`) |
@@ -145,11 +165,11 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 - Si una decisión de diseño cambia respecto a la documentación, **actualiza el doc correspondiente** y añade una entrada en `docs/09-decisiones-y-glosario.md`.
 - Pasos pequeños, commits pequeños. Mensajes en **Conventional Commits** con descripción en español e imperativo: `tipo(ámbito): descripción` (p. ej. `feat(core): añade bucle del agente`). Tipos: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `build`.
 - **No hacer commits por iniciativa propia.** Al terminar una fase, proponer los commits en una tabla (hash o mensaje + nº de archivos) y esperar a que el autor lo pida. Tampoco `git push` sin que lo pida.
-- Antes de usar una API de una librería (CLI de Claude Code, chromadb, mcp, fastapi, sentence-transformers), **verifica en su documentación vigente** los nombres exactos; no te fíes de la memoria.
+- Antes de usar una API de una librería (CLI de Claude Code, chromadb, mcp, fastapi, sentence-transformers, Next.js, TanStack Query, Zustand, Zod, shadcn/ui), **verifica en su documentación vigente** los nombres exactos; no te fíes de la memoria. Next.js trae su documentación de la versión instalada en `frontend/node_modules/next/dist/docs/`, y los tipos de cada paquete en `node_modules` son la referencia final (p. ej. MSW 3 renombró `onUnhandledRequest` a `onUnhandledFrame`).
 
 ## Reglas de arquitectura (no negociables)
 1. **Sin frameworks de agentes** (nada de LangChain, LangGraph, LlamaIndex, CrewAI, etc.). El LLM se invoca con el CLI de Claude Code en modo no interactivo (`claude -p`, sin API key) detrás de una interfaz `LLMClient`, y el bucle del agente se escribe a mano (ver ADR-008).
-2. **Núcleo + adaptadores.** `core/` y `rag/` no importan nada de `api/` ni de `mcp_server.py`. FastAPI y MCP son adaptadores delgados que llaman al núcleo.
+2. **Núcleo + adaptadores.** `core/` y `rag/` no importan nada de `api/` ni de `mcp_server.py`. FastAPI y MCP son adaptadores delgados que llaman al núcleo. El **frontend solo habla con la API HTTP** (nunca con el núcleo ni con archivos del backend) y valida con Zod todo lo que recibe; la salida del modelo nunca se inserta como HTML.
 3. **El almacén vectorial va detrás de una interfaz** (`VectorStore`). Primero JSON + numpy, luego ChromaDB; el agente no debe notar el cambio.
 4. **El agente decide.** Nunca se hace una búsqueda automática antes de llamar al LLM.
 5. **Los documentos indexados son datos no confiables.** Su contenido nunca se trata como instrucciones (ver `docs/04-diseno-agente.md`, sección Seguridad).
@@ -161,7 +181,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 - CLI `claude` (Claude Code) como LLM — modelo configurable por `LLM_MODEL` (por defecto `claude-haiku-5-5`)
 - Alternativa: API de Gemini con `httpx` (`LLM_PROVIDER=gemini`, `GEMINI_API_KEY`, `GEMINI_MODEL`, por defecto `gemini-3.5-flash-lite`, la que da cuota con el plan gratuito); la clave solo en `.env`, nunca en código, logs ni git
 - `numpy` + `sentence-transformers` (embeddings locales, multilingüe) → luego `chromadb`
-- `fastapi` + `uvicorn` (API; CORS para el frontend con `CORS_ORIGINS`). Interfaz: HTML/JS puro hasta la Fase 9.B; después, Next.js en `frontend/`
+- `fastapi` + `uvicorn` (API pura; CORS para el frontend con `CORS_ORIGINS`)
+- Frontend (`frontend/`, Node 22 + `pnpm`): Next.js 16 (App Router, TypeScript estricto), Tailwind 4, shadcn/ui, TanStack Query 5, Zustand 5, Zod 4, `react-markdown` + `rehype-sanitize`, `mermaid`, `next-themes`, `sonner`; pruebas con Vitest + Testing Library + MSW y Playwright
 - `mcp` 2.x (SDK oficial de Python, `MCPServer`; antes `FastMCP`)
 - `pytest`
 
@@ -182,9 +203,16 @@ cd backend && cp .env.example .env                        # y comprobar que `cla
 
 pytest                                                   # tests (desde backend/)
 python -m techdoc_agent.cli                              # chat por consola (/ingestar <ruta>, /nuevo, /salir)
-uvicorn techdoc_agent.api.main:app --reload              # API (y web antigua hasta la Fase 9.B)
+uvicorn techdoc_agent.api.main:app --reload              # API en http://127.0.0.1:8000
 python -m techdoc_agent.mcp_server                       # MCP por stdio (Fase 6)
 python -m evals.run                                      # evaluaciones (Fase 7)
+```
+El frontend se ejecuta **desde `frontend/`**, en otra terminal:
+```bash
+pnpm install && cp .env.example .env.local               # NEXT_PUBLIC_API_URL (por defecto http://127.0.0.1:8000)
+pnpm dev                                                 # http://localhost:3000
+pnpm lint && pnpm typecheck && pnpm test                 # ESLint, TypeScript y Vitest
+pnpm e2e                                                 # Playwright (levanta backend/tests/e2e_server.py y el frontend)
 ```
 
 ## Estructura objetivo
@@ -204,13 +232,15 @@ backend/
     outputs/   diagrams.py  mermaid_cli.py  requirements_doc.py  naming.py  artifacts.py
     api/       main.py  app.py  deps.py  schemas.py  security.py
                routers/  chat.py  conversations.py  documents.py  artifacts.py  health.py
-               static/   index.html  app.js  app.css      # web antigua: se retira en la Fase 9.B
   tests/
   evals/       dataset.example.jsonl  dataset.jsonl  dataset.py  rules.py  run.py  retrieval.py  fixtures/  results/
   data/        sample_docs/  documents/  index/  conversations/
   outputs/     # artefactos generados (runtime)
   logs/        # JSONL (runtime)
-frontend/      # Next.js (Fase 9.B)
+frontend/      # Next.js (Fase 9.B): package.json  next.config.ts  components.json  .env.example
+  src/app/  components/ui/  components/  features/{chat,documents,conversations,trace}/
+  src/lib/api/  hooks/  stores/  env.ts  test/
+  e2e/         # Playwright
 ```
 
 ## Definición de "terminado" para cualquier fase
