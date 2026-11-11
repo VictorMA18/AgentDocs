@@ -23,11 +23,10 @@ SOURCE_NAME = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 ARTIFACT_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
 # Sin scripts inline: la página carga sus propios archivos y las tres librerías fijadas por CDN.
-CSP = (
-    "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; "
-    "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
-    "frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
-)
+# API pura (solo JSON y texto): nada que cargar ni ejecutar. Si alguien abre una respuesta en el
+# navegador, no se puede incrustar en otra página ni cargar recursos. La CSP de la interfaz vive en
+# frontend/next.config.ts.
+CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 
 
 def add_security_middleware(app: FastAPI) -> None:
