@@ -41,7 +41,7 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
         ) : error ? (
           <p className="text-sm text-muted-foreground">{errorMessage(error)}</p>
         ) : artifact.type === "mermaid" ? (
-          <MermaidDiagram code={data} />
+          <MermaidDiagram code={data} title={artifact.title || artifact.name} />
         ) : (
           <RichText text={data} />
         )}

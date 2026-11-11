@@ -16,7 +16,7 @@ function Step({ call }: { call: ToolCall }) {
         <CollapsibleTrigger className="group flex w-full items-center gap-2 text-left text-sm">
           <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-90" aria-hidden />
           <span className="font-mono">{call.tool}</span>
-          <span className="ml-auto text-xs text-muted-foreground">{call.duration_ms} ms</span>
+          <span className="ml-auto text-xs text-muted-foreground tabular-nums">{call.duration_ms} ms</span>
         </CollapsibleTrigger>
         {call.is_error && (
           <p className="mt-1 text-xs text-destructive">La herramienta devolvió un error; el agente puede corregirlo.</p>
@@ -45,7 +45,7 @@ export function AgentTrace() {
         <li key={index} className="space-y-2">
           <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
             Respuesta {index + 1}
-            <Badge variant="secondary">
+            <Badge variant="secondary" className="tabular-nums">
               {turn.usage.input_tokens} / {turn.usage.output_tokens} tokens
             </Badge>
           </div>

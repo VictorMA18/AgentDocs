@@ -72,7 +72,11 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
+      {/* role="log" en el contenedor que siempre existe: así los lectores de pantalla anuncian cada mensaje
+          y cada paso nuevo (una región viva que se monta ya con su texto no se anuncia). */}
+      <div className="min-h-0 flex-1 overflow-y-auto" role="log" aria-label="Conversación">
+        {body}
+      </div>
       <Composer onSend={(text) => void send(text)} disabled={busy || needsLoad} />
     </div>
   );

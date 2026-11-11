@@ -30,6 +30,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
+  --color-success: var(--success);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
@@ -60,10 +61,13 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  /* 0.556 de shadcn daba 4,35:1 sobre --muted (filas seleccionadas); 0.52 da 5:1 (WCAG 1.4.3) */
+  --muted-foreground: oklch(0.52 0 0);
+  --success: oklch(0.48 0.13 150); /* texto sobre el tinte verde de los avisos ≥ 4,5:1 */
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  /* red-700 en vez del 0.577 de shadcn: el texto rojo sobre su tinte al 10 % daba 3,97:1 (WCAG 1.4.3) */
+  --destructive: oklch(0.505 0.213 27.518);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -96,6 +100,7 @@
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
+  --success: oklch(0.765 0.177 163.223);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
@@ -133,6 +138,11 @@
   .prose-chat {
     @apply text-sm leading-relaxed break-words;
   }
+  /* Texto corrido a ~70 caracteres por línea (60-75); código, tablas y diagramas usan todo el ancho. */
+  .prose-chat :is(p, ul, ol, blockquote, h1, h2, h3, h4) {
+    max-width: 36em;
+    text-wrap: pretty;
+  }
   .prose-chat > * + * {
     @apply mt-3;
   }
@@ -161,4 +171,25 @@
   .prose-chat td { @apply border px-2 py-1; }
   .prose-chat th { @apply bg-muted font-medium; }
   .prose-chat hr { @apply border-border; }
+}
+
+/* Movimiento reducido: los paneles, diálogos y tooltips solo aparecen con un fundido (sin deslizar,
+   escalar ni girar) y los indicadores de carga dejan de girar; el texto de estado sigue visible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    --tw-enter-translate-x: 0 !important;
+    --tw-enter-translate-y: 0 !important;
+    --tw-enter-scale: 1 !important;
+    --tw-enter-rotate: 0 !important;
+    --tw-exit-translate-x: 0 !important;
+    --tw-exit-translate-y: 0 !important;
+    --tw-exit-scale: 1 !important;
+    --tw-exit-rotate: 0 !important;
+    transition-property: color, background-color, border-color, opacity !important;
+  }
+  .animate-spin {
+    animation: none;
+  }
 }

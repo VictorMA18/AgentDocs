@@ -18,7 +18,13 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <TooltipProvider>
           {children}
-          <Toaster richColors closeButton position="top-center" />
+          <Toaster
+            richColors
+            closeButton
+            position="top-center"
+            containerAriaLabel="Avisos"
+            toastOptions={{ closeButtonAriaLabel: "Cerrar aviso" }}
+          />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

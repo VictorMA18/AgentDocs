@@ -15,7 +15,7 @@ export function ApiStatus() {
     <Tooltip>
       <TooltipTrigger asChild>
         <Badge variant={ok ? "outline" : "destructive"} className="gap-1.5" tabIndex={0}>
-          <span className={`size-2 rounded-full ${ok ? "bg-emerald-500" : "bg-destructive"}`} aria-hidden />
+          <span className={`size-2 rounded-full ${ok ? "bg-success" : "bg-destructive"}`} aria-hidden />
           {ok ? "API conectada" : "API sin conexión"}
         </Badge>
       </TooltipTrigger>

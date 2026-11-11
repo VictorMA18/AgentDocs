@@ -13,7 +13,7 @@ type RenderState = { status: "loading" } | { status: "ok"; svg: string } | { sta
  * `securityLevel: "strict"` hace que Mermaid sanee etiquetas y desactive los clics con JavaScript;
  * solo entonces se inserta su SVG. La librería se carga bajo demanda (pesa) y solo en el cliente.
  */
-export function MermaidDiagram({ code }: { code: string }) {
+export function MermaidDiagram({ code, title }: { code: string; title: string }) {
   const { resolvedTheme } = useTheme();
   const reactId = useId();
   const [state, setState] = useState<RenderState>({ status: "loading" });
@@ -57,7 +57,7 @@ export function MermaidDiagram({ code }: { code: string }) {
     <div
       className="mermaid-diagram overflow-x-auto [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
       role="img"
-      aria-label="Diagrama"
+      aria-label={`Diagrama: ${title}`}
       // SVG generado por Mermaid en modo estricto (no es texto del modelo sin procesar)
       dangerouslySetInnerHTML={{ __html: state.svg }}
     />
