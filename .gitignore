@@ -26,3 +26,7 @@ frontend/next-env.d.ts
 *.tsbuildinfo
 
 .DS_Store
+
+# Skills de Claude Code instaladas con `npx skills` (terceros, MIT): se restauran desde skills-lock.json
+.claude/skills/
+frontend/.next-e2e/
