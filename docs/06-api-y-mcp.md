@@ -181,10 +181,18 @@ pnpm dev                        # http://localhost:3000 (su origen debe estar en
 - Sin CDN: todo (fuentes incluidas) se sirve desde el propio origen. CSP en `next.config.ts` con `connect-src` limitado a la API. Lleva `'unsafe-inline'` en scripts porque el arranque de Next lo exige sin nonces; la defensa principal es lo anterior.
 - Llamadas directas a la API con CORS (no por el proxy de Next, que puede retener el SSE en búfer).
 
+### Accesibilidad y revisión de interfaz (ADR-027)
+- **Contraste medido** (texto pequeño ≥ 4,5:1, WCAG 1.4.3) en claro y oscuro: texto secundario, botón destructivo, error del chat, badge sin conexión y avisos. Los tokens `--muted-foreground` y `--destructive` (claro), `--success` y los colores de los avisos de sonner se ajustaron para cumplirlo.
+- **Teclado:** todo control tiene foco visible; el de la zona de subida (input invisible) se pinta en la zona con `has-[:focus-visible]`.
+- **Movimiento reducido:** con `prefers-reduced-motion: reduce` los paneles, diálogos y tooltips solo aparecen con un fundido y los indicadores de carga no giran (`globals.css`).
+- **Lectores de pantalla:** la conversación es una región `role="log"` siempre montada, así se anuncian los mensajes y los pasos del agente; el diagrama se nombra con su título; los avisos se llaman «Avisos» y su botón «Cerrar aviso».
+- **Textos:** los errores dicen qué hacer; los avisos de error no desaparecen solos (WCAG 2.2.1); los diálogos nombran el objeto («¿Quitar «X» del índice?») y el botón es verbo + objeto.
+- **Lectura:** el texto de las respuestas se limita a ~70 caracteres por línea; los nombres de documento no se truncan; ms y tokens con cifras tabulares.
+
 ### Pruebas
 ```bash
 pnpm lint && pnpm typecheck
 pnpm test        # Vitest + Testing Library + MSW (src/**/*.test.ts[x])
 pnpm e2e         # Playwright: levanta backend/tests/e2e_server.py y el frontend con `next dev`
 ```
-El E2E usa la `create_app` real con un **LLM falso guionizado** (sin tokens) y el embedder de hash de los tests, en una carpeta temporal y con puertos propios (8001 y 3100). El frontend corre en modo desarrollo porque React solo avisa de los desajustes de hidratación ahí; un recorrido usa el sistema en modo oscuro, ya que el tema solo se conoce en el navegador. La primera vez hay que instalar el navegador: `pnpm exec playwright install --only-shell chromium`.
+El E2E usa la `create_app` real con un **LLM falso guionizado** (sin tokens) y el embedder de hash de los tests, en una carpeta temporal y con puertos propios (8001 y 3100). El frontend corre en modo desarrollo porque React solo avisa de los desajustes de hidratación ahí, y se borra `.next-e2e` en cada ejecución porque la caché de Turbopack llegó a servir CSS antiguo. Hay recorridos en modo oscuro y con movimiento reducido, y uno mide el contraste real de los pares críticos (`e2e/contrast.ts`). La primera vez hay que instalar el navegador: `pnpm exec playwright install --only-shell chromium`.

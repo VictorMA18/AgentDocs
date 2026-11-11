@@ -16,7 +16,7 @@ describe("ProgressSteps", () => {
         }}
       />,
     );
-    expect(screen.getByRole("status")).toHaveTextContent("El agente está pensando…");
+    expect(screen.getByTestId("progress")).toHaveTextContent("El agente está pensando…");
     expect(screen.getByText(/Buscando en la documentación: tareas/)).toHaveTextContent("(12 ms)");
     expect(screen.getByLabelText("Error")).toBeInTheDocument();
     expect(screen.getByText(/herramienta_nueva/)).toBeInTheDocument(); // sin etiqueta: el nombre tal cual

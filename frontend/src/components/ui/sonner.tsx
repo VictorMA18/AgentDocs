@@ -34,6 +34,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          // Texto de los avisos con los tokens del proyecto: los de sonner sobre su fondo tintado daban
+          // 4,35:1 (error) y 4,26:1 (éxito); WCAG 1.4.3 pide 4,5:1.
+          "--error-text": "var(--destructive)",
+          "--success-text": "var(--success)",
         } as React.CSSProperties
       }
       toastOptions={{

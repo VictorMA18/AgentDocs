@@ -2,10 +2,11 @@
 
 import { Loader2Icon, UploadIcon } from "lucide-react";
 import { useId, useRef, useState, type DragEvent } from "react";
-import { toast } from "sonner";
 
 import { errorMessage } from "@/lib/api/client";
 import { useUploadDocument } from "@/lib/api/queries";
+import { plural } from "@/lib/labels";
+import { notifyError, notifySuccess } from "@/lib/notify";
 
 /** Zona para subir un documento (clic o arrastrar). El backend valida tipo y tamaño (415/413 legibles). */
 export function UploadDropzone() {
@@ -19,9 +20,9 @@ export function UploadDropzone() {
     upload.mutate(file, {
       onSuccess: (result) => {
         const warnings = result.warnings.length ? ` Avisos: ${result.warnings.join("; ")}` : "";
-        toast.success(`${result.source} indexado: ${result.chunks} fragmentos.${warnings}`);
+        notifySuccess(`${result.source} indexado: ${plural(result.chunks, "fragmento", "fragmentos")}.${warnings}`);
       },
-      onError: (error) => toast.error(errorMessage(error)),
+      onError: (error) => notifyError(errorMessage(error)),
       onSettled: () => {
         if (input.current) input.current.value = "";
       },
@@ -43,7 +44,8 @@ export function UploadDropzone() {
         onDrag(event, false);
         send(event.dataTransfer.files[0]);
       }}
-      className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-dashed p-4 text-center transition-colors hover:bg-muted ${over ? "border-primary bg-muted" : ""}`}
+      // El input es invisible (sr-only): el anillo de foco se pinta en la zona cuando el input lo tiene.
+      className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-dashed p-4 text-center transition-colors outline-none hover:bg-muted has-[:focus-visible]:border-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 ${over ? "border-primary bg-muted" : ""}`}
     >
       {upload.isPending ? (
         <Loader2Icon className="size-5 animate-spin text-muted-foreground" aria-hidden />

@@ -126,6 +126,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Reglas de git | `.gitignore` |
 | Presentación del proyecto | `README.md` |
 | Este archivo (reglas para agentes) | `AGENTS.md` (`CLAUDE.md` solo lo importa) |
+| Skills de interfaz para el agente de código (`better-*`, `interface-review`) | `.claude/skills/` (fuera de git) · versiones fijadas en `skills-lock.json`; se restauran con `npx skills experimental_install` (ADR-027) |
 
 ### Dónde poner cosas nuevas
 
@@ -153,6 +154,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
   3. `skills/` → instrucciones que el agente **carga** (comportamiento).
   Ante la duda, pregunta cuál se pretende.
 - **Skill ≠ conocimiento.** La skill dice *cómo* trabajar; el conocimiento vive en los documentos indexados.
+- **Dos clases de skills:** `backend/skills/` es la skill **del agente TechDoc** (se inserta en su system prompt). `.claude/skills/` son skills **para el agente de código** que desarrolla el proyecto (revisión de interfaz); el agente TechDoc nunca las carga.
 - **`backend/outputs/`** son artefactos que genera el agente; **`backend/src/techdoc_agent/outputs/`** es el código que los valida y guarda. No mezclar.
 - Los **nombres de herramientas** (`buscar_documentos`, …) y sus schemas se definen en `docs/04`; el código debe coincidir con ese documento (si cambia uno, actualizar el otro).
 
@@ -242,6 +244,10 @@ frontend/      # Next.js (Fase 9.B): package.json  next.config.ts  components.js
   src/lib/api/  hooks/  stores/  env.ts  test/
   e2e/         # Playwright
 ```
+
+## Cambios en la interfaz (`frontend/`)
+- Antes de dar por terminado un cambio visual, revísalo con las skills de `.claude/skills/` (`better-interface` para una pantalla; el autor lanza `/interface-review` para una rama o PR) y aporta evidencia medida, no opinión.
+- Mínimos que ya cubren los E2E: foco visible en todo control, contraste ≥ 4,5:1 en texto pequeño (claro y oscuro), sin movimiento con `prefers-reduced-motion`, errores que no desaparecen solos y dicen qué hacer, nada cortado sin forma de leerlo entero.
 
 ## Definición de "terminado" para cualquier fase
 - Los criterios de aceptación de la fase en `docs/08-roadmap-fases.md` pasan.

@@ -48,7 +48,7 @@ export function MessageList({ messages, progress }: { messages: ChatMessage[]; p
   }, [messages.length, progress?.steps.length, progress?.text]);
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6" role="log" aria-label="Conversación">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6">
       {messages.map((message) => (
         <Message key={message.id} message={message} />
       ))}

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { API, server } from "@/test/server";
 import { sseBody, streamResponse, turn } from "@/test/fixtures";
 
-import { createSseParser, parseSseBlock, streamChat } from "./sse";
+import { CLOSED_MESSAGE, createSseParser, parseSseBlock, streamChat } from "./sse";
 
 const body = { session_id: "abcdefgh12", message: "hola" };
 
@@ -64,7 +64,7 @@ describe("streamChat", () => {
 
   it("falla con un mensaje claro si la conexión se corta sin evento final", async () => {
     server.use(http.post(`${API}/api/chat/stream`, () => streamResponse(sseBody([{ tipo: "pensando", iter: 1 }]))));
-    await expect(streamChat(body, vi.fn())).rejects.toThrow("La conexión se cerró antes de recibir la respuesta.");
+    await expect(streamChat(body, vi.fn())).rejects.toThrow(CLOSED_MESSAGE);
   });
 
   it("ignora eventos que no cumplen el schema", async () => {
