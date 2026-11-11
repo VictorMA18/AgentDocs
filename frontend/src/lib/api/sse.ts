@@ -30,6 +30,9 @@ export function createSseParser(onData: (data: unknown) => void) {
   };
 }
 
+export const CLOSED_MESSAGE =
+  "La conexión se cortó antes de la respuesta. La pregunta puede haberse guardado: abre la conversación o vuelve a enviarla.";
+
 export type ChatBody = { session_id: string; message: string };
 
 /** Un turno por /api/chat/stream: avisa del progreso y devuelve el evento `final`. */
@@ -45,7 +48,7 @@ export async function streamChat(
     signal,
   });
   if (!response.ok) throw await errorFromResponse(response);
-  if (!response.body) throw new ApiError("El navegador no admite respuestas en streaming.", 0);
+  if (!response.body) throw new ApiError("Este navegador no puede mostrar el progreso en vivo. Usa una versión reciente de Chrome, Firefox o Safari.", 0);
 
   // Un objeto y no dos `let`: TypeScript no sigue las asignaciones hechas dentro del callback.
   const outcome: { result: TurnResult | null; failure: string | null } = { result: null, failure: null };
@@ -68,6 +71,6 @@ export async function streamChat(
     push(decoder.decode(value, { stream: true }));
     if (outcome.failure !== null) throw new ApiError(outcome.failure, response.status);
   }
-  if (outcome.result === null) throw new ApiError("La conexión se cerró antes de recibir la respuesta.", 0);
+  if (outcome.result === null) throw new ApiError(CLOSED_MESSAGE, 0);
   return outcome.result;
 }

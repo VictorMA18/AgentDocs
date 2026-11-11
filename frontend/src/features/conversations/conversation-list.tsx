@@ -3,13 +3,13 @@
 import { Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 import { ConfirmAction } from "@/components/confirm-action";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errorMessage } from "@/lib/api/client";
 import { useConversations, useDeleteConversation } from "@/lib/api/queries";
+import { notifyError, notifySuccess } from "@/lib/notify";
 import { formatDate, plural } from "@/lib/labels";
 import { useChatStore } from "@/stores/chat-store";
 import { useUiStore } from "@/stores/ui-store";
@@ -26,13 +26,13 @@ export function ConversationList() {
   function onDelete(id: string, title: string) {
     remove.mutate(id, {
       onSuccess: () => {
-        toast.success(`Conversación «${title}» quitada.`);
+        notifySuccess(`Conversación «${title}» quitada.`);
         if (id === params.id) {
           useChatStore.getState().reset();
           router.push("/");
         }
       },
-      onError: (err) => toast.error(errorMessage(err)),
+      onError: (err) => notifyError(errorMessage(err)),
     });
   }
 
@@ -75,8 +75,9 @@ export function ConversationList() {
               </span>
             </Link>
             <ConfirmAction
-              title="¿Quitar la conversación?"
-              description={`Se borrarán «${conv.title}» y la memoria del agente asociada.`}
+              title={`¿Quitar la conversación «${conv.title}»?`}
+              description="Se borrarán sus mensajes y lo que el agente recuerda de ella. No se puede deshacer."
+              confirmLabel="Quitar conversación"
               onConfirm={() => onDelete(conv.id, conv.title)}
               trigger={
                 <Button

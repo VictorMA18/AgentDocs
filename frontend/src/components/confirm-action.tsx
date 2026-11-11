@@ -18,12 +18,13 @@ type Props = {
   trigger: ReactNode;
   title: string;
   description: string;
-  confirmLabel?: string;
+  /** Verbo + objeto, p. ej. «Quitar documento». */
+  confirmLabel: string;
   onConfirm: () => void;
 };
 
 /** Pide confirmación antes de una acción que no se puede deshacer (sustituye al `confirm()` del navegador). */
-export function ConfirmAction({ trigger, title, description, confirmLabel = "Quitar", onConfirm }: Props) {
+export function ConfirmAction({ trigger, title, description, confirmLabel, onConfirm }: Props) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
