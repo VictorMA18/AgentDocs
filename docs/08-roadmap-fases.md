@@ -304,6 +304,9 @@ Aplicación en `frontend/`: Next.js 16 con shadcn/ui, TanStack Query (estado del
 
 **Criterios:** `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test` (28 tests) y `pnpm e2e` (5 recorridos con el backend real y un LLM guionizado, también con el sistema en modo oscuro, sin errores en la consola) en verde; `pytest` en verde tras retirar la web (601 tests); prueba manual con el modelo real de los dos recorridos (pregunta con cita y diagrama).
 
+### Pulido posterior: auditoría de interfaz (ADR-027)
+Revisión del frontend con las skills `better-*` (accesibilidad, layout, textos, tipografía, color y UI) y medición en el navegador: 14 de 15 hallazgos corregidos (6 HIGH), con contraste ≥ 4,5:1 medido en claro y oscuro, foco visible, movimiento reducido y errores que no caducan. E2E: 10 recorridos; Vitest: 29 tests. Queda pendiente mostrar los tipos y el tamaño aceptados antes de subir (la API no los expone).
+
 ## Fase 10 · Elegir el proveedor del LLM desde la interfaz (pendiente)
 **Concepto:** hoy el proveedor se fija con una variable de entorno al arrancar. En esta fase se podrá cambiar entre Claude y Gemini desde la interfaz web, sin reiniciar.
 
