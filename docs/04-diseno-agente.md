@@ -32,7 +32,9 @@ Los resultados vuelven al historial como mensajes `user` con `<resultado_herrami
 `AgentResult` devuelve el texto final, las herramientas ejecutadas (`ToolTrace`: nombre, argumentos, `is_error`, duración y el **texto que devolvió la herramienta**, que usan los adaptadores, p. ej. para localizar los artefactos de un turno), las iteraciones, `truncated` y los tokens.
 
 ### Avisos de progreso (Fase 8)
-`Agent.run(session_id, mensaje, on_event=None)` llama a `on_event` con `{"tipo": "pensando", "iter": n}` antes de cada llamada al modelo y con `{"tipo": "herramienta", "nombre", "resumen", "ms", "error"}` después de cada herramienta (`resumen` es un argumento corto y descriptivo —`query`, `titulo`, `nombre` o `source`, máx. 80 caracteres—, nunca el código de un diagrama). El núcleo no sabe de HTTP: el adaptador web lo convierte en SSE. Un fallo de quien escucha se registra y no rompe el turno.
+`Agent.run(session_id, mensaje, on_event=None, llm=None)` llama a `on_event` con `{"tipo": "pensando", "iter": n}` antes de cada llamada al modelo y con `{"tipo": "herramienta", "nombre", "resumen", "ms", "error"}` después de cada herramienta (`resumen` es un argumento corto y descriptivo —`query`, `titulo`, `nombre` o `source`, máx. 80 caracteres—, nunca el código de un diagrama). El núcleo no sabe de HTTP: el adaptador web lo convierte en SSE. Un fallo de quien escucha se registra y no rompe el turno.
+
+**LLM por turno (Fase 10, ADR-028):** `llm` permite que el adaptador elija el `LLMClient` de ese turno (la API web lo usa para el proveedor de cada conversación); sin él se usa el del constructor. Todo el turno, incluido el resumen de memoria, usa ese cliente. El núcleo no sabe de dónde viene la elección. Un `LLMUnavailableError` (subclase de `LLMError`) indica que el proveedor no se puede usar ahora —falta la clave, cuota agotada, CLI ausente o sin sesión— y su mensaje está pensado para el usuario.
 
 ### Pseudocódigo del bucle
 ```python

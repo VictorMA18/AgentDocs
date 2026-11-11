@@ -18,6 +18,7 @@ La API y el servidor MCP son **adaptadores delgados**: validan entrada, llaman a
 | DELETE | `/api/conversations/{id}` | Borra la transcripción y la memoria del agente (en RAM y en disco) |
 | GET | `/api/artifacts` | Lista de artefactos generados |
 | GET | `/api/artifacts/{name}` | Descarga un artefacto (nombre validado) |
+| GET | `/api/providers` | Proveedores del LLM: `id`, `label`, `model`, `available`, `reason`, `default` (nunca la clave; Fase 10) |
 
 ### Códigos de estado
 | Código | Cuándo |
@@ -27,8 +28,10 @@ La API y el servidor MCP son **adaptadores delgados**: validan entrada, llaman a
 | 404 | Documento o artefacto inexistente (también rutas con `..` o enlaces simbólicos que salen de `outputs/`) |
 | 413 | Archivo mayor que `MAX_UPLOAD_MB` |
 | 415 | Extensión fuera de `ALLOWED_EXTENSIONS` |
-| 422 | Cuerpo de `/api/chat` inválido (`session_id` con `^[A-Za-z0-9_-]{8,64}$`, mensaje de 1 a 8.000 caracteres) |
+| 409 | El proveedor pedido (o el de la conversación) no está disponible: el mensaje da el motivo y pide elegir otro |
+| 422 | Cuerpo de `/api/chat` inválido (`session_id` con `^[A-Za-z0-9_-]{8,64}$`, mensaje de 1 a 8.000 caracteres, `provider` distinto de `claude` o `gemini`) |
 | 502 | El LLM falló; el mensaje es genérico y el detalle va al log |
+| 503 | El proveedor no se puede usar ahora (`LLMUnavailableError`: cuota de Gemini agotada, falta la clave, CLI de Claude ausente o sin sesión); el mensaje dice qué hacer |
 
 ### Respuesta de `/api/chat`
 ```json
@@ -39,9 +42,12 @@ La API y el servidor MCP son **adaptadores delgados**: validan entrada, llaman a
   ],
   "artifacts": [{"name": "diagrama-encolar-3f2a.mmd", "type": "mermaid", "title": "Encolar y procesar"}],
   "usage": {"input_tokens": 2410, "output_tokens": 312},
-  "truncated": false
+  "truncated": false,
+  "llm": {"provider": "claude", "model": "claude-haiku-5-5"}
 }
 ```
+
+**Proveedor del turno (Fase 10, ADR-028):** el cuerpo admite `"provider": "claude" | "gemini"`. Sin él se usa el último de la conversación y, si no hay, `LLM_PROVIDER`. Se puede cambiar en cualquier turno: la memoria es texto plano y ambos usan el mismo protocolo, así que el otro modelo continúa con el contexto. `llm` dice quién respondió; se guarda en la transcripción y en el log (evento `turn_llm`). `GET /api/conversations` y `/api/conversations/{id}` incluyen `provider` (el del último turno; `null` en conversaciones anteriores). Los clientes se crean la primera vez que se piden y se reutilizan.
 
 Cada chat correcto se guarda en la transcripción de su `session_id` (`message` y los mismos campos que la respuesta, más `ts`); uno fallido (422, 502) no crea nada. El id de las rutas de conversaciones debe cumplir `^[A-Za-z0-9_-]{8,64}$` (400 si no) y una conversación inexistente da 404. La memoria del agente también se guarda, así que tras reiniciar el servidor el siguiente mensaje continúa con el contexto.
 
@@ -155,6 +161,7 @@ pnpm dev                        # http://localhost:3000 (su origen debe estar en
 - **Izquierda:** conversaciones guardadas (abrir, quitar con confirmación; la actual se marca) y documentos (subir con clic o arrastrando, lista con fragmentos, quitar con confirmación). Los errores del backend (413, 415, 400) se muestran tal cual en un *toast*.
 - **Centro:** chat. Progreso en vivo (en cola, pensando, cada herramienta con su resumen y sus ms), respuesta en Markdown con botón **Copiar** en los bloques de código, y artefactos con vista previa (diagrama Mermaid dibujado o requisitos en Markdown) y botón **Descargar**. Enter envía, Shift+Enter añade una línea, máximo 8.000 caracteres.
 - **Derecha:** pasos del agente por respuesta (herramienta, argumentos desplegables, duración, error, tokens).
+- **Selector de modelo** (encima del cuadro de texto): Claude o Gemini, cada uno con el modelo de `.env`. Los no disponibles salen deshabilitados con su motivo; se bloquea durante un turno; la conversación recuerda el último y una nueva vuelve al de por defecto. Cada respuesta indica «Respondió Gemini · gemini-3.5-flash-lite» y el panel de pasos muestra el proveedor de cada respuesta.
 - **Cabecera:** estado de la API (`/healthz`), nueva conversación y modo claro/oscuro. En pantallas pequeñas los laterales se abren como paneles deslizantes.
 - **La conversación vive en la URL** (`/c/<id>`): recargar o compartir el enlace la reabre desde el servidor. `/` es una conversación nueva; al enviar el primer mensaje se genera el id (32 hex, válido para `session_id`) y la URL cambia sin perder el turno en curso.
 
