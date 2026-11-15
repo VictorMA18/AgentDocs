@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import { useEffect, useId, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAppearanceStore } from "@/stores/appearance-store";
 
 type RenderState = { status: "loading" } | { status: "ok"; svg: string } | { status: "error" };
 
@@ -15,6 +16,7 @@ type RenderState = { status: "loading" } | { status: "ok"; svg: string } | { sta
  */
 export function MermaidDiagram({ code, title }: { code: string; title: string }) {
   const { resolvedTheme } = useTheme();
+  const style = useAppearanceStore((state) => state.style);
   const reactId = useId();
   const [state, setState] = useState<RenderState>({ status: "loading" });
 
@@ -27,7 +29,8 @@ export function MermaidDiagram({ code, title }: { code: string; title: string })
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: "strict",
-          theme: resolvedTheme === "dark" ? "dark" : "default",
+          // Glass neutro (blanco y negro) usa el tema en grises de Mermaid; la Fase 11.B lo teñirá.
+          theme: resolvedTheme === "dark" ? "dark" : style === "glass" ? "neutral" : "default",
         });
         const { svg } = await mermaid.render(id, code);
         if (!cancelled) setState({ status: "ok", svg });
@@ -40,7 +43,7 @@ export function MermaidDiagram({ code, title }: { code: string; title: string })
     return () => {
       cancelled = true;
     };
-  }, [code, reactId, resolvedTheme]);
+  }, [code, reactId, resolvedTheme, style]);
 
   if (state.status === "loading") return <Skeleton className="h-40 w-full" />;
   if (state.status === "error") {

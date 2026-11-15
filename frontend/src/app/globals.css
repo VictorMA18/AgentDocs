@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-app); /* Geist o DM Sans según data-font (ver más abajo) */
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -50,6 +50,7 @@
 }
 
 :root {
+  --font-app: var(--font-geist-sans);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -70,7 +71,8 @@
   --destructive: oklch(0.505 0.213 27.518);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* 0.708 de shadcn daba 2,6:1 como contorno de foco sobre blanco; 0.556 da 4,7:1 (WCAG 1.4.11) */
+  --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -122,6 +124,120 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ─── Fuente (data-font) ─────────────────────────────────────────────────────────────────────────
+   Geist y DM Sans son globales: valen con cualquier modo. El código sigue en Geist Mono. */
+[data-font="dm-sans"] {
+  --font-app: var(--font-dm-sans);
+}
+
+/* ─── Modo Glass (data-style="glass", ADR-029) ───────────────────────────────────────────────────
+   Receta del Frame 14 de Figma: superficie clara translúcida con desenfoque de 18,92 px (radio
+   37,84), borde interior #C5C2C2 y tres sombras. Todos los colores están en HSL y salen de
+   --tint-h (tono) y --tint-s (saturación): un tinte nuevo solo redefine esas dos variables (y, si
+   hace falta para el contraste, alguna luminosidad). Base blanca = sin .dark; base negra = .dark.
+   Ojo: HSL no es uniforme en percepción, por eso el E2E mide el contraste de cada combinación. */
+[data-style="glass"] {
+  --tint-h: 0; /* neutro: el «negro y blanco» */
+  --tint-s: 0%;
+  --radius: 0.875rem; /* rounded-xl ≈ 20 px, el radio del compositor en el Frame 14 */
+
+  /* fondo con dos manchas suaves: sin algo detrás, el desenfoque no se nota */
+  --app-background: hsl(var(--tint-h) calc(var(--tint-s) * 0.6) 93%);
+  --app-blob-1: hsl(var(--tint-h) var(--tint-s) 74%); /* la más oscura: el E2E mide el texto sobre ella */
+  --app-blob-2: hsl(calc(var(--tint-h) + 30) calc(var(--tint-s) * 0.7) 100%);
+
+  /* --background es el color base de la página y debe ser opaco: también es el texto de los tooltips y
+     de los botones destructivos en oscuro. La translucidez va en --card, --popover y las superficies. */
+  --background: var(--app-background);
+  --foreground: hsl(var(--tint-h) calc(var(--tint-s) * 0.22) 11%); /* #1D1B20 del Frame 14 */
+  --card: hsl(var(--tint-h) calc(var(--tint-s) * 0.35) 99% / 0.4);
+  --card-foreground: var(--foreground);
+  --popover: hsl(var(--tint-h) calc(var(--tint-s) * 0.35) 98% / 0.86); /* capas flotantes: más opacas, el texto de detrás no compite */
+  --popover-foreground: var(--foreground);
+  --primary: hsl(var(--tint-h) calc(var(--tint-s) * 0.22) 13%);
+  --primary-foreground: hsl(var(--tint-h) calc(var(--tint-s) * 0.35) 98%);
+  --secondary: hsl(var(--tint-h) calc(var(--tint-s) * 0.35) 99% / 0.6);
+  --secondary-foreground: var(--foreground);
+  --muted: hsl(var(--tint-h) calc(var(--tint-s) * 0.18) 40% / 0.09);
+  /* el gris del Frame 14 (rgb(96 94 94 / .8)) da ≈ 3,6:1 sobre su fondo; 30 % pasa de 4,5:1 también sobre la mancha más oscura */
+  --muted-foreground: hsl(var(--tint-h) calc(var(--tint-s) * 0.15) 30%);
+  --accent: hsl(var(--tint-h) calc(var(--tint-s) * 0.18) 40% / 0.1);
+  --accent-foreground: var(--foreground);
+  --border: hsl(var(--tint-h) calc(var(--tint-s) * 0.15) 35% / 0.16);
+  --input: hsl(var(--tint-h) calc(var(--tint-s) * 0.15) 35% / 0.26);
+  --ring: hsl(var(--tint-h) calc(var(--tint-s) * 0.18) 38%);
+  /* el red-700 de Classic baja a 3,9:1 sobre las manchas grises del fondo; con 35 % de luminosidad pasa */
+  --destructive: hsl(0 70% 35%);
+  --success: hsl(152 70% 24%);
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  /* superficies de cristal */
+  --surface-bar: hsl(var(--tint-h) calc(var(--tint-s) * 0.35) 99% / 0.32);
+  --surface-border: hsl(var(--tint-h) calc(var(--tint-s) * 0.06) 77% / 0.8); /* #C5C2C2 */
+  /* Dos desenfoques: el del Frame 14 (18,92 px) para barras y capas flotantes, donde lo de detrás no
+     debe competir con el texto, y uno más ligero para el compositor y las tarjetas, que dejan ver
+     (desenfocado) lo que pasa por detrás. */
+  --surface-filter: blur(18.92px) saturate(140%);
+  --panel-filter: blur(8px) saturate(150%);
+  --surface-shadow:
+    0 0.35px 16px hsl(0 0% 8% / 0.08), 0 0 24px hsl(0 0% 44% / 0.15),
+    inset 0 -0.5px 11.76px hsl(0 0% 100% / 0.15), inset 0 1px 0 hsl(0 0% 100% / 0.6),
+    inset 0 0 0 1px var(--surface-border);
+}
+
+/* Base negra. Define todo lo que define la base blanca para que nada claro se cuele. */
+[data-style="glass"].dark {
+  --app-background: hsl(var(--tint-h) calc(var(--tint-s) * 0.4) 6%); /* gris carbón, no negro puro */
+  --app-blob-1: hsl(var(--tint-h) var(--tint-s) 25%); /* la más clara: el E2E mide el texto sobre ella */
+  --app-blob-2: hsl(calc(var(--tint-h) + 30) calc(var(--tint-s) * 0.6) 2%);
+
+  --foreground: hsl(var(--tint-h) calc(var(--tint-s) * 0.27) 95%);
+  --card: hsl(0 0% 100% / 0.06);
+  --popover: hsl(var(--tint-h) calc(var(--tint-s) * 0.18) 11% / 0.88);
+  --primary: hsl(var(--tint-h) calc(var(--tint-s) * 0.27) 94%);
+  --primary-foreground: hsl(var(--tint-h) calc(var(--tint-s) * 0.22) 10%);
+  --secondary: hsl(0 0% 100% / 0.08);
+  --muted: hsl(0 0% 100% / 0.07);
+  --muted-foreground: hsl(var(--tint-h) calc(var(--tint-s) * 0.15) 80%); /* 76 % no llega a 4,5:1 sobre la mancha clara */
+  --accent: hsl(0 0% 100% / 0.09);
+  --border: hsl(0 0% 100% / 0.12);
+  --input: hsl(0 0% 100% / 0.16);
+  --ring: hsl(var(--tint-h) calc(var(--tint-s) * 0.18) 72%);
+  /* el error va sobre su propio tinte (destructive/10) encima del panel y de la mancha clara: con 78 % de
+     luminosidad daba 3,7:1; con 86 % (un rojo pálido, como el red-300 de Tailwind) pasa de 4,5:1 */
+  --destructive: hsl(0 90% 86%);
+  --success: oklch(0.765 0.177 163.223);
+
+  --surface-bar: hsl(0 0% 100% / 0.04);
+  --surface-border: hsl(0 0% 100% / 0.12);
+  --surface-shadow: 0 1px 24px hsl(0 0% 0% / 0.35), inset 0 1px 0 hsl(0 0% 100% / 0.08), inset 0 0 0 1px var(--surface-border);
+}
+
+/* Sin desenfoque (navegador antiguo) o si el sistema pide menos transparencia: superficies opacas. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-style="glass"],
+  [data-style="glass"].dark {
+    --card: var(--popover);
+    --surface-bar: var(--popover);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-style="glass"],
+  [data-style="glass"].dark {
+    --card: var(--popover);
+    --surface-bar: var(--popover);
+    --surface-filter: none;
+    --panel-filter: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -171,6 +287,135 @@
   .prose-chat td { @apply border px-2 py-1; }
   .prose-chat th { @apply bg-muted font-medium; }
   .prose-chat hr { @apply border-border; }
+}
+
+/* Superficies de cristal. Fuera de capas a propósito: tienen que ganar a las utilidades de los
+   componentes de shadcn (p. ej. el ring-1 de Card) solo cuando el modo es Glass. El foco de los
+   controles usa outline o ring propios, que no dependen de estas sombras. */
+[data-style="glass"] body {
+  background-color: var(--app-background);
+  /* manchas detrás de los laterales, del chat y del compositor: el cristal tiene algo que desenfocar */
+  background-image:
+    radial-gradient(42rem 32rem at 4% 8%, var(--app-blob-1), transparent 70%),
+    radial-gradient(40rem 30rem at 98% 30%, var(--app-blob-2), transparent 70%),
+    radial-gradient(48rem 22rem at 50% 104%, var(--app-blob-1), transparent 70%);
+  background-attachment: fixed;
+}
+/* La mancha central va en su propia capa para poder moverla: deriva despacio por detrás del chat
+   (36 s por tramo, ida y vuelta, ease-in-out) con `translate`, que no repinta el fondo. Es decoración,
+   así que solo se mueve si el sistema no pide menos movimiento y la persona no lo ha parado en el
+   menú (data-motion="off": WCAG 2.2.2 pide poder pausar lo que se mueve más de 5 s). */
+[data-style="glass"] body::before {
+  content: "";
+  position: fixed;
+  top: calc(40% - 10rem);
+  left: calc(60% - 13rem);
+  width: 26rem;
+  height: 20rem;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(closest-side, var(--app-blob-1), transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-style="glass"][data-motion="on"] body::before {
+    animation: blob-drift 36s ease-in-out infinite alternate;
+  }
+}
+@keyframes blob-drift {
+  0% { translate: 0 0; }
+  25% { translate: -14vw 10vh; }
+  50% { translate: -4vw 22vh; }
+  75% { translate: 10vw 8vh; }
+  100% { translate: 4vw -8vh; }
+}
+
+/* Barras de desplazamiento finas con el color del texto secundario del tema (las mismas en todos los
+   paneles y modos). Al tener un color propio dejan de ser las del navegador: el pulgar cumple 3:1
+   contra el panel (WCAG 1.4.11, medido en el E2E). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+:root {
+  --scrollbar-thumb: color-mix(in oklab, var(--muted-foreground) 80%, transparent);
+}
+/* Todas las superficies de cristal comparten borde (el anillo interior de --surface-shadow, que también
+   llega a las capas de shadcn que usan ring en vez de border) y sombras: la interfaz entera es de cristal,
+   no solo el compositor. */
+[data-style="glass"]
+  :is(
+    [data-surface],
+    [data-slot="card"],
+    [data-slot="popover-content"],
+    [data-slot="select-content"],
+    [data-slot="alert-dialog-content"],
+    [data-slot="sheet-content"],
+    [data-sonner-toast]
+  ) {
+  border-color: transparent;
+  box-shadow: var(--surface-shadow);
+  -webkit-backdrop-filter: var(--surface-filter);
+  backdrop-filter: var(--surface-filter);
+}
+/* Paneles grandes (cabecera, laterales y zona del chat): translúcidos, pero sin backdrop-filter propio.
+   En Chrome, un antecesor con backdrop-filter o mask se convierte en «backdrop root» y el cristal de
+   dentro (compositor, tarjetas) deja de desenfocar el contenido que se desplaza (comprobado con una
+   página mínima). Detrás de estos paneles solo están las manchas del fondo, que ya son difusas. */
+[data-style="glass"] [data-surface="bar"] {
+  background-color: var(--surface-bar);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* compositor y tarjetas: desenfoque ligero, se ve pasar el contenido por detrás */
+[data-style="glass"] :is([data-surface="panel"], [data-slot="card"]) {
+  -webkit-backdrop-filter: var(--panel-filter);
+  backdrop-filter: var(--panel-filter);
+}
+
+/* Bajo el compositor: los mensajes que pasan por detrás se desvanecen hacia el borde inferior en vez
+   de cortarse en seco (en Clásico, con el color del panel; en Glass, con un desenfoque que crece hacia
+   abajo). Va en un pseudoelemento del contenedor pegado: una máscara en la zona que se desplaza sería
+   otro «backdrop root» y apagaría el cristal del compositor. */
+[data-composer-dock]::before {
+  content: "";
+  position: absolute;
+  inset: -1.5rem 0 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--card) 55%, transparent);
+}
+[data-style="glass"] [data-composer-dock]::before {
+  background: none;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  mask-image: linear-gradient(to top, #000 45%, transparent);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-style="glass"] [data-composer-dock]::before {
+    background: linear-gradient(to top, var(--card) 55%, transparent);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-style="glass"] [data-composer-dock]::before {
+    background: linear-gradient(to top, var(--card) 55%, transparent);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Cambio de estilo, tema o fuente: fundido corto de toda la página (View Transitions, ver smoothly()
+   en appearance-store.ts) en vez de un salto de colores. Con movimiento reducido no se anima. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
 
 /* Movimiento reducido: los paneles, diálogos y tooltips solo aparecen con un fundido (sin deslizar,
