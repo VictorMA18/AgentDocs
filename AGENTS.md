@@ -79,7 +79,9 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Rutas: armazón y proveedores, conversación nueva, conversación guardada (`/c/<id>`) | `frontend/src/app/layout.tsx`, `page.tsx`, `c/[id]/page.tsx` |
 | Componentes de shadcn/ui (generados con `pnpm dlx shadcn add`, editables) | `frontend/src/components/ui/` |
 | Armazón (2 columnas y panel de pasos del agente), proveedores (Query, tema, toasts), menú de apariencia, estado de la API, confirmación | `frontend/src/components/` |
-| Apariencia (Fase 11, ADR-029): valores permitidos y script antes de pintar · store · tokens de Glass en HSL y superficies de cristal | `frontend/src/lib/appearance.ts` · `src/stores/appearance-store.ts` · `src/app/globals.css` |
+| Apariencia (Fase 11, ADR-029/030): valores permitidos y script antes de pintar · store · tokens de Glass y de color en HSL y superficies de cristal | `frontend/src/lib/appearance.ts` · `src/stores/appearance-store.ts` · `src/app/globals.css` |
+| Anchos de los paneles ajustables (límites, script antes de pintar) · store · separador | `frontend/src/lib/layout.ts` · `src/stores/layout-store.ts` · `src/components/resize-handle.tsx` |
+| Animaciones de los momentos clave (GSAP, movimiento reducido) | `frontend/src/lib/motion.ts` (+ `motion-script.ts`, el script de la primera carga) |
 | Chat: vista, mensajes, compositor, selector de proveedor, progreso, Markdown seguro, Mermaid, artefactos | `frontend/src/features/chat/` (`provider-select.tsx`: Fase 10) |
 | Documentos (subir, listar, quitar) · conversaciones · pasos del agente | `frontend/src/features/documents/`, `conversations/`, `trace/` |
 | **Schemas Zod** de cada respuesta y evento SSE (contrato con la API) | `frontend/src/lib/api/schemas.ts` |
@@ -127,7 +129,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Reglas de git | `.gitignore` |
 | Presentación del proyecto | `README.md` |
 | Este archivo (reglas para agentes) | `AGENTS.md` (`CLAUDE.md` solo lo importa) |
-| Skills de interfaz para el agente de código (`better-*`, `interface-review`; `find-skills`, `glass-dark-ui`) | `.claude/skills/` (fuera de git) · versiones fijadas en `skills-lock.json`; se restauran con `npx skills experimental_install` (ADR-027, ADR-029) |
+| Skills de interfaz para el agente de código (`better-*`, `interface-review`; `find-skills`, `glass-dark-ui`; `gsap-core`, `gsap-timeline`, `gsap-react`, `gsap-performance`) | `.claude/skills/` (fuera de git) · versiones fijadas en `skills-lock.json`; se restauran con `npx skills experimental_install` (ADR-027, ADR-029, ADR-030) |
 
 ### Dónde poner cosas nuevas
 
@@ -248,9 +250,10 @@ frontend/      # Next.js (Fase 9.B): package.json  next.config.ts  components.js
 
 ## Cambios en la interfaz (`frontend/`)
 - Antes de dar por terminado un cambio visual, revísalo con las skills de `.claude/skills/` (`better-interface` para una pantalla; el autor lanza `/interface-review` para una rama o PR) y aporta evidencia medida, no opinión.
-- Mínimos que ya cubren los E2E: foco visible en todo control, contraste ≥ 4,5:1 en texto pequeño **en cada tema** (Claro, Oscuro, Glass con base blanca y negra; en Glass medido también sobre las manchas del fondo), sin movimiento con `prefers-reduced-motion`, errores que no desaparecen solos y dicen qué hacer, nada cortado sin forma de leerlo entero (320 px con Geist y con DM Sans).
-- **Reparto de skills (ADR-029):** se *crea* con `frontend-design` (dirección visual) y `glass-dark-ui` (recetas de cristal); se *revisa* con las `better-*`. Si una skill de creación contradice una regla medible de las `better-*` (contraste, foco, movimiento reducido, reflujo), gana la medida. `find-skills` solo busca e instala skills nuevas: verifica autor, instalaciones y estrellas, y léelas enteras antes de usarlas.
-- **Apariencia:** un color nuevo va como token en `globals.css` (Glass en HSL a partir de `--tint-h`/`--tint-s`), nunca como valor suelto en un componente; `--background` debe ser opaco (también es color de texto). Nunca pongas `backdrop-filter` ni `mask` en un antecesor de una superficie de cristal: en Chrome la convierte en *backdrop root* y el cristal deja de desenfocar lo que se desplaza detrás.
+- Mínimos que ya cubren los E2E: foco visible en todo control, contraste ≥ 4,5:1 en texto pequeño **en cada tema** (los 20: Clásico y Glass × 5 colores × claro/oscuro; en Glass medido también sobre las manchas del fondo), sin movimiento con `prefers-reduced-motion`, errores que no desaparecen solos y dicen qué hacer, nada cortado sin forma de leerlo entero (320 px con Geist y con DM Sans).
+- **Reparto de skills (ADR-029, ADR-030):** se *crea* con `frontend-design` (dirección visual), `glass-dark-ui` (recetas de cristal) y las `gsap-*` (animación); se *revisa* con las `better-*`. Si una skill de creación contradice una regla medible de las `better-*` (contraste, foco, movimiento reducido, reflujo), gana la medida. `find-skills` solo busca e instala skills nuevas: verifica autor, instalaciones y estrellas, y léelas enteras antes de usarlas.
+- **Apariencia:** un color nuevo va como token en `globals.css` (Glass en HSL a partir de `--tint-h`/`--tint-s`), nunca como valor suelto en un componente; `--background` debe ser opaco (también es color de texto). Nunca pongas `backdrop-filter` ni `mask` en un antecesor de una superficie de cristal: en Chrome la convierte en *backdrop root* y el cristal deja de desenfocar lo que se desplaza detrás (tampoco animes con `filter` u `opacity` un antecesor del compositor). Un color nuevo de la interfaz son `--tint-h`, `--tint-s` y `--tint-accent-l` en `[data-tint]` y `[data-swatch]`; a ≥ 15° (OKLCH) del rojo de error.
+- **Animación:** solo en momentos poco frecuentes (primera carga, estado vacío, mensajes nuevos) con `useGSAP` y `enter()` de `src/lib/motion.ts`; con movimiento reducido, solo fundido; nunca al teclear, pasar por encima o cambiar de pestaña.
 
 ## Definición de "terminado" para cualquier fase
 - Los criterios de aceptación de la fase en `docs/08-roadmap-fases.md` pasan.
