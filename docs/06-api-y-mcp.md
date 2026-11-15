@@ -77,6 +77,14 @@ El backend es una **API pura**: no sirve HTML ni estáticos (`/` responde 404). 
 - Un único candado serializa chat, subida y borrado (la memoria y el almacén JSON no son seguros ante hilos). Pensado para un usuario local; con varios usuarios habría que usar un candado por sesión.
 - `POST /api/chat/stream`: SSE de progreso (ver arriba); `/api/chat` se conserva.
 
+### Apariencia (Fase 11, ADR-029)
+- **Menú «Apariencia»** en la cabecera, con cuatro grupos siempre visibles (el panel no cambia de alto): **Estilo** (Clásico o Glass), **Tema** (Claro, Oscuro o Sistema; en Glass es la base blanca o negra del cristal), **Fondo** (En movimiento o Quieto: la mancha central de Glass deriva despacio; el grupo se desactiva con el motivo a la vista en Clásico o si el sistema pide menos movimiento) y **Fuente** (Geist o DM Sans, válidas con cualquier estilo). Se guarda en `localStorage` (`techdoc-appearance`) y la luminosidad, como antes, en el `theme` de next-themes.
+- **Cuatro atributos en `<html>`:** `data-style`, `data-tint`, `data-font` y `data-motion`; la clase `.dark` sigue marcando la luminosidad. Un script en `layout.tsx` los pone antes de pintar, a partir de `appearanceScript()` (`src/lib/appearance.ts`), y solo acepta valores conocidos.
+- **Barras de desplazamiento** finas con el color del texto secundario de cada tema (`--scrollbar-thumb`), iguales en todos los paneles; el pulgar cumple 3:1 contra el panel (medido en el E2E).
+- **Paneles flotantes:** cabecera, lateral y chat son paneles con un hueco entre ellos, con la misma geometría en todos los estilos. El compositor va pegado abajo (`sticky`) dentro de la zona que se desplaza; los mensajes pasan por detrás y se desvanecen bajo él, y al final el último queda encima. La zona reserva el alto del compositor como `scroll-padding`, así un control enfocado con el teclado nunca queda tapado.
+- **Glass** (`globals.css`): tokens en HSL que salen de `--tint-h` y `--tint-s` (tinte neutro en la 11.A) y superficies de cristal aplicadas por `data-slot` (tarjetas, menús, diálogos, paneles) y `data-surface` (`bar` en cabecera, laterales y chat; `panel` en el compositor). Los paneles grandes son translúcidos sin `backdrop-filter`: en Chrome un antecesor con `backdrop-filter` o `mask` impide que el compositor desenfoque los mensajes. Sin `backdrop-filter` o con `prefers-reduced-transparency` las superficies son opacas.
+- **Al cambiar** de estilo, tema o fuente, la página se funde en 220 ms con la View Transitions API (`smoothly()` en `appearance-store.ts`; inmediato sin soporte o con movimiento reducido) y se apagan las transiciones CSS un fotograma para que nada se anime por su cuenta.
+
 ### Organización del código (Fase 9.A, ADR-025)
 `api/main.py` es solo el punto de entrada (`app`). `api/app.py` ensambla la aplicación (lifespan, middleware de seguridad, CORS, routers); `api/routers/` tiene un módulo por recurso (`chat.py`, `conversations.py`, `documents.py`, `artifacts.py`, `health.py`); `api/deps.py` define `Core` y la dependencia `get_core`; `api/schemas.py`, los modelos de entrada; y `api/security.py`, la CSP, el tope de subida y la validación de nombres.
 
@@ -160,9 +168,9 @@ pnpm dev                        # http://localhost:3000 (su origen debe estar en
 ### Pantalla
 - **Izquierda:** conversaciones guardadas (abrir, quitar con confirmación; la actual se marca) y documentos (subir con clic o arrastrando, lista con fragmentos, quitar con confirmación). Los errores del backend (413, 415, 400) se muestran tal cual en un *toast*.
 - **Centro:** chat. Progreso en vivo (en cola, pensando, cada herramienta con su resumen y sus ms), respuesta en Markdown con botón **Copiar** en los bloques de código, y artefactos con vista previa (diagrama Mermaid dibujado o requisitos en Markdown) y botón **Descargar**. Enter envía, Shift+Enter añade una línea, máximo 8.000 caracteres.
-- **Derecha:** pasos del agente por respuesta (herramienta, argumentos desplegables, duración, error, tokens).
-- **Selector de modelo** (encima del cuadro de texto): Claude o Gemini, cada uno con el modelo de `.env`. Los no disponibles salen deshabilitados con su motivo; se bloquea durante un turno; la conversación recuerda el último y una nueva vuelve al de por defecto. Cada respuesta indica «Respondió Gemini · gemini-3.5-flash-lite» y el panel de pasos muestra el proveedor de cada respuesta.
-- **Cabecera:** estado de la API (`/healthz`), nueva conversación y modo claro/oscuro. En pantallas pequeñas los laterales se abren como paneles deslizantes.
+- **Pasos del agente** (ocultos a primera vista; se abren en un panel lateral con el botón «Pasos del agente» de la cabecera, en todas las anchuras): herramienta, argumentos desplegables, duración, error y tokens de cada respuesta.
+- **Selector de modelo** (dentro del compositor, abajo a la izquierda; el contador de caracteres, siempre visible, abajo a la derecha): Claude o Gemini, cada uno con el modelo de `.env`. Los no disponibles salen deshabilitados con su motivo; se bloquea durante un turno; la conversación recuerda el último y una nueva vuelve al de por defecto. Cada respuesta indica «Respondió Gemini · gemini-3.5-flash-lite» (con el logo del proveedor junto al nombre, también en el selector; trazados de Simple Icons, CC0) y el panel de pasos muestra el proveedor de cada respuesta.
+- **Cabecera:** estado de la API (`/healthz`), nueva conversación, menú **Apariencia** (ADR-029) y botón de los pasos del agente. En pantallas pequeñas el lateral de conversaciones y documentos también se abre como panel deslizante.
 - **La conversación vive en la URL** (`/c/<id>`): recargar o compartir el enlace la reabre desde el servidor. `/` es una conversación nueva; al enviar el primer mensaje se genera el id (32 hex, válido para `session_id`) y la URL cambia sin perder el turno en curso.
 
 ### Organización
@@ -170,11 +178,12 @@ pnpm dev                        # http://localhost:3000 (su origen debe estar en
 |---|---|
 | `src/app/` | Rutas: `layout.tsx` (proveedores y armazón), `page.tsx` (nueva), `c/[id]/page.tsx` (guardada) |
 | `src/components/ui/` | Componentes de **shadcn/ui** (se copian al repo y se pueden editar) |
-| `src/components/` | Armazón de 3 columnas, proveedores, modo oscuro, estado de la API, diálogo de confirmación |
+| `src/components/` | Armazón (2 columnas y panel de pasos), proveedores, menú de apariencia, estado de la API, diálogo de confirmación |
 | `src/features/` | Una carpeta por funcionalidad: `chat/`, `documents/`, `conversations/`, `trace/` |
 | `src/lib/api/` | `schemas.ts` (Zod de cada respuesta y evento SSE), `client.ts` (`fetch` + `ApiError`), `sse.ts` (lector SSE sobre POST), `queries.ts` (hooks de TanStack Query) |
 | `src/hooks/` | `use-chat-stream` (envía y vuelca el progreso en el store), `use-copy-to-clipboard` |
-| `src/stores/` | Zustand: `chat-store` (conversación en pantalla, turno en curso, progreso) y `ui-store` (paneles en móvil) |
+| `src/stores/` | Zustand: `chat-store` (conversación en pantalla, turno en curso, progreso), `ui-store` (paneles en móvil) y `appearance-store` (estilo, tinte y fuente) |
+| `src/lib/appearance.ts` | Valores permitidos de la apariencia, su schema Zod y el script antes de pintar |
 | `src/env.ts` | `NEXT_PUBLIC_API_URL` validada con Zod |
 
 ### Dos tipos de estado
@@ -202,4 +211,4 @@ pnpm lint && pnpm typecheck
 pnpm test        # Vitest + Testing Library + MSW (src/**/*.test.ts[x])
 pnpm e2e         # Playwright: levanta backend/tests/e2e_server.py y el frontend con `next dev`
 ```
-El E2E usa la `create_app` real con un **LLM falso guionizado** (sin tokens) y el embedder de hash de los tests, en una carpeta temporal y con puertos propios (8001 y 3100). El frontend corre en modo desarrollo porque React solo avisa de los desajustes de hidratación ahí, y se borra `.next-e2e` en cada ejecución porque la caché de Turbopack llegó a servir CSS antiguo. Hay recorridos en modo oscuro y con movimiento reducido, y uno mide el contraste real de los pares críticos (`e2e/contrast.ts`). La primera vez hay que instalar el navegador: `pnpm exec playwright install --only-shell chromium`.
+El E2E usa la `create_app` real con un **LLM falso guionizado** (sin tokens) y el embedder de hash de los tests, en una carpeta temporal y con puertos propios (8001 y 3100). El frontend corre en modo desarrollo porque React solo avisa de los desajustes de hidratación ahí, y se borra `.next-e2e` en cada ejecución porque la caché de Turbopack llegó a servir CSS antiguo. Hay recorridos en modo oscuro y con movimiento reducido, y una matriz de los 4 temas (Claro, Oscuro, Glass blanca y negra) mide el contraste real de los pares críticos (`e2e/contrast.ts`, que en Glass mide también sobre las manchas del fondo y se queda con el peor). La primera vez hay que instalar el navegador: `pnpm exec playwright install --only-shell chromium`.
