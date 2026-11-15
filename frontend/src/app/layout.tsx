@@ -4,6 +4,8 @@ import { DM_Sans, Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { Providers } from "@/components/providers";
 import { appearanceScript } from "@/lib/appearance";
+import { layoutScript } from "@/lib/layout";
+import { enterScript } from "@/lib/motion-script";
 
 import "./globals.css";
 
@@ -20,8 +22,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // suppressHydrationWarning: next-themes (clase del tema) y el script de apariencia (data-style,
-    // data-tint, data-font) cambian <html> antes de hidratar
+    // suppressHydrationWarning: next-themes (clase del tema) y los scripts de apariencia (data-style,
+    // data-tint, data-font, data-motion) y de anchos (--sidebar-w, --trace-w) cambian <html> antes de hidratar
     <html
       lang="es"
       suppressHydrationWarning
@@ -29,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body>
         {/* Antes que nada: pone la apariencia guardada para que no parpadee el estilo por defecto. */}
-        <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: appearanceScript() }} />
+        <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: [appearanceScript(), layoutScript(), enterScript()].join(";") }} />
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>
