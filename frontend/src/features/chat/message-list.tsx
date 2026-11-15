@@ -3,6 +3,7 @@
 import { AlertTriangleIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { ProviderLogo } from "@/components/provider-logo";
 import { providerLabel } from "@/lib/labels";
 import type { ChatMessage, Progress } from "@/stores/chat-store";
 
@@ -37,8 +38,9 @@ function Message({ message }: { message: ChatMessage }) {
         <ArtifactCard key={artifact.name} artifact={artifact} />
       ))}
       {turn.llm && (
-        <p className="mt-2 text-xs text-muted-foreground" data-testid="answered-by">
-          Respondió {providerLabel(turn.llm.provider)} · <span className="font-mono">{turn.llm.model}</span>
+        <p className="mt-2 flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground" data-testid="answered-by">
+          Respondió <ProviderLogo provider={turn.llm.provider} className="size-3" /> {providerLabel(turn.llm.provider)} ·{" "}
+          <span className="font-mono">{turn.llm.model}</span>
         </p>
       )}
     </article>
@@ -48,9 +50,12 @@ function Message({ message }: { message: ChatMessage }) {
 export function MessageList({ messages, progress }: { messages: ChatMessage[]; progress: Progress | null }) {
   const end = useRef<HTMLDivElement>(null);
 
-  // Al llegar un mensaje o un paso nuevo, se baja hasta el final.
+  // Al llegar un mensaje o un paso nuevo, se baja hasta el final de la zona que se desplaza (no basta
+  // con scrollIntoView: el final quedaría detrás del compositor, que va pegado abajo).
   useEffect(() => {
-    end.current?.scrollIntoView?.({ block: "end" });
+    const scroller = end.current?.closest<HTMLElement>("[data-chat-scroll]");
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    else end.current?.scrollIntoView?.({ block: "end" });
   }, [messages.length, progress?.steps.length, progress?.text]);
 
   return (
