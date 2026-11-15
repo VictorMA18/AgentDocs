@@ -327,3 +327,31 @@ Revisión del frontend con las skills `better-*` (accesibilidad, layout, textos,
 - [x] Prueba manual con los dos modelos reales: Claude respondió «concurrencia 4» con cita `[taskflow.md#4]`; tras cambiar a Gemini en la misma conversación, «¿y cómo la cambio a 8?» se respondió con el contexto (`Worker(cola, concurrency=8)`); al recargar seguía Gemini seleccionado.
 - [x] Auditoría de lo cambiado (código e interfaz): corregidos el aviso de `Select` no controlado, el desbordamiento a 320 px con un proveedor no disponible, pistas de «sin sesión» demasiado amplias y la ruta local del CLI en `/api/providers`; el E2E falla ahora también con avisos de consola.
 - [x] `pytest` 619, Vitest 36, Playwright 12 recorridos, lint, typecheck y build en verde.
+
+## Fase 11 · Apariencia: modo Glass, tintes HSL, DM Sans y animaciones (ADR-029)
+**Concepto:** un *design system* es un conjunto de tokens que los componentes consumen sin saber cuál está activo. La apariencia pasa a tener ejes independientes (estilo, tinte, fuente y movimiento del fondo) escritos como atributos en `<html>`; los componentes no se duplican. Se hace en dos partes, cada una con su PR.
+
+### 11.A · Glass utilizable (hecha)
+**Entregables:**
+- Skills `find-skills` y `glass-dark-ui` (fijadas en `skills-lock.json`) y regla de convivencia con las `better-*` en `AGENTS.md`.
+- Menú «Apariencia» (sustituye al botón de tema) con cuatro grupos fijos: Estilo (Clásico, Glass), Tema (Claro, Oscuro, Sistema; en Glass, la base blanca o negra), Fondo (la mancha central de Glass en movimiento o quieta) y Fuente (Geist, DM Sans). Se guarda en `localStorage`, se aplica antes de pintar y cada cambio se funde en 220 ms (View Transitions; sin animación con movimiento reducido).
+- Modo Glass con la receta del Frame 14 (borde `#C5C2C2`, tres sombras, radio 20 px, desenfoque) en **toda la interfaz**: cabecera, laterales y chat como paneles flotantes (misma geometría en Clásico), compositor, tarjetas, diálogos, menús y avisos, con colores en HSL a partir de `--tint-h` y `--tint-s` (tinte neutro) y respaldo opaco. El compositor va pegado abajo y los mensajes se ven desenfocados al pasar por detrás.
+- DM Sans junto a Geist, válidas con cualquier modo.
+- Compositor del Frame 14 en todos los modos: botón de enviar redondo, selector de proveedor dentro abajo a la izquierda y contador siempre visible con cifras tabulares.
+- Logos de Claude y Gemini (Simple Icons, CC0) en el selector de modelo y en «Respondió…», siempre junto al nombre.
+- Solo lo importante a primera vista: los pasos del agente se abren en un panel lateral desde la cabecera, en todas las anchuras.
+- Barras de desplazamiento finas con el color de cada tema.
+
+**Criterios:**
+- [x] El menú elige estilo, tema y fuente; todo persiste sin parpadeo ni aviso de hidratación (E2E: el atributo ya está al terminar de leer el HTML) y al cambiar no se mueve nada (E2E: el panel y sus opciones conservan su caja).
+- [x] Geist y DM Sans funcionan con cualquier modo; Geist sigue por defecto.
+- [x] Glass neutro sigue el Frame 14 en toda la interfaz y sus colores salen de `--tint-h`/`--tint-s` (HSL); el compositor desenfoca lo que pasa por detrás (E2E: ningún antecesor suyo es *backdrop root*).
+- [x] 4 temas con contraste ≥ 4,5:1 (9 pares, medidos sobre el fondo y sus manchas), foco visible del compositor y consola limpia; reflujo a 320 px con las dos fuentes.
+- [x] Revisión con `better-interface`: 3 hallazgos (tinte neutro rojizo, contorno de foco a 2,6:1 en Claro y transiciones al cambiar de estilo), corregidos y medidos de nuevo. Auditoría final tras el Glass completo: 1 hallazgo (un control enfocado podía quedar tapado por el compositor pegado, WCAG 2.4.11), corregido con `scroll-padding` y cubierto por un E2E.
+- [x] La mancha del fondo se mueve, se puede parar desde el menú (WCAG 2.2.2) y queda quieta con movimiento reducido; el pulgar de las barras de desplazamiento cumple 3:1 en los 4 temas.
+- [x] `pytest` 619, Vitest 53, Playwright 20 recorridos, lint, typecheck y build en verde.
+
+### 11.B · Tintes, Claro/Oscuro renovados y GSAP (pendiente)
+- Tintes rojo, azul, verde (el del Frame 14) y naranja, con la luminosidad de texto y acento fijada por tinte; el E2E pasa a 12 temas.
+- Claro y Oscuro con acento propio en HSL, neutros tintados y escala tipográfica por rol.
+- Animaciones con GSAP en momentos clave (`gsap`, `@gsap/react`, skills `gsap-*`), sin movimiento con `prefers-reduced-motion`.

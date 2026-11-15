@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ApiStatus } from "@/components/api-status";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppearanceMenu } from "@/components/appearance-menu";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -59,15 +59,21 @@ function NewChatButton() {
 }
 
 /**
- * Tres columnas en escritorio (conversaciones y documentos · chat · pasos del agente). En pantallas
- * pequeñas los laterales se abren como paneles deslizantes (Sheet) desde la cabecera.
+ * Dos columnas en escritorio (conversaciones y documentos · chat). Los pasos del agente son detalle
+ * técnico que no hace falta a primera vista: se abren en un panel deslizante (Sheet) con el botón
+ * «Pasos del agente» de la cabecera, en todas las anchuras. En pantallas pequeñas el lateral de
+ * conversaciones y documentos también se abre así.
+ *
+ * Cada zona es un panel flotante con un hueco entre ellos. La geometría es la misma en todos los
+ * estilos (al cambiar de Clásico a Glass nada se mueve): Glass solo cambia el relleno de los paneles
+ * por cristal (`data-surface="bar"`, ver globals.css).
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { sidebarOpen, traceOpen, setSidebarOpen, setTraceOpen } = useUiStore();
 
   return (
-    <div className="flex h-dvh flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b px-3">
+    <div className="flex h-dvh flex-col gap-2 p-2">
+      <header data-surface="bar" className="flex h-14 shrink-0 items-center gap-2 rounded-xl border bg-card px-3 shadow-xs">
         <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)} aria-label="Abrir conversaciones y documentos">
           <MenuIcon aria-hidden />
         </Button>
@@ -77,23 +83,20 @@ export function AppShell({ children }: { children: ReactNode }) {
             <ApiStatus />
           </span>
           <NewChatButton />
-          <ThemeToggle />
-          <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => setTraceOpen(true)} aria-label="Ver los pasos del agente">
-            <ListTreeIcon aria-hidden />
+          <AppearanceMenu />
+          <Button variant="ghost" size="sm" onClick={() => setTraceOpen(true)} aria-label="Ver los pasos del agente">
+            <ListTreeIcon aria-hidden /> <span className="hidden lg:inline">Pasos del agente</span>
           </Button>
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-72 shrink-0 overflow-y-auto border-r p-4 lg:block" aria-label="Conversaciones y documentos">
+      <div className="flex min-h-0 flex-1 gap-2">
+        <aside data-surface="bar" className="hidden w-72 shrink-0 overflow-y-auto rounded-xl border bg-card p-4 shadow-xs lg:block" aria-label="Conversaciones y documentos">
           <Sidebar />
         </aside>
-        <main className="min-w-0 flex-1">{children}</main>
-        <aside className="hidden w-80 shrink-0 overflow-y-auto border-l p-4 xl:block" aria-label="Pasos del agente">
-          <Section title="Pasos del agente">
-            <AgentTrace />
-          </Section>
-        </aside>
+        <main data-surface="bar" className="min-w-0 flex-1 overflow-hidden rounded-xl border bg-card shadow-xs">
+          {children}
+        </main>
       </div>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>

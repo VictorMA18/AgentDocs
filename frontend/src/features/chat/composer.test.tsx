@@ -37,4 +37,12 @@ describe("Composer", () => {
     render(<Composer onSend={vi.fn()} disabled={false} />);
     expect(screen.getByLabelText("Mensaje")).toHaveAttribute("maxLength", "8000");
   });
+
+  it("muestra siempre el contador y los controles de la fila inferior", async () => {
+    render(<Composer onSend={vi.fn()} disabled={false} footer={<span>selector</span>} />);
+    expect(screen.getByTestId("char-count")).toHaveTextContent("0/8000");
+    await userEvent.type(screen.getByLabelText("Mensaje"), "hola");
+    expect(screen.getByTestId("char-count")).toHaveTextContent("4/8000");
+    expect(screen.getByText("selector")).toBeInTheDocument();
+  });
 });

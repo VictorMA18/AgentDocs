@@ -1,5 +1,6 @@
 "use client";
 
+import { ProviderLogo } from "@/components/provider-logo";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { errorMessage } from "@/lib/api/client";
 import { useProviders } from "@/lib/api/queries";
@@ -39,6 +40,7 @@ export function ProviderSelect({ disabled }: { disabled: boolean }) {
         <SelectContent>
           {data?.map((provider) => (
             <SelectItem key={provider.id} value={provider.id} disabled={!provider.available}>
+              <ProviderLogo provider={provider.id} />
               <span className="font-medium">{provider.label}</span>
               <span className="font-mono text-muted-foreground">{provider.model}</span>
               {!provider.available && provider.reason && (

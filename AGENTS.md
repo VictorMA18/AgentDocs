@@ -78,13 +78,14 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 |---|---|
 | Rutas: armazón y proveedores, conversación nueva, conversación guardada (`/c/<id>`) | `frontend/src/app/layout.tsx`, `page.tsx`, `c/[id]/page.tsx` |
 | Componentes de shadcn/ui (generados con `pnpm dlx shadcn add`, editables) | `frontend/src/components/ui/` |
-| Armazón de 3 columnas, proveedores (Query, tema, toasts), modo oscuro, estado de la API, confirmación | `frontend/src/components/` |
+| Armazón (2 columnas y panel de pasos del agente), proveedores (Query, tema, toasts), menú de apariencia, estado de la API, confirmación | `frontend/src/components/` |
+| Apariencia (Fase 11, ADR-029): valores permitidos y script antes de pintar · store · tokens de Glass en HSL y superficies de cristal | `frontend/src/lib/appearance.ts` · `src/stores/appearance-store.ts` · `src/app/globals.css` |
 | Chat: vista, mensajes, compositor, selector de proveedor, progreso, Markdown seguro, Mermaid, artefactos | `frontend/src/features/chat/` (`provider-select.tsx`: Fase 10) |
 | Documentos (subir, listar, quitar) · conversaciones · pasos del agente | `frontend/src/features/documents/`, `conversations/`, `trace/` |
 | **Schemas Zod** de cada respuesta y evento SSE (contrato con la API) | `frontend/src/lib/api/schemas.ts` |
 | Cliente HTTP (`ApiError`), lector SSE sobre POST, hooks de TanStack Query | `frontend/src/lib/api/client.ts`, `sse.ts`, `queries.ts` |
 | Hook del chat (envía y vuelca el progreso en el store) | `frontend/src/hooks/use-chat-stream.ts` |
-| Stores de Zustand (chat en pantalla, paneles) | `frontend/src/stores/` |
+| Stores de Zustand (chat en pantalla, paneles, apariencia) | `frontend/src/stores/` |
 | Variable `NEXT_PUBLIC_API_URL` validada · CSP y cabeceras | `frontend/src/env.ts` · `frontend/next.config.ts` |
 | Tests unitarios (junto al código) · utilidades de test (MSW) · E2E | `frontend/src/**/*.test.ts[x]` · `frontend/src/test/` · `frontend/e2e/` |
 | Servidor de la API para el E2E (núcleo real, LLM guionizado) | `backend/tests/e2e_server.py` |
@@ -126,7 +127,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Reglas de git | `.gitignore` |
 | Presentación del proyecto | `README.md` |
 | Este archivo (reglas para agentes) | `AGENTS.md` (`CLAUDE.md` solo lo importa) |
-| Skills de interfaz para el agente de código (`better-*`, `interface-review`) | `.claude/skills/` (fuera de git) · versiones fijadas en `skills-lock.json`; se restauran con `npx skills experimental_install` (ADR-027) |
+| Skills de interfaz para el agente de código (`better-*`, `interface-review`; `find-skills`, `glass-dark-ui`) | `.claude/skills/` (fuera de git) · versiones fijadas en `skills-lock.json`; se restauran con `npx skills experimental_install` (ADR-027, ADR-029) |
 
 ### Dónde poner cosas nuevas
 
@@ -247,7 +248,9 @@ frontend/      # Next.js (Fase 9.B): package.json  next.config.ts  components.js
 
 ## Cambios en la interfaz (`frontend/`)
 - Antes de dar por terminado un cambio visual, revísalo con las skills de `.claude/skills/` (`better-interface` para una pantalla; el autor lanza `/interface-review` para una rama o PR) y aporta evidencia medida, no opinión.
-- Mínimos que ya cubren los E2E: foco visible en todo control, contraste ≥ 4,5:1 en texto pequeño (claro y oscuro), sin movimiento con `prefers-reduced-motion`, errores que no desaparecen solos y dicen qué hacer, nada cortado sin forma de leerlo entero.
+- Mínimos que ya cubren los E2E: foco visible en todo control, contraste ≥ 4,5:1 en texto pequeño **en cada tema** (Claro, Oscuro, Glass con base blanca y negra; en Glass medido también sobre las manchas del fondo), sin movimiento con `prefers-reduced-motion`, errores que no desaparecen solos y dicen qué hacer, nada cortado sin forma de leerlo entero (320 px con Geist y con DM Sans).
+- **Reparto de skills (ADR-029):** se *crea* con `frontend-design` (dirección visual) y `glass-dark-ui` (recetas de cristal); se *revisa* con las `better-*`. Si una skill de creación contradice una regla medible de las `better-*` (contraste, foco, movimiento reducido, reflujo), gana la medida. `find-skills` solo busca e instala skills nuevas: verifica autor, instalaciones y estrellas, y léelas enteras antes de usarlas.
+- **Apariencia:** un color nuevo va como token en `globals.css` (Glass en HSL a partir de `--tint-h`/`--tint-s`), nunca como valor suelto en un componente; `--background` debe ser opaco (también es color de texto). Nunca pongas `backdrop-filter` ni `mask` en un antecesor de una superficie de cristal: en Chrome la convierte en *backdrop root* y el cristal deja de desenfocar lo que se desplaza detrás.
 
 ## Definición de "terminado" para cualquier fase
 - Los criterios de aceptación de la fase en `docs/08-roadmap-fases.md` pasan.
