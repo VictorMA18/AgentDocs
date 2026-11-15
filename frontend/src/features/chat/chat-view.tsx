@@ -72,16 +72,22 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {/* role="log" en el contenedor que siempre existe: así los lectores de pantalla anuncian cada mensaje
-          y cada paso nuevo (una región viva que se monta ya con su texto no se anuncia). */}
-      <div className="min-h-0 flex-1 overflow-y-auto" role="log" aria-label="Conversación">
-        {body}
+    // El compositor va pegado abajo (sticky) dentro de la zona que se desplaza: los mensajes pasan por
+    // detrás de él (en Glass se ven desenfocados a través del cristal) y, al final del todo, el último
+    // queda justo encima, sin tapar nada.
+    <div className="h-full overflow-y-auto" data-chat-scroll>
+      <div className="flex min-h-full flex-col">
+        {/* role="log" en el contenedor que siempre existe: así los lectores de pantalla anuncian cada mensaje
+            y cada paso nuevo (una región viva que se monta ya con su texto no se anuncia). */}
+        <div className="flex-1" role="log" aria-label="Conversación">
+          {body}
+        </div>
+        <Composer
+          onSend={(text) => void send(text)}
+          disabled={busy || needsLoad}
+          footer={<ProviderSelect disabled={busy || needsLoad} />}
+        />
       </div>
-      <div className="mx-auto w-full max-w-3xl px-4 pb-2">
-        <ProviderSelect disabled={busy || needsLoad} />
-      </div>
-      <Composer onSend={(text) => void send(text)} disabled={busy || needsLoad} />
     </div>
   );
 }
