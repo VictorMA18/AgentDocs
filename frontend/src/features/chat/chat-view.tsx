@@ -1,12 +1,14 @@
 "use client";
 
+import { FileTextIcon } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatStream } from "@/hooks/use-chat-stream";
 import { errorMessage } from "@/lib/api/client";
+import { enter, useGSAP } from "@/lib/motion";
 import { useConversation } from "@/lib/api/queries";
 import { useChatStore } from "@/stores/chat-store";
 
@@ -14,11 +16,19 @@ import { Composer } from "./composer";
 import { ProviderSelect } from "./provider-select";
 import { MessageList } from "./message-list";
 
+/** Pantalla de una conversación nueva. Sus tres piezas entran en escalón (GSAP) cada vez que aparece. */
 function EmptyState() {
+  const root = useRef<HTMLDivElement>(null);
+  useGSAP(() => void enter(root.current!.children), { scope: root });
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-2 px-4 py-16 text-center">
-      <h2 className="font-heading text-xl font-medium">¿Qué quieres saber de tu documentación?</h2>
-      <p className="text-sm text-muted-foreground">
+    <div ref={root} className="mx-auto flex max-w-md flex-col items-center gap-2 px-4 py-16 text-center">
+      <span data-enter-item className="mb-2 grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+        <FileTextIcon aria-hidden className="size-6" />
+      </span>
+      <h2 data-enter-item className="font-heading text-xl font-medium text-balance">
+        ¿Qué quieres saber de tu documentación?
+      </h2>
+      <p data-enter-item className="text-sm text-balance text-muted-foreground">
         Sube un documento y pregunta sobre él. También puedes pedir un diagrama o los requisitos de una sección.
       </p>
     </div>
