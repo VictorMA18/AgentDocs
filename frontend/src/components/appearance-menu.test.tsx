@@ -10,14 +10,8 @@ import { useAppearanceStore } from "@/stores/appearance-store";
 
 import { AppearanceMenu } from "./appearance-menu";
 
-// next-themes consulta el tema del sistema con matchMedia, y los radios de Radix miden su tamaño con
-// ResizeObserver: jsdom no implementa ninguno de los dos.
+// next-themes consulta el tema del sistema con matchMedia, que jsdom no implementa.
 beforeAll(() => {
-  globalThis.ResizeObserver ??= class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
   window.matchMedia ??= ((query: string) => ({
     matches: false,
     media: query,
@@ -102,6 +96,18 @@ describe("AppearanceMenu", () => {
     expect(screen.getByRole("radio", { name: "Sistema" })).toBeChecked();
     expect(localStorage.getItem("theme")).toBe("system");
     expect(document.documentElement).not.toHaveClass("dark"); // el matchMedia de prueba dice «claro»
+  });
+
+  it("el color se elige con muestras que tienen nombre y vale con cualquier estilo", async () => {
+    await open();
+    const group = screen.getByRole("radiogroup", { name: "Color" });
+    expect(group).toBeInTheDocument();
+    for (const name of ["Neutro", "Rojo", "Azul", "Verde", "Naranja"]) expect(screen.getByRole("radio", { name })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Neutro" })).toBeChecked();
+
+    await userEvent.click(screen.getByRole("radio", { name: "Azul" }));
+    expect(document.documentElement.dataset).toMatchObject({ style: "classic", tint: "blue" });
+    expect(screen.getByRole("radio", { name: "Azul" })).toBeChecked();
   });
 
   it("la fuente se elige aparte del estilo", async () => {

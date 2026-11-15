@@ -51,6 +51,9 @@
 
 :root {
   --font-app: var(--font-geist-sans);
+  /* anchos de los paneles ajustables (src/lib/layout.ts los cambia y los guarda) */
+  --sidebar-w: 288px;
+  --trace-w: 384px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -166,8 +169,9 @@
   --border: hsl(var(--tint-h) calc(var(--tint-s) * 0.15) 35% / 0.16);
   --input: hsl(var(--tint-h) calc(var(--tint-s) * 0.15) 35% / 0.26);
   --ring: hsl(var(--tint-h) calc(var(--tint-s) * 0.18) 38%);
-  /* el red-700 de Classic baja a 3,9:1 sobre las manchas grises del fondo; con 35 % de luminosidad pasa */
-  --destructive: hsl(0 70% 35%);
+  /* el red-700 de Classic baja a 3,9:1 sobre las manchas grises del fondo; con 35 % pasaba en neutro,
+     pero sobre las manchas de color (más oscuras que el gris a igual L) daba 4,1:1: queda en 30 % */
+  --destructive: hsl(0 72% 30%);
   --success: hsl(152 70% 24%);
   --sidebar: var(--card);
   --sidebar-foreground: var(--foreground);
@@ -218,6 +222,66 @@
   --surface-bar: hsl(0 0% 100% / 0.04);
   --surface-border: hsl(0 0% 100% / 0.12);
   --surface-shadow: 0 1px 24px hsl(0 0% 0% / 0.35), inset 0 1px 0 hsl(0 0% 100% / 0.08), inset 0 0 0 1px var(--surface-border);
+}
+
+/* ─── Color (data-tint, Fase 11.B, ADR-030) ──────────────────────────────────────────────────────
+   Cada color es un tono (H), una saturación (S) y la luminosidad de su acento en claro y en oscuro.
+   Tono profesional: S entre 45 y 65 %, sin colores puros; el rojo es carmesí y el naranja,
+   terracota. HSL no es uniforme en percepción (un verde al 40 % se ve más claro que un azul al 40 %),
+   por eso la luminosidad del acento va por color y el E2E mide los 20 temas.
+   - En Clásico solo cambia el acento (--primary, --ring): botones, opción marcada y foco.
+   - En Glass, además, --tint-h y --tint-s tiñen el fondo, las manchas y las superficies.
+   Los mismos valores pintan las muestras del menú ([data-swatch]). */
+/* Rojo carmesí (H 338): en OKLCH queda a 23–26° del rojo de error en todos los temas; con H 352 estaba
+   a 8–10° y el botón de enviar se confundía con una acción destructiva (better-colors: ≥ 15°). */
+[data-tint="red"],
+[data-swatch="red"] {
+  --tint-h: 338;
+  --tint-s: 55%;
+  --tint-accent-l: 40%;
+}
+[data-tint="blue"],
+[data-swatch="blue"] {
+  --tint-h: 214;
+  --tint-s: 60%;
+  --tint-accent-l: 42%;
+}
+[data-tint="green"],
+[data-swatch="green"] {
+  --tint-h: 128;
+  --tint-s: 45%;
+  --tint-accent-l: 30%;
+}
+[data-tint="orange"],
+[data-swatch="orange"] {
+  --tint-h: 24;
+  --tint-s: 65%;
+  --tint-accent-l: 36%;
+}
+.dark:is([data-tint="red"], [data-tint="blue"], [data-tint="green"], [data-tint="orange"]) {
+  --tint-accent-l: 74%;
+}
+[data-tint]:not([data-tint="neutral"]) {
+  --primary: hsl(var(--tint-h) var(--tint-s) var(--tint-accent-l));
+  --primary-foreground: hsl(var(--tint-h) 30% 98%);
+  --ring: var(--primary);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+}
+.dark[data-tint]:not([data-tint="neutral"]) {
+  --primary-foreground: hsl(var(--tint-h) 35% 10%);
+}
+/* Base negra con color: un verde o un naranja al 25 % brilla más que el gris neutro (el contador daba
+   3,97:1). Al 20 % y con 70 % de la saturación, cada mancha queda por debajo de la luminancia del gris. */
+.dark[data-style="glass"][data-tint]:not([data-tint="neutral"]) {
+  --app-blob-1: hsl(var(--tint-h) calc(var(--tint-s) * 0.7) 20%);
+}
+/* Muestras del menú «Color»: el acento de cada color; el neutro, mitad blanco y mitad negro. */
+[data-swatch] {
+  background: hsl(var(--tint-h) var(--tint-s) var(--tint-accent-l));
+}
+[data-swatch="neutral"] {
+  background: linear-gradient(135deg, hsl(0 0% 97%) 50%, hsl(0 0% 12%) 50%);
 }
 
 /* Sin desenfoque (navegador antiguo) o si el sistema pide menos transparencia: superficies opacas. */
@@ -401,6 +465,12 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+
+/* Primera carga: los elementos que entran con GSAP (data-enter-item) esperan ocultos a que empiece su
+   animación (ver enterScript() y src/lib/motion.ts). */
+[data-enter="pending"] [data-enter-item] {
+  opacity: 0;
 }
 
 /* Cambio de estilo, tema o fuente: fundido corto de toda la página (View Transitions, ver smoothly()
