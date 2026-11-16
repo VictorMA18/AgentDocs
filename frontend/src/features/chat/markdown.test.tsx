@@ -30,4 +30,19 @@ describe("RichText", () => {
     expect(writeText).toHaveBeenCalledWith("const x = 1;\n");
     expect(screen.getByRole("button", { name: "Copiado" })).toBeInTheDocument();
   });
+  it("con el diagrama ya dibujado, su código Mermaid se pliega y el resto de código no", () => {
+    const text = "Hecho.\n\n```mermaid\nclassDiagram\n  A --> B\n```\n\n```python\nprint(1)\n```";
+    const { container } = render(<RichText text={text} foldMermaid />);
+    const details = container.querySelector("details")!;
+    expect(details).not.toHaveAttribute("open");
+    expect(screen.getByText("Código Mermaid").tagName).toBe("SUMMARY");
+    expect(details).toHaveTextContent("classDiagram");
+    expect(details).not.toHaveTextContent("print(1)");
+  });
+
+  it("sin diagrama guardado, el código Mermaid se ve entero", () => {
+    const { container } = render(<RichText text={"```mermaid\nflowchart TD\n  A --> B\n```"} />);
+    expect(container.querySelector("details")).toBeNull();
+    expect(screen.getByText(/flowchart TD/)).toBeVisible();
+  });
 });
