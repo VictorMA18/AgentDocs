@@ -14,6 +14,7 @@ from techdoc_agent.core.llm import (
     LLMUnavailableError,
     ToolCall,
     parse_output,
+    undo_double_escape,
 )
 from techdoc_agent.core.tools import ToolSpec
 
@@ -190,3 +191,33 @@ def test_nonzero_exit_is_llm_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(subprocess, "run", FakeRun(returncode=1))
     with pytest.raises(LLMError, match="código 1"):
         client().complete("s", [{"role": "user", "content": "x"}], [])
+
+
+
+# --- Texto escapado dos veces (llegaba a la interfaz con "\n" literales) ------------------------------
+# En estos literales, r"\n" son los dos caracteres «\» y «n» que el modelo dejaba escritos.
+
+
+def test_reply_escaped_twice_is_repaired() -> None:
+    texto = r'Hecho.\n\n```mermaid\nclassDiagram\n  A --> B\n```\n### Resumen\n- **Qué:** \"A\" usa B'
+    reply = parse_output(cli_output({"accion": "responder", "texto": texto}))
+    assert reply.text == 'Hecho.\n\n```mermaid\nclassDiagram\n  A --> B\n```\n### Resumen\n- **Qué:** "A" usa B'
+
+
+def test_tool_args_escaped_twice_are_repaired() -> None:
+    codigo = r"classDiagram\n  class Queue\n  Worker --> Queue"
+    llamada = {"id": "c1", "nombre": "generar_diagrama", "args": {"codigo": codigo, "tipo": "clases"}}
+    reply = parse_output(cli_output({"accion": "herramientas", "llamadas": [llamada]}))
+    assert reply.tool_calls[0].args == {"codigo": "classDiagram\n  class Queue\n  Worker --> Queue", "tipo": "clases"}
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        'Usa print("a' + r"\n" + 'b").\nCon un salto real, el texto ya viene bien.',  # código con \n y saltos reales
+        r"Una sola secuencia \n literal en una línea",  # podría ser parte de un ejemplo
+        "Sin escapes",
+    ],
+)
+def test_normal_text_is_left_alone(texto: str) -> None:
+    assert undo_double_escape(texto) == texto
