@@ -46,7 +46,7 @@ Es un **proyecto de aprendizaje y portafolio**: el agente está construido **des
 - **RAG como herramienta, no como pipeline:** el modelo decide cuándo buscar; un "hola" no dispara una búsqueda.
 - **Respuestas verificables:** citas a los fragmentos usados y abstención cuando no hay evidencia.
 - **Salidas validadas:** las herramientas comprueban los diagramas y los requisitos y devuelven los errores al modelo para que se corrija.
-- **Medir antes de decidir:** cada cambio importante se justifica con una evaluación repetible (46 casos con reglas comprobables).
+- **Medir antes de decidir:** cada cambio importante se justifica con una evaluación repetible (47 casos con reglas comprobables).
 - **Un núcleo, varias interfaces:** el mismo agente se usa desde la consola, una web y un servidor MCP.
 
 ## Qué hace
@@ -275,7 +275,7 @@ La lista completa está en `.env.example`.
 
 ## Evaluación y resultados
 
-El comportamiento se mide con un **dataset de 46 casos** (`backend/evals/dataset.jsonl`) que se ejecutan con el modelo real y se evalúan con **reglas comprobables**: herramientas usadas, recuperación del fragmento correcto, contenido, citas, abstención, artefactos válidos y resistencia a inyección. Cada caso corre aislado y se repite para separar el ruido de los cambios reales.
+El comportamiento se mide con un **dataset de 47 casos** (`backend/evals/dataset.jsonl`) que se ejecutan con el modelo real y se evalúan con **reglas comprobables**: herramientas usadas, recuperación del fragmento correcto, contenido, citas, abstención, artefactos válidos y resistencia a inyección. Cada caso corre aislado y se repite para separar el ruido de los cambios reales.
 
 | Medición | Resultado |
 |---|---|
