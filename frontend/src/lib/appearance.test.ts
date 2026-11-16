@@ -28,9 +28,9 @@ describe("apariencia", () => {
   });
 
   it("el script pone la apariencia guardada en <html> antes de pintar", () => {
-    localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ style: "glass", tint: "neutral", font: "dm-sans", motion: "off" }));
+    localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ style: "glass", tint: "blue", font: "dm-sans", motion: "off" }));
     runScript();
-    expect(root.dataset).toMatchObject({ style: "glass", tint: "neutral", font: "dm-sans", motion: "off" });
+    expect(root.dataset).toMatchObject({ style: "glass", tint: "blue", font: "dm-sans", motion: "off" });
   });
 
   it("el script ignora valores desconocidos y JSON roto", () => {

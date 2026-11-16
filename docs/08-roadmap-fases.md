@@ -351,7 +351,21 @@ Revisión del frontend con las skills `better-*` (accesibilidad, layout, textos,
 - [x] La mancha del fondo se mueve, se puede parar desde el menú (WCAG 2.2.2) y queda quieta con movimiento reducido; el pulgar de las barras de desplazamiento cumple 3:1 en los 4 temas.
 - [x] `pytest` 619, Vitest 53, Playwright 20 recorridos, lint, typecheck y build en verde.
 
-### 11.B · Tintes, Claro/Oscuro renovados y GSAP (pendiente)
-- Tintes rojo, azul, verde (el del Frame 14) y naranja, con la luminosidad de texto y acento fijada por tinte; el E2E pasa a 12 temas.
-- Claro y Oscuro con acento propio en HSL, neutros tintados y escala tipográfica por rol.
-- Animaciones con GSAP en momentos clave (`gsap`, `@gsap/react`, skills `gsap-*`), sin movimiento con `prefers-reduced-motion`.
+### 11.B · Color, paneles ajustables y GSAP (hecha, ADR-030)
+**Entregables:**
+- Skills `gsap-core`, `gsap-timeline`, `gsap-react` y `gsap-performance` (GreenSock, MIT) fijadas en `skills-lock.json`; dependencias `gsap` y `@gsap/react`.
+- Grupo **Color** en «Apariencia», entre Tema y Fondo: muestras Neutro, Rojo, Azul, Verde y Naranja con su nombre. La elegida pasa de cuadrado redondeado (6 px) a círculo, con anillo y ✓. Vale en Clásico (tiñe el acento: botones, opción marcada, foco, burbuja del usuario) y en Glass (además, el fondo y las manchas). Cada color son dos variables HSL más la luminosidad de su acento.
+- Paneles ajustables con un separador propio (patrón *Window Splitter*): el lateral (224–448 px) y el panel de pasos (320–720 px). Se arrastran, se mueven con las flechas e Inicio/Fin, y un clic pasa al tamaño siguiente; el ancho se recuerda y se aplica antes de pintar.
+- Animaciones con GSAP en tres momentos: primera carga (cabecera y lateral en escalón), estado vacío y cada mensaje nuevo. Con movimiento reducido solo hay fundido.
+- Estado vacío con icono del color elegido.
+
+**Criterios:**
+- [x] Los 20 temas (2 estilos × 5 colores × claro/oscuro) cumplen contraste ≥ 4,5:1, foco visible y consola limpia (E2E).
+- [x] El rojo queda a ≥ 15° en OKLCH del rojo de error en todos los temas (no parece una acción destructiva).
+- [x] El color elegido se distingue por forma, anillo y ✓, no solo por el color (WCAG 1.4.1), y se guarda.
+- [x] Los separadores tienen nombre, valor y teclado, y una alternativa sin arrastre (WCAG 2.5.7); el ancho se recuerda sin aviso de hidratación.
+- [x] Las entradas con GSAP se desplazan con movimiento normal y solo funden con movimiento reducido (E2E).
+- [x] Revisión con `better-interface`: 2 hallazgos (rojo demasiado cerca del de error; el tooltip del separador tapaba la zona de agarre), corregidos.
+- [x] `pytest` 619, Vitest 66, Playwright 41 recorridos, lint, typecheck y build en verde.
+
+*Fuera de alcance, sin cambios:* los grises de Clásico (auditados en ADR-027) y la escala tipográfica; el acento de Clásico llega con el color.

@@ -202,25 +202,30 @@ test.describe("accesibilidad (auditoría de interfaz)", () => {
 
 // Apariencia de partida de una prueba: next-themes guarda la luminosidad en "theme" y la app el
 // estilo, el tinte y la fuente en "techdoc-appearance" (ADR-029). Se escribe antes de cada carga.
-type Look = { theme: "light" | "dark"; style: "classic" | "glass"; font?: "geist" | "dm-sans" };
-function startWith(page: Page, { theme, style, font = "geist" }: Look) {
+type Tint = "neutral" | "red" | "blue" | "green" | "orange";
+type Look = { theme: "light" | "dark"; style: "classic" | "glass"; font?: "geist" | "dm-sans"; tint?: Tint };
+function startWith(page: Page, { theme, style, font = "geist", tint = "neutral" }: Look) {
   return page.addInitScript(
     ([t, a]) => {
       localStorage.setItem("theme", t);
       localStorage.setItem("techdoc-appearance", a);
     },
-    [theme, JSON.stringify({ style, tint: "neutral", font })] as const,
+    [theme, JSON.stringify({ style, tint, font })] as const,
   );
 }
 
-const THEMES: { name: string; look: Look }[] = [
-  { name: "Claro", look: { theme: "light", style: "classic" } },
-  { name: "Oscuro", look: { theme: "dark", style: "classic" } },
-  { name: "Glass con base blanca", look: { theme: "light", style: "glass" } },
-  { name: "Glass con base negra", look: { theme: "dark", style: "glass" } },
-];
+// Los 20 temas: 2 estilos × 5 colores × claro/oscuro (ADR-030).
+const TINT_NAMES: Record<Tint, string> = { neutral: "neutro", red: "rojo", blue: "azul", green: "verde", orange: "naranja" };
+const THEMES: { name: string; look: Look }[] = (["classic", "glass"] as const).flatMap((style) =>
+  (Object.keys(TINT_NAMES) as Tint[]).flatMap((tint) =>
+    (["light", "dark"] as const).map((theme) => ({
+      name: `${style === "classic" ? (theme === "light" ? "Claro" : "Oscuro") : `Glass con base ${theme === "light" ? "blanca" : "negra"}`} ${TINT_NAMES[tint]}`,
+      look: { theme, style, tint },
+    })),
+  ),
+);
 
-// Texto pequeño: 4,5:1 (WCAG 1.4.3) en los cuatro temas. En Glass el fondo es translúcido: contrastRatio
+// Texto pequeño: 4,5:1 (WCAG 1.4.3) en los 20 temas. En Glass el fondo es translúcido: contrastRatio
 // mide sobre el color base y sobre las manchas del fondo y se queda con el peor.
 for (const { name, look } of THEMES) {
   test(`tema ${name}: contraste del texto, foco del compositor y consola limpia`, async ({ page }) => {
@@ -263,7 +268,7 @@ for (const { name, look } of THEMES) {
     await atLeast(page.getByRole("tooltip"));
 
     // texto de éxito al subir un documento (verde sobre su tinte); se quita al final
-    const file = `tema-${look.style}-${look.theme}.md`;
+    const file = `tema-${look.style}-${look.tint}-${look.theme}.md`;
     await page.locator("aside input[type=file]").first().setInputFiles({ name: file, mimeType: "text/markdown", buffer: Buffer.from("# Tema\n\nTexto.") });
     const indexed = page.getByText(`${file} indexado`, { exact: false });
     await expect(indexed).toBeVisible();
@@ -288,6 +293,8 @@ for (const { name, look } of THEMES) {
     await expect(answer).toContainText("Según la documentación");
     await atLeast(answer.locator("p").first());
     await atLeast(answer.getByTestId("answered-by"));
+    // la burbuja del usuario lleva el acento del color elegido (texto sobre --primary)
+    await atLeast(page.locator("main").getByText("¿Qué es TaskFlow?", { exact: true }));
     // el compositor va pegado abajo y los mensajes pasan por detrás, pero al final el último queda encima
     await expect(answer.getByTestId("logo-claude")).toBeVisible();
     const [answerBox, panelBox] = await Promise.all([answer.boundingBox(), panel.boundingBox()]);
@@ -385,7 +392,26 @@ test.describe("menú de apariencia", () => {
     });
   });
 
-  // DM Sans es más ancha que Geist: a 320 px nada debe desbordar con ninguna de las dos.
+    test("el color se elige con muestras, se nota en el acento y se guarda", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Apariencia" }).click();
+    const blue = page.getByRole("radio", { name: "Azul" });
+    const swatch = blue.locator("[data-swatch]");
+    const radius = () => swatch.evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius));
+    expect(await radius()).toBe(6); // cuadrado redondeado (6 px)
+    await blue.click();
+    await expect(page.locator("html")).toHaveAttribute("data-tint", "blue");
+    await expect(blue).toBeChecked();
+    await expect.poll(radius).toBeGreaterThan(12); // la elegida pasa a círculo (y lleva anillo y ✓)
+    // el acento cambia: la opción marcada de los grupos usa --primary, que ahora es azul
+    const checked = await page.getByRole("radio", { name: "Clásico" }).evaluate((el) => getComputedStyle(el).backgroundColor);
+    const [r, , b] = checked.match(/[\d.]+/g)!.map(Number);
+    expect(b).toBeGreaterThan(r);
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-tint", "blue");
+  });
+
+// DM Sans es más ancha que Geist: a 320 px nada debe desbordar con ninguna de las dos.
   for (const font of ["geist", "dm-sans"] as const) {
     test.describe(`a 320 px con ${font === "geist" ? "Geist" : "DM Sans"}`, () => {
       test.use({ viewport: { width: 320, height: 700 } });
@@ -468,5 +494,98 @@ test.describe("selector de proveedor en pantalla estrecha", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     await select.click();
     await expect(page.getByRole("option", { name: /Gemini/ })).toContainText(reason);
+  });
+});
+
+test.describe("paneles ajustables", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("el lateral se ensancha arrastrando, con el teclado y con un clic, y recuerda el ancho", async ({ page }) => {
+    await page.goto("/");
+    const sidebar = page.locator("#sidebar");
+    const handle = page.getByRole("separator", { name: "Ancho del panel de conversaciones y documentos" });
+    const width = async () => Math.round((await sidebar.boundingBox())!.width);
+    expect(await width()).toBe(288);
+
+    // arrastrar 80 px a la derecha
+    const box = (await handle.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.up();
+    expect(await width()).toBe(368);
+    await expect(handle).toHaveAttribute("aria-valuenow", "368");
+
+    // teclado
+    await handle.focus();
+    await page.keyboard.press("ArrowLeft");
+    expect(await width()).toBe(352);
+    await page.keyboard.press("Home");
+    expect(await width()).toBe(224);
+
+    // un clic sin arrastrar pasa al tamaño siguiente (alternativa sin arrastre, WCAG 2.5.7)
+    await handle.click();
+    expect(await width()).toBe(288);
+
+    // se recuerda al recargar, sin aviso de hidratación (lo vigila el afterEach)
+    await page.keyboard.press("End");
+    await page.reload();
+    expect(await width()).toBe(448);
+    await expect(handle).toHaveAttribute("aria-valuenow", "448");
+  });
+
+  test("el panel de pasos se ensancha desde su borde izquierdo", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Ver los pasos del agente" }).click();
+    const panel = page.getByRole("dialog", { name: "Pasos del agente" });
+    await expect(panel).toBeVisible();
+    await panel.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    const width = async () => Math.round((await panel.boundingBox())!.width);
+    expect(await width()).toBe(384);
+    const handle = panel.getByRole("separator", { name: "Ancho del panel de pasos del agente" });
+    await handle.focus();
+    await page.keyboard.press("ArrowLeft");
+    expect(await width()).toBe(400);
+  });
+});
+
+test.describe("animaciones de los momentos clave (GSAP)", () => {
+  // Registra los estilos en línea de los mensajes nuevos: así se ve si entraron desplazándose.
+  async function recordEntrances(page: Page) {
+    await page.addInitScript(() => {
+      const seen: string[] = [];
+      (window as unknown as { entrances: string[] }).entrances = seen;
+      new MutationObserver((records) => {
+        for (const record of records) {
+          const el = record.target as HTMLElement;
+          if (el.dataset?.messageId && el.getAttribute("style")) seen.push(el.getAttribute("style")!);
+        }
+      }).observe(document, { subtree: true, attributes: true, attributeFilter: ["style"] });
+    });
+  }
+  const sendAndCollect = async (page: Page) => {
+    await page.goto("/");
+    const box = page.getByLabel("Mensaje");
+    await box.fill("¿Qué es TaskFlow?");
+    await box.press("Enter");
+    await expect(page.getByTestId("agent-message")).toBeVisible();
+    await page.waitForTimeout(500);
+    return page.evaluate(() => (window as unknown as { entrances: string[] }).entrances.join(" | "));
+  };
+
+  test("un mensaje nuevo entra con fundido y un pequeño desplazamiento", async ({ page }) => {
+    await recordEntrances(page);
+    expect(await sendAndCollect(page)).toMatch(/translate/);
+  });
+
+  test.describe("con movimiento reducido", () => {
+    test.use({ reducedMotion: "reduce" });
+
+    test("los mensajes nuevos solo aparecen con un fundido: nada se desplaza ni se desenfoca", async ({ page }) => {
+      await recordEntrances(page);
+      const styles = await sendAndCollect(page);
+      expect(styles).toMatch(/opacity/);
+      expect(styles).not.toMatch(/translate|blur/);
+    });
   });
 });

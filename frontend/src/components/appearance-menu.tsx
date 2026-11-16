@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "cn";
-import { PaletteIcon } from "lucide-react";
+import { CheckIcon, PaletteIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { RadioGroup } from "radix-ui";
 import { useId, useSyncExternalStore } from "react";
@@ -10,7 +10,7 @@ import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { AppFont, AppStyle, BackgroundMotion } from "@/lib/appearance";
+import type { AppFont, AppStyle, BackgroundMotion, Tint } from "@/lib/appearance";
 import { smoothly, useAppearanceStore } from "@/stores/appearance-store";
 
 type Option<T extends string> = { value: T; label: string; className?: string };
@@ -68,6 +68,50 @@ function Segmented<T extends string>({
   );
 }
 
+/**
+ * Muestras de color como radios. La elegida se distingue por tres cosas a la vez, no solo por el color
+ * (WCAG 1.4.1): pasa de cuadrado redondeado (6 px) a círculo, lleva un anillo separado y una ✓. Cada
+ * muestra tiene su nombre visible debajo; las flechas se mueven entre ellas como en los demás grupos.
+ */
+function Swatches({ value, onChange }: { value: Tint; onChange: (value: Tint) => void }) {
+  const id = useId();
+  return (
+    <div className="space-y-1.5">
+      <p id={id} className="text-xs font-medium text-muted-foreground">
+        Color
+      </p>
+      <RadioGroup.Root
+        aria-labelledby={id}
+        value={value}
+        onValueChange={(next) => onChange(next as Tint)}
+        orientation="horizontal"
+        loop
+        className="grid grid-cols-5 gap-1"
+      >
+        {TINT_OPTIONS.map((option) => (
+          <RadioGroup.Item
+            key={option.value}
+            value={option.value}
+            className="group flex flex-col items-center gap-1.5 rounded-md py-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=checked]:font-medium data-[state=checked]:text-foreground"
+          >
+            <span
+              data-swatch={option.value}
+              className="grid size-7 place-items-center rounded-[6px] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)] transition-[border-radius] duration-200 ease-out group-data-[state=checked]:rounded-full group-data-[state=checked]:ring-2 group-data-[state=checked]:ring-ring group-data-[state=checked]:ring-offset-2 group-data-[state=checked]:ring-offset-popover"
+            >
+              <CheckIcon
+                aria-hidden
+                className="size-4 text-white opacity-0 drop-shadow-[0_0_1px_rgb(0_0_0/0.9)] group-data-[state=checked]:opacity-100"
+                strokeWidth={3}
+              />
+            </span>
+            {option.label}
+          </RadioGroup.Item>
+        ))}
+      </RadioGroup.Root>
+    </div>
+  );
+}
+
 type Theme = "light" | "dark" | "system";
 
 const STYLE_OPTIONS: Option<AppStyle>[] = [
@@ -78,6 +122,13 @@ const THEME_OPTIONS: Option<Theme>[] = [
   { value: "light", label: "Claro" },
   { value: "dark", label: "Oscuro" },
   { value: "system", label: "Sistema" },
+];
+const TINT_OPTIONS: Option<Tint>[] = [
+  { value: "neutral", label: "Neutro" },
+  { value: "red", label: "Rojo" },
+  { value: "blue", label: "Azul" },
+  { value: "green", label: "Verde" },
+  { value: "orange", label: "Naranja" },
 ];
 const MOTION_OPTIONS: Option<BackgroundMotion>[] = [
   { value: "on", label: "En movimiento" },
@@ -104,8 +155,8 @@ const FONT_OPTIONS: Option<AppFont>[] = [
 ];
 
 /**
- * Menú «Apariencia» (ADR-029): estilo (Clásico o Glass), tema (Claro, Oscuro o el del sistema; en
- * Glass es la base blanca o negra del cristal), movimiento del fondo de Glass y fuente. Los grupos
+ * Menú «Apariencia» (ADR-029, ADR-030): estilo (Clásico o Glass), tema (Claro, Oscuro o el del
+ * sistema; en Glass es la base blanca o negra del cristal), color, movimiento del fondo de Glass y fuente. Los grupos
  * están siempre: si uno apareciera según otro, el panel cambiaría de alto y los controles se moverían
  * bajo el cursor; el del fondo se desactiva (con el motivo a la vista) cuando no aplica.
  *
@@ -114,7 +165,7 @@ const FONT_OPTIONS: Option<AppFont>[] = [
  */
 export function AppearanceMenu() {
   const { theme: chosen, setTheme } = useTheme();
-  const { style, font, motion, setAppearance } = useAppearanceStore();
+  const { style, tint, font, motion, setAppearance } = useAppearanceStore();
   const reducedMotion = usePrefersReducedMotion();
   const theme: Theme = chosen === "dark" || chosen === "light" ? chosen : "system";
 
@@ -148,6 +199,7 @@ export function AppearanceMenu() {
           options={STYLE_OPTIONS}
         />
         <Segmented<Theme> label="Tema" value={theme} onChange={changeTheme} options={THEME_OPTIONS} />
+        <Swatches value={tint} onChange={(next) => smoothly(() => flushSync(() => setAppearance({ tint: next })))} />
         <Segmented<BackgroundMotion>
           label="Fondo"
           value={motion}

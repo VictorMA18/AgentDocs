@@ -82,10 +82,10 @@ Herramientas que puede usar el modelo:
 | Almacén vectorial | JSON + `numpy` (por defecto) o ChromaDB | Detrás de una interfaz `VectorStore`: se cambia con una variable |
 | Documentos | `pypdf` y lectores propios | Markdown, texto, PDF y código fuente |
 | API | FastAPI + `uvicorn`, SSE para el progreso, CORS para el frontend | Adaptador delgado: valida, llama al núcleo y responde JSON |
-| Interfaz web | Next.js 16 + TypeScript, Tailwind 4 y shadcn/ui; TanStack Query (estado del servidor), Zustand (estado de la interfaz), Zod (valida lo que llega de la API) | Aplicación aparte que solo habla con la API; progreso del agente en vivo, modos Claro, Oscuro y Glass (glassmorphism), Geist o DM Sans y diseño responsive |
+| Interfaz web | Next.js 16 + TypeScript, Tailwind 4 y shadcn/ui; TanStack Query (estado del servidor), Zustand (estado de la interfaz), Zod (valida lo que llega de la API); GSAP (animaciones) | Aplicación aparte que solo habla con la API; progreso del agente en vivo, estilos Clásico y Glass (glassmorphism) con cinco colores en HSL, Geist o DM Sans, paneles ajustables y diseño responsive |
 | Integración | `mcp` 2.x (SDK oficial) | Usa el agente desde Claude Code, Claude Desktop u otros clientes MCP |
 | Diagramas | Mermaid; validación real opcional con `mermaid-cli` | Comprueba que el diagrama se dibuja de verdad |
-| Pruebas | `pytest` (619 tests), Vitest + MSW (53) y Playwright (20 recorridos E2E) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; la interfaz contra el backend real con un LLM guionizado; comportamiento con el modelo real |
+| Pruebas | `pytest` (619 tests), Vitest + MSW (66) y Playwright (41 recorridos E2E) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; la interfaz contra el backend real con un LLM guionizado; comportamiento con el modelo real |
 | Registros | JSONL en `logs/` | Cada paso del agente queda registrado (herramienta, argumentos, tokens, duración) |
 
 ## Arquitectura
@@ -230,7 +230,7 @@ La interfaz tiene tres zonas (en móvil, los laterales se abren como paneles):
 - **Chat:** Markdown saneado, botón para copiar código, diagramas Mermaid dibujados y artefactos descargables. Mientras el agente trabaja muestra su progreso en vivo ("Buscando en la documentación…").
 - **Pasos del agente:** qué herramientas usó cada respuesta, con argumentos, duración y tokens; están ocultos a primera vista y se abren con el botón «Pasos del agente» de la cabecera.
 
-Cada conversación tiene su URL (`/c/<id>`): recargar o compartir el enlace la reabre. El menú **Apariencia** elige el estilo (Clásico o Glass, este con toda la interfaz de cristal y una mancha de fondo que se mueve despacio y se puede parar), el tema (Claro, Oscuro o Sistema) y la fuente (Geist o DM Sans), y recuerda la elección; el cambio se funde sin saltos. El selector de modelo muestra el logo de cada proveedor (trazados de [Simple Icons](https://simpleicons.org), CC0; Claude es marca de Anthropic y Gemini de Google, y se usan solo para identificar el proveedor). Los errores del backend se muestran en avisos (*toasts*). Tests de la interfaz: `pnpm test` (Vitest) y `pnpm e2e` (Playwright).
+Cada conversación tiene su URL (`/c/<id>`): recargar o compartir el enlace la reabre. El menú **Apariencia** elige el estilo (Clásico o Glass, este con toda la interfaz de cristal y una mancha de fondo que se mueve despacio y se puede parar), el tema (Claro, Oscuro o Sistema), el color (Neutro, Rojo, Azul, Verde o Naranja) y la fuente (Geist o DM Sans), y recuerda la elección; el cambio se funde sin saltos. El lateral y el panel de pasos se ensanchan arrastrando su borde (o con las flechas del teclado). El selector de modelo muestra el logo de cada proveedor (trazados de [Simple Icons](https://simpleicons.org), CC0; Claude es marca de Anthropic y Gemini de Google, y se usan solo para identificar el proveedor). Los errores del backend se muestran en avisos (*toasts*). Tests de la interfaz: `pnpm test` (Vitest) y `pnpm e2e` (Playwright).
 
 ### Servidor MCP (Claude Code, Claude Desktop…)
 
@@ -303,7 +303,7 @@ Las tablas de cada pasada están en [`docs/07-evaluaciones.md`](docs/07-evaluaci
 | Inyección de instrucciones en los documentos | Fragmentos en etiquetas `<documento>` con el cierre neutralizado, regla fija en el prompt y medición con documentos envenenados |
 | Subidas maliciosas | Lista blanca de extensiones, tamaño máximo y nombres saneados por el sistema |
 | Acceso a archivos fuera de lugar | Artefactos solo con nombres generados dentro de `outputs/`; la ingesta por MCP, limitada a `ALLOWED_INGEST_DIR` |
-| Accesibilidad de la web | Contraste ≥ 4,5:1 medido en Claro, Oscuro y Glass (también sobre las manchas translúcidas del fondo), foco visible, respeto de `prefers-reduced-motion`, regiones vivas para lectores de pantalla y errores que no caducan; comprobado en los E2E (ADR-027) |
+| Accesibilidad de la web | Contraste ≥ 4,5:1 medido en los 20 temas (Clásico y Glass × 5 colores × claro/oscuro; en Glass también sobre las manchas translúcidas del fondo), separadores accesibles con teclado, foco visible, respeto de `prefers-reduced-motion`, regiones vivas para lectores de pantalla y errores que no caducan; comprobado en los E2E (ADR-027) |
 | XSS en la web | La salida del modelo nunca entra como HTML (`react-markdown` + `rehype-sanitize`), Mermaid en modo estricto, sin CDN y CSP con `connect-src` limitado a la API; el backend es una API pura con `default-src 'none'` |
 | Claves | Solo en `.env` (fuera de git). La clave de Gemini viaja en una cabecera y nunca aparece en logs ni errores |
 | Bucles sin fin o llamadas colgadas | Máximo de iteraciones y tiempo máximo por llamada al LLM |
