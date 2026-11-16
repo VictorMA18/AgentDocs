@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from techdoc_agent.core.llm import undo_double_escape
 from techdoc_agent.core.storage import SESSION_ID, check_session_id, quarantine, read_json, write_json_atomic
 
 SUFFIX = ".turns.json"
@@ -63,7 +64,12 @@ class Transcripts:
 
     def get(self, session_id: str) -> dict[str, Any] | None:
         data = self._read(session_id)
-        return None if data is None else {"id": session_id, **data, "provider": _last_provider(data)}
+        if data is None:
+            return None
+        # Las respuestas guardadas antes de reparar el doble escape en el protocolo (core/llm.py) se
+        # arreglan al leerlas; el archivo no se reescribe.
+        turns = [{**t, "reply": undo_double_escape(t["reply"])} if isinstance(t.get("reply"), str) else t for t in data["turns"]]
+        return {"id": session_id, **data, "turns": turns, "provider": _last_provider(data)}
 
     def list(self) -> list[dict[str, Any]]:
         """Resumen de cada conversación (sin los turnos), las más recientes primero."""

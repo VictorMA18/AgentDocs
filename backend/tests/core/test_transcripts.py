@@ -106,3 +106,9 @@ def test_list_ignores_foreign_files(transcripts: Transcripts) -> None:
     (transcripts.directory / "raro nombre.turns.json").write_text("{}", encoding="utf-8")
     assert [c["id"] for c in transcripts.list()] == ["sesion-1"]
     assert not list(transcripts.directory.glob("*.tmp"))
+
+
+
+def test_replies_saved_escaped_twice_are_repaired_on_read(transcripts: Transcripts) -> None:
+    transcripts.append("a" * 32, {"message": "diagrama", "reply": r"Hecho.\n\n- uno\n- dos"})
+    assert transcripts.get("a" * 32)["turns"][0]["reply"] == "Hecho.\n\n- uno\n- dos"

@@ -55,6 +55,7 @@ Respondes SIEMPRE con un objeto JSON de una de estas dos formas:
 - Para usar herramientas: {"accion": "herramientas", "llamadas": [{"id": "c1", "nombre": "<herramienta>", "args": {...}}]}
   Puedes pedir varias llamadas a la vez; cada una con un id único dentro del mensaje.
 - Para responder al usuario: {"accion": "responder", "texto": "<respuesta final>"}
+En "texto" y en los argumentos, los saltos de línea son saltos de línea reales del JSON (\\n una sola vez): nunca los escapes dos veces.
 Los resultados de las herramientas llegan después como bloques <resultado_herramienta id="..." error="true|false">.
 Si un resultado tiene error="true", corrige los argumentos o explica el problema al usuario.
 No inventes resultados de herramientas: si necesitas un dato que una herramienta puede dar, pídelo."""
@@ -117,6 +118,41 @@ class LLMClient(Protocol):
     ) -> LLMReply: ...
 
 
+_DOUBLE_ESCAPES = (("\\r\\n", "\n"), ("\\n", "\n"), ("\\t", "\t"), ('\\"', '"'))
+
+
+def undo_double_escape(text: str) -> str:
+    """Repara un texto que el modelo escapó dos veces dentro del JSON (llega con ``\\n`` literales).
+
+    Pasa a veces con la salida estructurada: el ``texto`` (o el código Mermaid de un argumento) llega
+    en una sola línea con ``\\n`` escritos tal cual, y la interfaz los muestra así. Solo se toca un texto
+    sin ningún salto real y con al menos dos ``\\n`` literales: un texto normal con ``"\\n"`` dentro de un
+    bloque de código tiene saltos reales y se queda como está.
+    """
+    if "\n" in text or text.count("\\n") < 2:
+        return text
+    try:
+        decoded = json.loads(f'"{text}"')  # decodifica todos los escapes de golpe, si el texto es coherente
+        if isinstance(decoded, str):
+            return decoded
+    except json.JSONDecodeError:
+        pass
+    for escaped, real in _DOUBLE_ESCAPES:
+        text = text.replace(escaped, real)
+    return text
+
+
+def _repair_args(value: Any) -> Any:
+    """``undo_double_escape`` en cada texto de los argumentos de una herramienta."""
+    if isinstance(value, str):
+        return undo_double_escape(value)
+    if isinstance(value, dict):
+        return {key: _repair_args(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_repair_args(item) for item in value]
+    return value
+
+
 def _validate(structured: Any, raw: str) -> tuple[str | None, list[ToolCall]]:
     """Comprueba la coherencia del protocolo y devuelve ``(texto, llamadas)``."""
     if not isinstance(structured, dict):
@@ -127,7 +163,7 @@ def _validate(structured: Any, raw: str) -> tuple[str | None, list[ToolCall]]:
         texto = structured.get("texto")
         if not isinstance(texto, str) or not texto.strip():
             raise LLMProtocolError("accion 'responder' sin 'texto'.", raw)
-        return texto, []
+        return undo_double_escape(texto), []
 
     if accion == "herramientas":
         llamadas = structured.get("llamadas")
@@ -145,7 +181,7 @@ def _validate(structured: Any, raw: str) -> tuple[str | None, list[ToolCall]]:
                 raise LLMProtocolError(
                     "Cada llamada necesita 'id', 'nombre' (texto) y 'args' (objeto).", raw
                 )
-            calls.append(ToolCall(item["id"], item["nombre"], item["args"]))
+            calls.append(ToolCall(item["id"], item["nombre"], _repair_args(item["args"])))
         return None, calls
 
     raise LLMProtocolError(f"'accion' desconocida: {accion!r}.", raw)

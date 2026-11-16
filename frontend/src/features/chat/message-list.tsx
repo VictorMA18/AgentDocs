@@ -31,7 +31,7 @@ function Message({ message }: { message: ChatMessage }) {
   const { turn } = message;
   return (
     <article data-message-id={message.id} className="max-w-full" data-testid="agent-message">
-      <RichText text={turn.reply} />
+      <RichText text={turn.reply} foldMermaid={turn.artifacts.some((artifact) => artifact.type === "mermaid")} />
       {turn.truncated && (
         <p className="mt-1 text-xs text-muted-foreground">El agente llegó al máximo de pasos; la respuesta puede estar incompleta.</p>
       )}
