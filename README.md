@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-green)
-![Tests](https://img.shields.io/badge/tests-619%20%2B%2036%20%2B%2012%20E2E-brightgreen)
+![Tests](https://img.shields.io/badge/tests-625%20%2B%2068%20%2B%2041%20E2E-brightgreen)
 ![Next.js](https://img.shields.io/badge/frontend-Next.js%2016-black?logo=nextdotjs)
 ![Evaluación](https://img.shields.io/badge/evaluaci%C3%B3n-46%2F46-brightgreen)
 ![LLM](https://img.shields.io/badge/LLM-Claude%20%7C%20Gemini-8A2BE2)
@@ -10,9 +10,9 @@
 
 Agente que **lee documentación técnica** (de una librería o de tu propio proyecto) y, a partir de ella, **responde con citas y ejemplos de código**, y genera **diagramas Mermaid** y **documentos de requisitos** validados. El RAG no es un paso fijo: es una **herramienta** que el agente decide usar (o no) en cada pregunta.
 
-<!-- Captura de la interfaz web: guarda la imagen en docs/img/web.png y descomenta la línea siguiente.
-![Interfaz web de TechDoc Agent](docs/img/web.png)
--->
+![TechDoc Agent en el estilo Glass claro con color azul: una pregunta sobre reintentos y la respuesta con un ejemplo de código y citas a taskflow.md](docs/img/portada.png)
+
+<sub>Captura real (noviembre de 2026): Claude Haiku 5.5 respondiendo sobre la documentación de ejemplo, en el estilo Glass claro con color azul. Más capturas en [Interfaz web](#interfaz-web).</sub>
 
 ## Contenido
 
@@ -85,7 +85,7 @@ Herramientas que puede usar el modelo:
 | Interfaz web | Next.js 16 + TypeScript, Tailwind 4 y shadcn/ui; TanStack Query (estado del servidor), Zustand (estado de la interfaz), Zod (valida lo que llega de la API); GSAP (animaciones) | Aplicación aparte que solo habla con la API; progreso del agente en vivo, estilos Clásico y Glass (glassmorphism) con cinco colores en HSL, Geist o DM Sans, paneles ajustables y diseño responsive |
 | Integración | `mcp` 2.x (SDK oficial) | Usa el agente desde Claude Code, Claude Desktop u otros clientes MCP |
 | Diagramas | Mermaid; validación real opcional con `mermaid-cli` | Comprueba que el diagrama se dibuja de verdad |
-| Pruebas | `pytest` (619 tests), Vitest + MSW (66) y Playwright (41 recorridos E2E) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; la interfaz contra el backend real con un LLM guionizado; comportamiento con el modelo real |
+| Pruebas | `pytest` (625 tests), Vitest + MSW (68) y Playwright (41 recorridos E2E) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; la interfaz contra el backend real con un LLM guionizado; comportamiento con el modelo real |
 | Registros | JSONL en `logs/` | Cada paso del agente queda registrado (herramienta, argumentos, tokens, duración) |
 
 ## Arquitectura
@@ -221,16 +221,27 @@ cd backend && uvicorn techdoc_agent.api.main:app --reload    # API en http://127
 cd frontend && pnpm dev                                      # interfaz en http://localhost:3000
 ```
 
-<!-- Captura del chat con un diagrama: docs/img/chat-diagrama.png
-![Chat con un diagrama generado](docs/img/chat-diagrama.png)
--->
 
 La interfaz tiene tres zonas (en móvil, los laterales se abren como paneles):
 - **Conversaciones y documentos:** subir (clic o arrastrar), listar y quitar documentos; las conversaciones se guardan y sobreviven a reinicios.
-- **Chat:** Markdown saneado, botón para copiar código, diagramas Mermaid dibujados y artefactos descargables. Mientras el agente trabaja muestra su progreso en vivo ("Buscando en la documentación…").
+- **Chat:** Markdown saneado, botón para copiar código, diagramas Mermaid dibujados (su código queda plegado bajo «Código Mermaid» para no repetirlo) y artefactos descargables. Mientras el agente trabaja muestra su progreso en vivo ("Buscando en la documentación…").
 - **Pasos del agente:** qué herramientas usó cada respuesta, con argumentos, duración y tokens; están ocultos a primera vista y se abren con el botón «Pasos del agente» de la cabecera.
 
 Cada conversación tiene su URL (`/c/<id>`): recargar o compartir el enlace la reabre. El menú **Apariencia** elige el estilo (Clásico o Glass, este con toda la interfaz de cristal y una mancha de fondo que se mueve despacio y se puede parar), el tema (Claro, Oscuro o Sistema), el color (Neutro, Rojo, Azul, Verde o Naranja) y la fuente (Geist o DM Sans), y recuerda la elección; el cambio se funde sin saltos. El lateral y el panel de pasos se ensanchan arrastrando su borde (o con las flechas del teclado). El selector de modelo muestra el logo de cada proveedor (trazados de [Simple Icons](https://simpleicons.org), CC0; Claude es marca de Anthropic y Gemini de Google, y se usan solo para identificar el proveedor). Los errores del backend se muestran en avisos (*toasts*). Tests de la interfaz: `pnpm test` (Vitest) y `pnpm e2e` (Playwright).
+
+#### Interfaz web
+
+Capturas reales de la misma conversación (un diagrama de clases generado y validado por el agente) en los dos estilos y los dos temas. Los colores son de ejemplo: cada estilo admite los cinco.
+
+| Glass · claro (azul) | Glass · oscuro (verde) |
+|---|---|
+| ![Estilo Glass claro con color azul: diagrama de clases de TaskFlow con Worker y Queue; el compositor de cristal deja ver el diagrama desenfocado detrás](docs/img/glass-claro.png) | ![Estilo Glass oscuro con color verde: el mismo diagrama sobre cristal oscuro](docs/img/glass-oscuro.png) |
+| **Clásico · claro (neutro)** | **Clásico · oscuro (naranja)** |
+| ![Estilo Clásico claro: superficies opacas y el mismo diagrama](docs/img/clasico-claro.png) | ![Estilo Clásico oscuro con acento naranja en el botón de enviar](docs/img/clasico-oscuro.png) |
+
+| Menú Apariencia | Pasos del agente | Móvil (390 px) |
+|---|---|---|
+| ![Menú Apariencia con Estilo, Tema, Color en muestras, Fondo y Fuente; seleccionados Glass, Claro, Rojo, En movimiento y DM Sans](docs/img/apariencia.png) | ![Panel de pasos del agente: tokens y proveedor por respuesta y las herramientas usadas, con los argumentos de una búsqueda desplegados](docs/img/pasos.png) | ![Vista móvil en Glass oscuro: los laterales pasan a botones de la cabecera y el diagrama se adapta al ancho](docs/img/movil.png) |
 
 ### Servidor MCP (Claude Code, Claude Desktop…)
 
@@ -254,13 +265,13 @@ python -m evals.retrieval                                                 # comp
 
 ## Configuración
 
-Todo se configura con variables de entorno (`.env`; plantilla en [`.env.example`](.env.example)). Las principales:
+Todo se configura con variables de entorno (`backend/.env`; plantilla en [`backend/.env.example`](backend/.env.example)). Las principales:
 
 | Variable | Por defecto | Para qué |
 |---|---|---|
 | `LLM_PROVIDER` | `claude` | `claude` (CLI de Claude Code, sin clave) o `gemini` (API de Gemini) |
 | `LLM_MODEL`, `LLM_TIMEOUT_S`, `MAX_AGENT_ITERATIONS` | `claude-haiku-5-5`, 120, 8 | Modelo de Claude y límites duros del bucle |
-| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_THINKING_LEVEL` | vacía, `gemini-3.5-flash-lite`, vacío | Solo con `LLM_PROVIDER=gemini`; la clave es un secreto |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_THINKING_LEVEL` | vacía, `gemini-3.5-flash-lite`, vacío | Solo con `LLM_PROVIDER=gemini`; la clave es un secreto. `GEMINI_THINKING_LEVEL=medium` activa el razonamiento (más lento y sin mejora medida) |
 | `VECTOR_STORE` | `json` | `json` o `chroma` |
 | `SEARCH_MODE` | `hybrid` | `hybrid` (vector + BM25), `vector` o `lexical` |
 | `EMBEDDING_MODEL`, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `TOP_K_DEFAULT`, `MIN_SCORE` | MiniLM multilingüe, 700, 100, 5, 0,25 | Recuperación |
@@ -282,6 +293,8 @@ El comportamiento se mide con un **dataset de 47 casos** (`backend/evals/dataset
 | Pasada completa (46 casos × 2, Claude Haiku 5.5) | **46/46 (100 %)**, abstención 16/16, ≈ 17.000 tokens por ejecución |
 | Muestra de 15 casos × 2 con **Claude** | 15/15 · 16.161 tokens · 11,7 s por ejecución |
 | La misma muestra con **Gemini 3.5 Flash Lite** | 15/15 · 6.815 tokens · 9,3 s por ejecución |
+| Casos de diagrama (6) con cada proveedor | Claude 6/6 · Gemini 6/6 |
+| Razonamiento de Gemini (`GEMINI_THINKING_LEVEL`) | Sin razonar (por defecto): 6/8 diagramas de clases completos · `medium` (≈ 400 tokens de razonamiento): 4/6 y casi el doble de lento; no se activa |
 | Búsqueda híbrida frente a vectorial (4 casos clave × 5) | 20/20 frente al 85 %; encuentra códigos exactos como `E-4021` |
 | Inyección en un documento real (instrucciones ocultas) | 0/6 obedecidas; 5/6 avisan al usuario |
 | Diagramas rotos detectados con `mermaid-cli` | 7/7 (la heurística detectaba 0/7) |
@@ -293,6 +306,7 @@ Algunas lecciones del proceso:
 - **Una pieza nueva se justifica con datos:** la búsqueda híbrida se añadió cuando un caso real falló y la comparación sin LLM (0 tokens) confirmó la mejora.
 - **Probar con documentos reales:** un PDF de verdad destapó un fallo que 26 casos ficticios no veían.
 - **"0 activaciones" no prueba que una protección sobre:** se retiró una guarda que nunca saltaba, el fallo reapareció y se restauró.
+- **Más razonamiento no es mejor respuesta:** con Gemini, los miembros que faltaban en los diagramas venían de una búsqueda demasiado genérica; lo arregló pedir una búsqueda por pieza en la guía, no subir el nivel de razonamiento.
 
 Las tablas de cada pasada están en [`docs/07-evaluaciones.md`](docs/07-evaluaciones.md); los experimentos, los fallos encontrados y las lecciones, en [`docs/09-decisiones-y-glosario.md`](docs/09-decisiones-y-glosario.md).
 
@@ -329,9 +343,11 @@ frontend/                    interfaz web (Next.js)
   src/app/       rutas: nueva conversación y /c/<id>
   src/features/  chat · documentos · conversaciones · pasos del agente
   src/lib/api/   schemas Zod, cliente HTTP, lector SSE, hooks de TanStack Query
+  src/components/  armazón, menú de apariencia, separadores de los paneles
+  src/lib/       apariencia, anchos de los paneles, animaciones (GSAP)
   src/stores/    Zustand (estado de la interfaz)
   e2e/           pruebas de punta a punta con Playwright
-docs/                        documentación del proyecto (01-09)
+docs/                        documentación del proyecto (01-09) · img/ capturas de la interfaz
 ```
 
 [`AGENTS.md`](AGENTS.md) tiene el **mapa de ubicaciones** completo (dónde está cada cosa) y las reglas del proyecto.
@@ -347,7 +363,7 @@ docs/                        documentación del proyecto (01-09)
 | [`06-api-y-mcp`](docs/06-api-y-mcp.md) | Endpoints, interfaz web (Next.js) y servidor MCP |
 | [`07-evaluaciones`](docs/07-evaluaciones.md) | Dataset, reglas, runner y resultados |
 | [`08-roadmap-fases`](docs/08-roadmap-fases.md) | Fases, entregables y criterios de aceptación |
-| [`09-decisiones-y-glosario`](docs/09-decisiones-y-glosario.md) | Decisiones (ADR-001 a ADR-024), experimentos, fallos, lecciones y glosario |
+| [`09-decisiones-y-glosario`](docs/09-decisiones-y-glosario.md) | Decisiones (ADR-001 a ADR-030), experimentos, fallos, lecciones y glosario |
 
 ## Estado y próximos pasos
 
@@ -357,6 +373,8 @@ docs/                        documentación del proyecto (01-09)
 - **Fase 9:** backend en `backend/` con la API dividida en routers y CORS (ADR-025), e interfaz nueva en Next.js con shadcn/ui, TanStack Query, Zustand y Zod, con tests de Vitest y E2E de Playwright; la web antigua en HTML/JS se retiró y el backend es una API pura (ADR-026).
 
 - **Fase 10:** elegir el proveedor del LLM (Claude o Gemini) desde la interfaz, en cualquier turno y sin reiniciar; cada conversación recuerda el suyo, cada respuesta dice quién la dio y los errores de cuota o de sesión explican qué hacer (ADR-028).
+- **Fase 11:** apariencia por ejes con el estilo Glass en toda la interfaz, tema Claro/Oscuro/Sistema, cinco colores en HSL con muestras, Geist o DM Sans, logos de los proveedores, paneles ajustables con el ratón o el teclado y animaciones con GSAP en los momentos clave; contraste, foco y movimiento reducido medidos en los 20 temas (ADR-029, ADR-030).
+- **Arreglos tras la Fase 11:** se repara el texto que el modelo escapa dos veces (los `\n` visibles), el código Mermaid se pliega cuando el diagrama ya se dibuja y la guía de diagramas pide una búsqueda por pieza para no omitir clases ni miembros.
 
 Detalle de las fases en [`docs/08-roadmap-fases.md`](docs/08-roadmap-fases.md).
 
