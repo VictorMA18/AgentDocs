@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { ApiStatus } from "@/components/api-status";
+import { AppLogo } from "@/components/app-logo";
 import { AppearanceMenu } from "@/components/appearance-menu";
 import { ResizeHandle } from "@/components/resize-handle";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)} aria-label="Abrir conversaciones y documentos">
           <MenuIcon aria-hidden />
         </Button>
-        <h1 className="font-heading text-base font-semibold whitespace-nowrap">TechDoc Agent</h1>
+        <h1 className="flex items-center gap-2 font-heading text-base font-semibold whitespace-nowrap">
+          <AppLogo className="size-7" />
+          {/* en pantallas muy estrechas (320 px) solo cabe el logo; el nombre sigue para lectores de pantalla */}
+          <span className="max-[379px]:sr-only">TechDoc Agent</span>
+        </h1>
         <div className="ml-auto flex items-center gap-2">
           <span className="hidden sm:inline-flex">
             <ApiStatus />

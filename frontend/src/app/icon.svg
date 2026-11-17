@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bcbcbc"/>
+      <stop offset="0.16" stop-color="#a3a3a3"/>
+      <stop offset="0.4" stop-color="#7c7c7c"/>
+      <stop offset="0.64" stop-color="#676767"/>
+      <stop offset="0.86" stop-color="#838383"/>
+      <stop offset="1" stop-color="#a2a2a2"/>
+    </linearGradient>
+    <radialGradient id="edge" cx="0.5" cy="0.5" r="0.62">
+      <stop offset="0.72" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.28"/>
+    </radialGradient>
+    <radialGradient id="paper" cx="0.5" cy="0.55" r="0.6">
+      <stop offset="0" stop-color="#414141"/>
+      <stop offset="1" stop-color="#636363"/>
+    </radialGradient>
+    <linearGradient id="ink" x1="124" y1="84" x2="400" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d9d8e7"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="128" fill="url(#edge)"/>
+  <rect x="5" y="5" width="502" height="502" rx="123" fill="none" stroke="#fff" stroke-opacity="0.16" stroke-width="10"/>
+  <g transform="translate(1 -10)">
+    <path fill="url(#paper)" d="M308 94H160A36 36 0 0 0 124 130V382.5A36 36 0 0 0 160 418.5H351A36 36 0 0 0 387 382.5V174Z"/>
+    <g fill="none" stroke="url(#ink)" stroke-linejoin="round" stroke-linecap="round">
+      <path stroke-width="26" d="M308 94H160A36 36 0 0 0 124 130V382.5A36 36 0 0 0 160 418.5H351A36 36 0 0 0 387 382.5V174Z"/>
+      <path stroke-width="26" d="M310.5 96V159A16 16 0 0 0 326.5 175H385"/>
+      <path stroke-width="20" d="M164 137.5H229M164 170.5H202"/>
+      <path stroke-width="14" stroke-linecap="butt" d="M255.5 235V249M217 293H204.5A11 11 0 0 0 193.5 304V328M294 293H306.5A11 11 0 0 1 317.5 304V328"/>
+    </g>
+    <g fill="url(#ink)">
+      <rect x="216" y="188" width="79.5" height="48" rx="10"/>
+      <rect x="158" y="327" width="71.5" height="50.5" rx="10"/>
+      <rect x="282" y="327" width="71.5" height="50.5" rx="10"/>
+      <path d="M255.5 256Q261 287 288.5 292.5Q261 298 255.5 329Q250 298 222.5 292.5Q250 287 255.5 256Z"/>
+    </g>
+  </g>
+</svg>
