@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DEFAULT_LAYOUT, PANEL_LIMITS } from "@/lib/layout";
+import { COLLAPSE_AT, DEFAULT_LAYOUT, PANEL_LIMITS, RAIL_WIDTH } from "@/lib/layout";
 import { useLayoutStore } from "@/stores/layout-store";
 
 import { ResizeHandle } from "./resize-handle";
@@ -11,15 +11,25 @@ import { ResizeHandle } from "./resize-handle";
 beforeEach(() => {
   localStorage.clear();
   useLayoutStore.setState(DEFAULT_LAYOUT);
+  document.documentElement.removeAttribute("data-sidebar");
 });
 
-function renderHandle(edge: "start" | "end" = "end") {
+function renderHandle(edge: "start" | "end" = "end", collapsible = false) {
   render(
     <TooltipProvider>
-      <ResizeHandle panel="sidebar" controls="sidebar" edge={edge} label="Ancho del lateral" />
+      <ResizeHandle panel="sidebar" controls="sidebar" edge={edge} label="Ancho del lateral" collapsible={collapsible} />
     </TooltipProvider>,
   );
-  return screen.getByRole("separator", { name: "Ancho del lateral" });
+  const handle = screen.getByRole("separator", { name: "Ancho del lateral" });
+  handle.setPointerCapture = () => {};
+  handle.hasPointerCapture = () => false;
+  return handle;
+}
+
+function drag(handle: HTMLElement, from: number, to: number) {
+  fireEvent.pointerDown(handle, { button: 0, clientX: from, pointerId: 1 });
+  fireEvent.pointerMove(handle, { clientX: to, pointerId: 1 });
+  fireEvent.pointerUp(handle, { clientX: to, pointerId: 1 });
 }
 
 describe("ResizeHandle", () => {
@@ -52,8 +62,6 @@ describe("ResizeHandle", () => {
 
   it("arrastrar cambia el ancho y un clic sin arrastrar pasa al tamaño siguiente", () => {
     const handle = renderHandle();
-    handle.setPointerCapture = () => {};
-    handle.hasPointerCapture = () => false;
     fireEvent.pointerDown(handle, { button: 0, clientX: 300, pointerId: 1 });
     fireEvent.pointerMove(handle, { clientX: 340, pointerId: 1 });
     fireEvent.pointerUp(handle, { clientX: 340, pointerId: 1 });
@@ -62,5 +70,53 @@ describe("ResizeHandle", () => {
     fireEvent.pointerDown(handle, { button: 0, clientX: 340, pointerId: 1 });
     fireEvent.pointerUp(handle, { clientX: 340, pointerId: 1 });
     expect(handle).toHaveAttribute("aria-valuenow", String(PANEL_LIMITS.sidebar.max));
+  });
+});
+
+describe("ResizeHandle plegable (lateral)", () => {
+  it("Intro pliega y restaura el ancho anterior; plegado vale el ancho del riel", async () => {
+    const handle = renderHandle("end", true);
+    expect(handle).toHaveAttribute("aria-valuemin", String(RAIL_WIDTH));
+    handle.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(handle).toHaveAttribute("aria-valuenow", String(RAIL_WIDTH));
+    expect(handle).toHaveAttribute("aria-valuetext", "Plegado");
+    expect(document.documentElement.dataset.sidebar).toBe("collapsed");
+    await userEvent.keyboard("{Enter}");
+    expect(handle).toHaveAttribute("aria-valuenow", "288");
+  });
+
+  it("la flecha que lo estrecha, ya en el mínimo, lo pliega; la contraria lo despliega", async () => {
+    const handle = renderHandle("end", true);
+    handle.focus();
+    await userEvent.keyboard("{Home}{ArrowLeft}");
+    expect(handle).toHaveAttribute("aria-valuetext", "Plegado");
+    await userEvent.keyboard("{ArrowRight}");
+    expect(handle).toHaveAttribute("aria-valuenow", String(PANEL_LIMITS.sidebar.min));
+  });
+
+  it("arrastrar por debajo del umbral avisa y pliega al soltar; arrastrar el riel lo despliega", () => {
+    const handle = renderHandle("end", true);
+    fireEvent.pointerDown(handle, { button: 0, clientX: 288, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: COLLAPSE_AT - 10, pointerId: 1 });
+    expect(handle).toHaveAttribute("data-collapse", "armed");
+    expect(handle).toHaveAttribute("aria-valuenow", "288"); // aún no: se pliega al soltar
+    fireEvent.pointerUp(handle, { clientX: COLLAPSE_AT - 10, pointerId: 1 });
+    expect(handle).toHaveAttribute("aria-valuetext", "Plegado");
+    expect(handle).not.toHaveAttribute("data-collapse");
+    expect(useLayoutStore.getState().sidebar).toBe(288); // se desplegará al ancho de antes de arrastrar
+
+    drag(handle, RAIL_WIDTH, 300);
+    expect(handle).toHaveAttribute("aria-valuenow", "300");
+    expect(document.documentElement.dataset.sidebar).toBeUndefined();
+  });
+
+  it("un clic en el máximo lo pliega y otro lo devuelve al ancho por defecto", () => {
+    const handle = renderHandle("end", true);
+    act(() => useLayoutStore.getState().setWidth("sidebar", PANEL_LIMITS.sidebar.max));
+    drag(handle, 400, 400);
+    expect(handle).toHaveAttribute("aria-valuetext", "Plegado");
+    drag(handle, 56, 56);
+    expect(handle).toHaveAttribute("aria-valuenow", "288");
   });
 });
