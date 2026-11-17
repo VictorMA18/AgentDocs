@@ -48,7 +48,7 @@ test("subir un documento, preguntar y ver la respuesta con cita y los pasos", as
   await expect(trace.getByText("buscar_documentos")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(trace).toBeHidden();
-  await expect(page.getByRole("list", { name: "Conversaciones guardadas" }).getByText("¿Qué es TaskFlow?")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Conversaciones de hoy" }).getByText("¿Qué es TaskFlow?")).toBeVisible();
 
   // Recargar reabre la misma conversación desde el servidor.
   await page.reload();
@@ -70,12 +70,71 @@ test("pedir un diagrama, verlo dibujado y descargarlo", async ({ page }) => {
   expect((await download).suggestedFilename()).toMatch(/^diagrama-flujo-de-login-.*\.mmd$/);
 });
 
+test("renombrar una conversación desde «Más opciones» y que el título se guarde", async ({ page }) => {
+  await page.goto("/");
+  const box = page.getByLabel("Mensaje");
+  await box.fill("¿Qué es TaskFlow?");
+  await box.press("Enter");
+  await expect(page).toHaveURL(/\/c\//, { timeout: 30_000 });
+  await expect(page.getByTestId("agent-message").last()).toContainText("Según la documentación");
+
+  const row = page.getByRole("list", { name: "Conversaciones de hoy" }).getByRole("listitem").first();
+  await row.getByRole("button", { name: /Más opciones de la conversación/ }).click();
+  await page.getByRole("menuitem", { name: "Renombrar" }).click();
+  // se escribe enseguida, sin esperar a que el menú termine de cerrarse: el campo ya tiene el foco
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText("Qué es TaskFlow (renombrada)");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Conversación renombrada a «Qué es TaskFlow (renombrada)».")).toBeVisible();
+  await expect(row.getByRole("button", { name: /Más opciones de la conversación Qué es TaskFlow \(renombrada\)/ })).toBeFocused();
+
+  // la pestaña lleva el título completo de la conversación abierta (en el lateral puede cortarse)
+  await expect(page).toHaveTitle("Qué es TaskFlow (renombrada) · TechDoc Agent");
+
+  await page.reload();
+  await expect(page.getByRole("link", { name: /Qué es TaskFlow \(renombrada\)/ })).toBeVisible();
+});
+
+test("buscar conversaciones por su contenido, también desde el riel", async ({ page }) => {
+  await page.goto("/");
+  const box = page.getByLabel("Mensaje");
+  await box.fill("Hazme un diagrama de secuencia del login");
+  await box.press("Enter");
+  await expect(page.getByTestId("artifact")).toBeVisible({ timeout: 30_000 });
+
+  // la respuesta guionizada dice «He generado el diagrama de secuencia del login»: se encuentra sin tildes
+  const search = page.getByRole("searchbox", { name: "Buscar conversaciones" });
+  await search.fill("GENERADO");
+  await expect(page.getByRole("status").filter({ hasText: /encontrada/ })).toHaveText(/conversaci(ón|ones) encontradas?/);
+  await expect(page.locator("#sidebar mark").first()).toHaveText(/generado/i);
+  await search.press("Escape");
+  await expect(search).toHaveValue("");
+
+  // desde el riel: despliega el lateral y deja el foco en el buscador
+  await page.getByRole("button", { name: "Ocultar conversaciones y documentos" }).click();
+  await page.getByRole("button", { name: "Buscar conversaciones" }).click();
+  await expect(search).toBeFocused();
+});
+
+test.describe("lateral en móvil", () => {
+  test.use({ viewport: { width: 390, height: 800 } });
+
+  test("al abrirlo el foco va al panel, no al buscador (no saca el teclado)", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Abrir conversaciones y documentos" }).click();
+    const sheet = page.getByRole("dialog", { name: "TechDoc Agent" });
+    await expect(sheet).toBeFocused();
+    await expect(sheet.getByRole("searchbox", { name: "Buscar conversaciones" })).not.toBeFocused();
+  });
+});
+
 test("quitar una conversación y un documento con confirmación", async ({ page }) => {
   await page.goto("/");
-  const conversations = page.getByRole("list", { name: "Conversaciones guardadas" });
+  const conversations = page.getByRole("list", { name: "Conversaciones de hoy" });
   const first = conversations.getByRole("listitem").first();
   const title = (await first.getByRole("link").locator("span").first().textContent()) ?? "";
-  await first.getByRole("button", { name: /Quitar la conversación/ }).click();
+  await first.getByRole("button", { name: /Más opciones de la conversación/ }).click();
+  await page.getByRole("menuitem", { name: "Quitar" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Quitar conversación" }).click();
   await expect(page.getByText(`Conversación «${title}» quitada.`)).toBeVisible();
 
@@ -303,13 +362,24 @@ for (const { name, look } of THEMES) {
     // texto secundario de la conversación actual (sobre bg-muted)
     await atLeast(page.locator("aside [aria-current=page] .text-muted-foreground").first());
 
-    // botón destructivo del diálogo de confirmación (capa flotante)
-    await page.getByRole("button", { name: /Quitar la conversación/ }).first().click();
+    // botón destructivo del diálogo de confirmación (capa flotante), abierto desde «Más opciones»
+    await page.getByRole("button", { name: /Más opciones de la conversación/ }).first().click();
+    await atLeast(page.getByRole("menuitem", { name: "Quitar" }));
+    await page.getByRole("menuitem", { name: "Quitar" }).click();
     const confirm = page.getByRole("alertdialog").getByRole("button", { name: "Quitar conversación" });
     await expect(confirm).toBeVisible();
     await atLeast(confirm);
     await atLeast(page.locator("[data-slot=alert-dialog-description]"));
     await page.keyboard.press("Escape");
+
+    // riel del lateral plegado: icono legible (3:1, WCAG 1.4.11) y foco visible
+    await page.getByRole("button", { name: "Ocultar conversaciones y documentos" }).focus();
+    await page.keyboard.press("Enter"); // con el teclado: el foco que pasa al riel se ve (:focus-visible)
+    const expand = page.getByRole("button", { name: "Mostrar conversaciones y documentos" });
+    await expect(expand).toBeFocused();
+    expect(await contrastRatio(expand)).toBeGreaterThanOrEqual(3);
+    expect(await expand.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
+    await expand.click();
 
     // mensaje de error del chat (rojo sobre su tinte)
     await page.route("**/api/chat/stream", (route) =>
@@ -521,7 +591,7 @@ test.describe("paneles ajustables", () => {
     await page.keyboard.press("ArrowLeft");
     expect(await width()).toBe(352);
     await page.keyboard.press("Home");
-    expect(await width()).toBe(224);
+    expect(await width()).toBe(236);
 
     // un clic sin arrastrar pasa al tamaño siguiente (alternativa sin arrastre, WCAG 2.5.7)
     await handle.click();
@@ -532,6 +602,65 @@ test.describe("paneles ajustables", () => {
     await page.reload();
     expect(await width()).toBe(448);
     await expect(handle).toHaveAttribute("aria-valuenow", "448");
+  });
+
+  test("el lateral se pliega a un riel arrastrando, con Intro y con su botón, y lo recuerda", async ({ page }) => {
+    await page.goto("/");
+    const sidebar = page.locator("#sidebar");
+    const handle = page.getByRole("separator", { name: "Ancho del panel de conversaciones y documentos" });
+    const width = async () => Math.round((await sidebar.boundingBox())!.width);
+    const settled = () => sidebar.evaluate((el) => Promise.allSettled(el.getAnimations().map((a) => a.finished)));
+    const expand = page.getByRole("button", { name: "Mostrar conversaciones y documentos" });
+
+    // arrastrar por debajo del umbral avisa (se atenúa) y pliega al soltar
+    const box = (await handle.boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x - 200, y, { steps: 6 });
+    await expect(handle).toHaveAttribute("data-collapse", "armed");
+    await expect.poll(() => sidebar.evaluate((el) => getComputedStyle(el).opacity)).toBe("0.5");
+    await page.mouse.up();
+    await settled();
+    expect(await width()).toBe(56);
+    await expect(handle).toHaveAttribute("aria-valuetext", "Plegado");
+    await expect(expand).toBeVisible();
+    await expect(page.getByRole("list", { name: /Conversaciones de/ })).toHaveCount(0); // el contenido no está a la vista
+    // los iconos del riel van centrados en él
+    const rail = (await sidebar.boundingBox())!;
+    for (const button of await page.getByRole("navigation", { name: "Lateral plegado" }).getByRole("button").all()) {
+      const b = (await button.boundingBox())!;
+      expect(Math.abs(b.x + b.width / 2 - (rail.x + rail.width / 2))).toBeLessThanOrEqual(1);
+    }
+
+    // se recuerda al recargar, sin aviso de hidratación ni salto (lo vigila el afterEach)
+    await page.reload();
+    expect(await width()).toBe(56);
+
+    // el riel lo despliega y el foco pasa al botón que lo vuelve a plegar
+    await expand.focus();
+    await page.keyboard.press("Enter");
+    await settled();
+    expect(await width()).toBe(288);
+    await expect(page.getByRole("button", { name: "Ocultar conversaciones y documentos" })).toBeFocused();
+
+    // Intro en el separador lo pliega y lo restaura (patrón Window Splitter de ARIA APG)
+    await handle.focus();
+    await page.keyboard.press("Enter");
+    await settled();
+    expect(await width()).toBe(56);
+    await page.keyboard.press("Enter");
+    await settled();
+    expect(await width()).toBe(288);
+  });
+
+  test("con movimiento reducido el lateral se pliega sin animar el ancho", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    const sidebar = page.locator("#sidebar");
+    await page.getByRole("button", { name: "Ocultar conversaciones y documentos" }).click();
+    expect(await sidebar.evaluate((el) => [getComputedStyle(el).transitionDuration, el.getAnimations().length])).toEqual(["0s", 0]);
+    expect(Math.round((await sidebar.boundingBox())!.width)).toBe(56);
   });
 
   test("el panel de pasos se ensancha desde su borde izquierdo", async ({ page }) => {
