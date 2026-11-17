@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from techdoc_agent.core.transcripts import MAX_LISTED, TITLE_CHARS, Transcripts
+from techdoc_agent.core.transcripts import MAX_LISTED, MAX_TITLE_CHARS, TITLE_CHARS, Transcripts
 
 
 @pytest.fixture(autouse=True)
@@ -112,3 +112,45 @@ def test_list_ignores_foreign_files(transcripts: Transcripts) -> None:
 def test_replies_saved_escaped_twice_are_repaired_on_read(transcripts: Transcripts) -> None:
     transcripts.append("a" * 32, {"message": "diagrama", "reply": r"Hecho.\n\n- uno\n- dos"})
     assert transcripts.get("a" * 32)["turns"][0]["reply"] == "Hecho.\n\n- uno\n- dos"
+
+
+def test_rename_changes_the_title_but_not_the_order(transcripts: Transcripts) -> None:
+    transcripts.append("sesion-1", turn("primera"))
+    before = transcripts.get("sesion-1")["updated"]
+    assert transcripts.rename("sesion-1", "  Reintentos   de\tTaskFlow ") == {"id": "sesion-1", "title": "Reintentos de TaskFlow"}
+    data = transcripts.get("sesion-1")
+    assert data["title"] == "Reintentos de TaskFlow" and data["updated"] == before
+    transcripts.append("sesion-1", turn("segunda"))  # un turno nuevo no pisa el título puesto a mano
+    assert transcripts.get("sesion-1")["title"] == "Reintentos de TaskFlow"
+
+
+@pytest.mark.parametrize("title", ["", "   ", "x" * (MAX_TITLE_CHARS + 1)])
+def test_rename_rejects_empty_or_too_long_titles(transcripts: Transcripts, title: str) -> None:
+    transcripts.append("sesion-1", turn())
+    with pytest.raises(ValueError):
+        transcripts.rename("sesion-1", title)
+
+
+def test_rename_of_an_unknown_conversation_is_none(transcripts: Transcripts) -> None:
+    assert transcripts.rename("no-existe-1", "título") is None
+
+
+def test_search_ignores_case_and_accents_and_says_where_it_matched(transcripts: Transcripts) -> None:
+    transcripts.append("sesion-1", turn("¿Cuántos reintentos hace?", "Por defecto **3 reintentos** con `max_retries`."))
+    transcripts.append("sesion-2", turn("Hazme un diagrama", "Aquí tienes el diagrama de secuencia del login."))
+    assert [c["id"] for c in transcripts.list("CUANTOS")] == ["sesion-1"]
+    [hit] = transcripts.list("max_retries")
+    assert hit["id"] == "sesion-1" and "max_retries" in hit["snippet"] and "`" not in hit["snippet"]
+    assert transcripts.list("cuántos")[0]["snippet"] is None  # está en el título: no hace falta fragmento
+    [hit] = transcripts.list("SECUENCIA")
+    assert hit["id"] == "sesion-2" and "secuencia" in hit["snippet"]
+    assert transcripts.list("nada de esto") == []
+    assert "snippet" not in transcripts.list()[0]  # sin búsqueda, la lista de siempre
+
+
+def test_search_snippet_is_short_and_starts_at_a_word(transcripts: Transcripts) -> None:
+    long_reply = "palabra " * 40 + "objetivo final " + "relleno " * 40
+    transcripts.append("sesion-1", turn("hola", long_reply))
+    [hit] = transcripts.list("objetivo")
+    assert hit["snippet"].startswith("…palabra") and hit["snippet"].endswith("…")
+    assert "objetivo" in hit["snippet"] and len(hit["snippet"]) <= 92

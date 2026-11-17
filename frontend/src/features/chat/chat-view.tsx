@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useChatStream } from "@/hooks/use-chat-stream";
 import { errorMessage } from "@/lib/api/client";
 import { enter, useGSAP } from "@/lib/motion";
-import { useConversation } from "@/lib/api/queries";
+import { useConversation, useConversations } from "@/lib/api/queries";
 import { useChatStore } from "@/stores/chat-store";
 
 import { Composer } from "./composer";
@@ -48,6 +48,13 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
   const needsLoad = conversationId !== null && current !== conversationId;
   const saved = useConversation(conversationId ?? "", needsLoad);
 
+  // Título de la pestaña: el de la conversación abierta (la lista ya está en caché por el lateral). Un
+  // cambio de ruta en el cliente no lo actualiza solo, y así el título completo se puede leer aunque en
+  // el lateral se corte. Con el componente <title> de React (lo sube a <head>), como indica la
+  // documentación de Next para componentes de cliente; asignar document.title lo pisaba Next.
+  const conversations = useConversations();
+  const title = conversationId ? conversations.data?.find((c) => c.id === conversationId)?.title : undefined;
+
   // Ruta `/`: se empieza en limpio (si no hay un turno en curso, que es lo que acaba de navegar aquí).
   useEffect(() => {
     if (conversationId === null && !useChatStore.getState().busy) useChatStore.getState().reset();
@@ -70,7 +77,7 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
     );
   } else if (needsLoad) {
     body = (
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6" aria-busy="true">
+      <div className="mx-auto flex w-full max-w-(--chat-w) flex-col gap-4 px-4 py-6" aria-busy="true">
         <Skeleton className="ml-auto h-10 w-1/2" />
         <Skeleton className="h-24 w-full" />
       </div>
@@ -86,6 +93,7 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
     // detrás de él (en Glass se ven desenfocados a través del cristal) y, al final del todo, el último
     // queda justo encima, sin tapar nada.
     <div className="h-full overflow-y-auto" data-chat-scroll>
+      <title>{title ? `${title} · TechDoc Agent` : "TechDoc Agent"}</title>
       <div className="flex min-h-full flex-col">
         {/* role="log" en el contenedor que siempre existe: así los lectores de pantalla anuncian cada mensaje
             y cada paso nuevo (una región viva que se monta ya con su texto no se anuncia). */}

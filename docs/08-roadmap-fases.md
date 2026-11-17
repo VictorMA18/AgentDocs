@@ -369,3 +369,28 @@ Revisión del frontend con las skills `better-*` (accesibilidad, layout, textos,
 - [x] `pytest` 619, Vitest 66, Playwright 41 recorridos, lint, typecheck y build en verde.
 
 *Fuera de alcance, sin cambios:* los grises de Clásico (auditados en ADR-027) y la escala tipográfica; el acento de Clásico llega con el color.
+
+## Fase 12 · Marca, lateral plegable y documentos por conversación
+**Concepto:** cada cosa se muestra donde se usa. Las conversaciones viven en el lateral, que se pliega a un riel cuando no hace falta. Los documentos pasan a pertenecer a cada conversación y se muestran dentro del chat (12.B). Se hace en dos partes, cada una con su PR.
+
+### 12.A · Marca y lateral (hecha, ADR-031)
+**Entregables:**
+- Icono de la aplicación (diseño del autor con acabado de cristal) recreado en SVG (`frontend/brand/`) y usado tal cual en la pestaña del navegador (`icon.svg` y `favicon.ico` de respaldo), en el icono de iOS y en el logo vectorial de la cabecera.
+- Buscador de conversaciones (título, preguntas y respuestas; sin mayúsculas ni tildes) con resaltado, fragmento y número de resultados; también desde el riel.
+- Lateral plegable a un riel de 56 px con «Mostrar conversaciones y documentos» y «Nueva conversación»: se pliega arrastrando el separador por debajo de 172 px (con aviso mientras se arrastra), con Intro, con la flecha en el mínimo, con un clic tras el máximo o con el botón «Ocultar»; vuelve al ancho anterior y se recuerda antes de pintar.
+- Conversaciones agrupadas por fecha (Hoy, Ayer, Últimos 7 días, Anteriores) con «Más opciones»: Renombrar en la misma fila (`PATCH /api/conversations/{id}`) y Quitar con confirmación.
+- Una sola columna de lectura (`--chat-w`, 38rem) con texto a 16 px para preguntas, respuestas, código, diagramas y compositor.
+
+**Criterios:**
+- [x] El favicon y el logo son el icono del autor, nítidos a cualquier tamaño (SVG; los `<link rel="icon">` los genera Next).
+- [x] El buscador encuentra por contenido, resalta lo encontrado con ≥ 5,6:1 en los 20 temas y anuncia los resultados (Vitest, pytest y E2E).
+- [x] Auditoría con `better-interface`: 6 hallazgos (resaltado, títulos cortados, título de la pestaña, carrera al renombrar, teclado en móvil, zoom de iOS), corregidos y medidos de nuevo.
+- [x] El lateral se pliega al riel arrastrando, con Intro y con un clic; se restaura al ancho anterior, lo recuerda sin aviso de hidratación y no se anima con movimiento reducido (E2E).
+- [x] Las conversaciones se agrupan por fecha y se renombran; el título se guarda y el foco vuelve al botón (Vitest y E2E).
+- [x] Texto, código y diagramas comparten columna: ~72 caracteres por línea con Geist y con DM Sans (medido).
+- [x] Los 20 temas mantienen contraste y foco; el icono del riel cumple 3:1 y su foco se ve (E2E); 320 px sin desbordamiento.
+- [x] `pytest` 639, Vitest 84, Playwright 46 recorridos, lint, typecheck y build en verde.
+
+### 12.B · Documentos por conversación (pendiente)
+Índice por conversación, documentos en el chat (barra, clip y soltar), insignias por extensión, citas que abren su fragmento y sugerencias en el chat vacío.
+

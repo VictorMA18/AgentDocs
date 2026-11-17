@@ -55,7 +55,7 @@ export function Composer({ onSend, disabled, footer }: Props) {
   }
 
   return (
-    <form ref={dock} onSubmit={submit} data-composer-dock className="sticky bottom-0 mx-auto w-full max-w-3xl px-4 pb-4">
+    <form ref={dock} onSubmit={submit} data-composer-dock className="sticky bottom-0 mx-auto w-full max-w-(--chat-w) px-4 pb-4">
       {/* El foco se marca en todo el compositor (la caja de texto no tiene borde propio). */}
       <div
         data-surface="panel"

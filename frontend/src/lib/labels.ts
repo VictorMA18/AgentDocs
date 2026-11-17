@@ -23,3 +23,24 @@ export function formatDate(iso: string): string {
     ? iso
     : date.toLocaleString("es", { dateStyle: "short", timeStyle: "short" });
 }
+
+export const DATE_GROUPS = ["Hoy", "Ayer", "Últimos 7 días", "Anteriores"] as const;
+export type DateGroup = (typeof DATE_GROUPS)[number];
+
+/**
+ * Agrupa por la fecha de la última actividad, en días de calendario locales: Hoy, Ayer, Últimos 7 días
+ * y Anteriores (en ese orden, sin grupos vacíos). Conserva el orden de entrada dentro de cada grupo.
+ * Una fecha futura (reloj desajustado) cuenta como hoy; una ilegible, como anterior.
+ */
+export function groupByDate<T extends { updated: string }>(items: T[], now = new Date()): { label: DateGroup; items: T[] }[] {
+  const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const today = startOfDay(now);
+  const groups = new Map<DateGroup, T[]>(DATE_GROUPS.map((label) => [label, []]));
+  for (const item of items) {
+    const date = new Date(item.updated);
+    const days = Number.isNaN(date.getTime()) ? Infinity : Math.round((today - startOfDay(date)) / 86_400_000);
+    const label: DateGroup = days <= 0 ? "Hoy" : days === 1 ? "Ayer" : days <= 7 ? "Últimos 7 días" : "Anteriores";
+    groups.get(label)!.push(item);
+  }
+  return DATE_GROUPS.map((label) => ({ label, items: groups.get(label)! })).filter((group) => group.items.length > 0);
+}

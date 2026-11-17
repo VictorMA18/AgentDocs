@@ -73,6 +73,7 @@ export const conversationSummarySchema = z.object({
   updated: z.string(),
   turns: z.number(),
   provider: providerIdSchema.nullable().optional(), // el del último turno
+  snippet: z.string().nullable().optional(), // al buscar: dónde aparece, si no es en el título
 });
 export const conversationListSchema = z.array(conversationSummarySchema);
 
@@ -91,6 +92,12 @@ export const conversationSchema = z.object({
 });
 
 export const deletedConversationSchema = z.object({ id: z.string() });
+export const renamedConversationSchema = z.object({ id: z.string(), title: z.string() });
+
+/** Igual que MAX_TITLE_CHARS en backend/src/techdoc_agent/core/transcripts.py. */
+export const MAX_TITLE_CHARS = 120;
+/** Igual que MAX_QUERY_CHARS en transcripts.py: longitud máxima de una búsqueda de conversaciones. */
+export const MAX_QUERY_CHARS = 100;
 
 export const healthSchema = z.object({
   status: z.literal("ok"),

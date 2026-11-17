@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type Props = {
-  trigger: ReactNode;
+  /** Elemento que abre el diálogo. Sin él, el diálogo se controla con `open` y `onOpenChange` (p. ej. desde un menú). */
+  trigger?: ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   title: string;
   description: string;
   /** Verbo + objeto, p. ej. «Quitar documento». */
@@ -24,10 +27,10 @@ type Props = {
 };
 
 /** Pide confirmación antes de una acción que no se puede deshacer (sustituye al `confirm()` del navegador). */
-export function ConfirmAction({ trigger, title, description, confirmLabel, onConfirm }: Props) {
+export function ConfirmAction({ trigger, open, onOpenChange, title, description, confirmLabel, onConfirm }: Props) {
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

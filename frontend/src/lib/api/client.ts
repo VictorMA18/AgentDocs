@@ -10,6 +10,7 @@ import {
   documentListSchema,
   healthSchema,
   providerListSchema,
+  renamedConversationSchema,
   uploadResultSchema,
 } from "./schemas";
 
@@ -80,10 +81,18 @@ export const api = {
   deleteDocument: (source: string) =>
     getJson(`/api/documents/${enc(source)}`, deletedDocumentSchema, { method: "DELETE" }),
 
-  conversations: () => getJson("/api/conversations", conversationListSchema),
+  /** Con `query`, solo las que la contienen (título, preguntas o respuestas; sin mayúsculas ni tildes). */
+  conversations: (query = "") =>
+    getJson(`/api/conversations${query ? `?q=${enc(query)}` : ""}`, conversationListSchema),
   conversation: (id: string) => getJson(`/api/conversations/${enc(id)}`, conversationSchema),
   deleteConversation: (id: string) =>
     getJson(`/api/conversations/${enc(id)}`, deletedConversationSchema, { method: "DELETE" }),
+  renameConversation: ({ id, title }: { id: string; title: string }) =>
+    getJson(`/api/conversations/${enc(id)}`, renamedConversationSchema, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    }),
 
   artifactUrl: (name: string) => `${API_URL}/api/artifacts/${enc(name)}`,
   artifactText: async (name: string) => {

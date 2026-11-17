@@ -74,12 +74,30 @@ def test_delete_removes_transcript_memory_and_files(make_api: Callable[..., Api]
 
 def test_unknown_conversation_is_404(api: Api) -> None:
     assert api.client.get("/api/conversations/no-existe-1").status_code == 404
+    assert api.client.patch("/api/conversations/no-existe-1", json={"title": "x"}).status_code == 404
+
+
+def test_rename_changes_the_title_shown_in_the_list(make_api: Callable[..., Api]) -> None:
+    api = make_api([final("ok")])
+    chat(api, "¿cuántos reintentos hace?")
+    response = api.client.patch(f"/api/conversations/{SID}", json={"title": "  Reintentos  "})
+    assert response.status_code == 200 and response.json() == {"id": SID, "title": "Reintentos"}
+    assert api.client.get("/api/conversations").json()[0]["title"] == "Reintentos"
+
+
+@pytest.mark.parametrize("body", [{"title": ""}, {"title": "   "}, {"title": "x" * 121}, {}, {"title": 3}])
+def test_rename_rejects_invalid_titles(make_api: Callable[..., Api], body: dict) -> None:
+    api = make_api([final("ok")])
+    chat(api, "hola")
+    assert api.client.patch(f"/api/conversations/{SID}", json=body).status_code == 422
+    assert api.client.get(f"/api/conversations/{SID}").json()["title"] == "hola"
 
 
 @pytest.mark.parametrize("conversation_id", ["corto", "con espacio!!", "x" * 65, ".env", "a.b.c.d.e.f.g.h"])
 def test_malformed_ids_are_400(api: Api, conversation_id: str) -> None:
     assert api.client.get(f"/api/conversations/{conversation_id}").status_code == 400
     assert api.client.delete(f"/api/conversations/{conversation_id}").status_code == 400
+    assert api.client.patch(f"/api/conversations/{conversation_id}", json={"title": "x"}).status_code == 400
 
 
 @pytest.mark.parametrize("path", ["../../.env", "..%2f..%2f.env", "%2e%2e/%2e%2e/.env", "..%5c..%5cx", "/etc/passwd"])
@@ -96,3 +114,13 @@ def test_conversations_are_independent(make_api: Callable[..., Api]) -> None:
     chat(api, "mensaje de A", "conversacion-a")
     chat(api, "mensaje de B", "conversacion-b")
     assert api.llm.seen[1] == [{"role": "user", "content": "mensaje de B"}]  # B no ve a A
+
+
+def test_search_filters_the_list(make_api: Callable[..., Api]) -> None:
+    api = make_api([final("Usa max_retries."), final("Aquí está el diagrama.")])
+    chat(api, "¿cómo cambio los reintentos?", "conversacion-a")
+    chat(api, "hazme un diagrama", "conversacion-b")
+    found = api.client.get("/api/conversations", params={"q": "MAX_RETRIES"}).json()
+    assert [(c["id"], c["snippet"]) for c in found] == [("conversacion-a", "Usa max_retries.")]
+    assert len(api.client.get("/api/conversations", params={"q": "  "}).json()) == 2  # vacía = todas
+    assert api.client.get("/api/conversations", params={"q": "x" * 101}).status_code == 422
