@@ -15,7 +15,7 @@ import { ProgressSteps } from "./progress-steps";
 function Message({ message }: { message: ChatMessage }) {
   if (message.role === "user") {
     return (
-      <div data-message-id={message.id} className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2 whitespace-pre-wrap text-primary-foreground">
+      <div data-message-id={message.id} className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-chat whitespace-pre-wrap text-primary-foreground">
         {message.text}
       </div>
     );
@@ -88,7 +88,7 @@ export function MessageList({ messages, progress }: { messages: ChatMessage[]; p
   }, [messages.length, progress?.steps.length, progress?.text]);
 
   return (
-    <div ref={list} className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6">
+    <div ref={list} className="mx-auto flex w-full max-w-(--chat-w) flex-col gap-5 px-4 py-6">
       {messages.map((message) => (
         <Message key={message.id} message={message} />
       ))}

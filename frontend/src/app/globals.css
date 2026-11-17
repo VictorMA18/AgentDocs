@@ -12,6 +12,7 @@
   --font-sans: var(--font-app); /* Geist o DM Sans según data-font (ver más abajo) */
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
+  --text-chat: 1rem; /* 16 px: texto de las preguntas y respuestas (ver .prose-chat) */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -56,6 +57,8 @@
   /* anchos de los paneles ajustables (src/lib/layout.ts los cambia y los guarda) */
   --sidebar-w: 288px;
   --trace-w: 384px;
+  /* columna única del chat: mensajes, diagramas y compositor (Fase 12.A) */
+  --chat-w: 38rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -317,12 +320,13 @@
 }
 /* Markdown de las respuestas (sin el plugin de tipografía: solo lo que produce el agente). */
 @layer components {
+  /* Una sola columna para todo el chat (Fase 12.A): texto, código, tablas, diagramas, la pregunta y el
+     compositor miden lo mismo (--chat-w, en :root). El texto va a 16 px y la línea queda en ~72
+     caracteres con las dos fuentes (medido en el navegador; con 42rem y 15 px salían ~90). */
   .prose-chat {
-    @apply text-sm leading-relaxed break-words;
+    @apply text-chat leading-relaxed break-words;
   }
-  /* Texto corrido a ~70 caracteres por línea (60-75); código, tablas y diagramas usan todo el ancho. */
   .prose-chat :is(p, ul, ol, blockquote, h1, h2, h3, h4) {
-    max-width: 36em;
     text-wrap: pretty;
   }
   .prose-chat > * + * {

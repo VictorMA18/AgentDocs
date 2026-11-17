@@ -77,7 +77,7 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
     );
   } else if (needsLoad) {
     body = (
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6" aria-busy="true">
+      <div className="mx-auto flex w-full max-w-(--chat-w) flex-col gap-4 px-4 py-6" aria-busy="true">
         <Skeleton className="ml-auto h-10 w-1/2" />
         <Skeleton className="h-24 w-full" />
       </div>
