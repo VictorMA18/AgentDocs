@@ -78,9 +78,10 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 |---|---|
 | Rutas: armazón y proveedores, conversación nueva, conversación guardada (`/c/<id>`) | `frontend/src/app/layout.tsx`, `page.tsx`, `c/[id]/page.tsx` |
 | Componentes de shadcn/ui (generados con `pnpm dlx shadcn add`, editables) | `frontend/src/components/ui/` |
-| Armazón (2 columnas y panel de pasos del agente), proveedores (Query, tema, toasts), menú de apariencia, estado de la API, confirmación | `frontend/src/components/` |
+| Armazón (2 columnas, riel del lateral plegado y panel de pasos del agente), proveedores (Query, tema, toasts), menú de apariencia, estado de la API, confirmación | `frontend/src/components/` |
+| Icono de la aplicación: diseño original del autor y su SVG (con cómo regenerar) · archivos servidos (`icon.svg`, `favicon.ico` de respaldo, `apple-icon.png`) · logo de la cabecera (en línea) | `frontend/brand/` · `frontend/src/app/` · `src/components/app-logo.tsx` |
 | Apariencia (Fase 11, ADR-029/030): valores permitidos y script antes de pintar · store · tokens de Glass y de color en HSL y superficies de cristal | `frontend/src/lib/appearance.ts` · `src/stores/appearance-store.ts` · `src/app/globals.css` |
-| Anchos de los paneles ajustables (límites, script antes de pintar) · store · separador | `frontend/src/lib/layout.ts` · `src/stores/layout-store.ts` · `src/components/resize-handle.tsx` |
+| Anchos de los paneles ajustables y lateral plegado a un riel (límites, umbral, script antes de pintar) · store · separador | `frontend/src/lib/layout.ts` · `src/stores/layout-store.ts` · `src/components/resize-handle.tsx` |
 | Animaciones de los momentos clave (GSAP, movimiento reducido) | `frontend/src/lib/motion.ts` (+ `motion-script.ts`, el script de la primera carga) |
 | Chat: vista, mensajes, compositor, selector de proveedor, progreso, Markdown seguro, Mermaid, artefactos | `frontend/src/features/chat/` (`provider-select.tsx`: Fase 10) |
 | Documentos (subir, listar, quitar) · conversaciones · pasos del agente | `frontend/src/features/documents/`, `conversations/`, `trace/` |
