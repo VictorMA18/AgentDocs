@@ -139,7 +139,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="overflow-y-auto">
+        {/* Al abrirse, el foco va al panel y no a su primer control (el buscador): en un móvil sacaría el
+            teclado sin pedirlo. Tab lleva al buscador y a las conversaciones. */}
+        <SheetContent
+          side="left"
+          className="overflow-y-auto"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            (event.currentTarget as HTMLElement).focus();
+          }}
+        >
           <SheetHeader>
             <SheetTitle>TechDoc Agent</SheetTitle>
             <SheetDescription>Conversaciones y documentos</SheetDescription>

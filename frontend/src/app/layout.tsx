@@ -16,7 +16,8 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TechDoc Agent",
+  // Sin `title`: lo pinta ChatView con <title> (el de la conversación abierta). Si Next pusiera también
+  // el suyo, el navegador usaría el primero y la pestaña diría siempre «TechDoc Agent».
   description: "Agente que responde sobre tu documentación técnica y genera diagramas y requisitos.",
 };
 

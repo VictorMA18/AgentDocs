@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
 
@@ -49,8 +49,17 @@ export function useDeleteDocument() {
   });
 }
 
-export function useConversations() {
-  return useQuery({ queryKey: queryKeys.conversations, queryFn: api.conversations });
+/**
+ * Conversaciones guardadas, o las que contienen `query`. Cada búsqueda tiene su clave bajo
+ * `["conversations"]`, así invalidar la lista invalida también las búsquedas. Mientras llega una
+ * búsqueda nueva se siguen viendo los resultados anteriores (no parpadea a «cargando»).
+ */
+export function useConversations(query = "") {
+  return useQuery({
+    queryKey: query ? [...queryKeys.conversations, query] : queryKeys.conversations,
+    queryFn: () => api.conversations(query),
+    placeholderData: keepPreviousData,
+  });
 }
 
 /** Una conversación guardada. `enabled` evita pedirla cuando ya está en pantalla. */
@@ -70,6 +79,18 @@ export function useDeleteConversation() {
     onSettled: (_data, _error, id) => {
       client.removeQueries({ queryKey: queryKeys.conversation(id) });
       void client.invalidateQueries({ queryKey: queryKeys.conversations });
+    },
+  });
+}
+
+/** Renombra una conversación: cambia el título en la lista y en la conversación abierta. */
+export function useRenameConversation() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.renameConversation,
+    onSettled: (_data, _error, { id }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.conversations });
+      void client.invalidateQueries({ queryKey: queryKeys.conversation(id) });
     },
   });
 }

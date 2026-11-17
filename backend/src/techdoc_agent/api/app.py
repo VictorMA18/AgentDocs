@@ -58,7 +58,7 @@ def create_app(
     # llevan sus cabeceras y el frontend puede leer el error. Solo los orígenes de CORS_ORIGINS.
     if config.settings.cors_origins:
         app.add_middleware(CORSMiddleware, allow_origins=list(config.settings.cors_origins),
-                           allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type"])
+                           allow_methods=["GET", "POST", "PATCH", "DELETE"], allow_headers=["Content-Type"])
 
     for module in (health, chat, conversations, documents, artifacts, providers):
         app.include_router(module.router)
