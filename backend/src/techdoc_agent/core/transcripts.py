@@ -20,6 +20,7 @@ from techdoc_agent.core.storage import SESSION_ID, check_session_id, quarantine,
 SUFFIX = ".turns.json"
 TITLE_CHARS = 60
 MAX_TITLE_CHARS = 120  # título puesto a mano (renombrar)
+NEW_TITLE = "Conversación sin título"  # si se crea vacía sin decir cómo se llama (ADR-032)
 MAX_QUERY_CHARS = 100  # búsqueda de conversaciones
 SNIPPET_CHARS = 90
 _MARKDOWN = re.compile(r"[`*#>|]+")  # marcas de Markdown que ensucian el fragmento (no «_»: va en identificadores)
@@ -96,12 +97,21 @@ class Transcripts:
             return None
         return data
 
+    def ensure(self, session_id: str, title: str = NEW_TITLE) -> None:
+        """Crea la conversación vacía si no existe (al subir un documento antes del primer mensaje; la
+        API le pone de título el nombre del documento). El primer mensaje lo sustituye."""
+        if self._read(session_id) is None:
+            now = _now()
+            write_json_atomic(self._path(session_id), {
+                "id": session_id, "title": _title(title), "created": now, "updated": now, "turns": []})
+
     def append(self, session_id: str, turn: dict[str, Any]) -> None:
-        """Añade un turno; la primera vez crea la conversación con el mensaje como título."""
+        """Añade un turno. El primero pone el mensaje como título, salvo que la conversación ya se
+        hubiera renombrado a mano."""
         now = _now()
-        data = self._read(session_id) or {
-            "id": session_id, "title": _title(str(turn.get("message", ""))), "created": now, "updated": now,
-            "turns": []}
+        data = self._read(session_id) or {"id": session_id, "created": now, "updated": now, "turns": []}
+        if not data["turns"] and not data.get("renamed"):
+            data["title"] = _title(str(turn.get("message", "")))
         data["turns"].append({"ts": now, **turn})
         data["updated"] = now
         write_json_atomic(self._path(session_id), data)
@@ -150,6 +160,7 @@ class Transcripts:
         if data is None:
             return None
         data["title"] = clean
+        data["renamed"] = True
         write_json_atomic(self._path(session_id), data)
         return {"id": session_id, "title": clean}
 

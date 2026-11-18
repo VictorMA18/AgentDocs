@@ -12,6 +12,8 @@ backend/outputs/
 backend/data/documents/
 backend/data/index/
 backend/data/conversations/
+# documentos e índice de cada conversación de la web (ADR-032)
+backend/data/chats/
 backend/evals/results/
 
 # Node (mermaid-cli y frontend)

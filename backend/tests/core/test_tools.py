@@ -74,3 +74,11 @@ def test_format_tool_results_one_block_per_call() -> None:
         '<resultado_herramienta id="c1" error="false">14:32</resultado_herramienta>',
         '<resultado_herramienta id="c2" error="true">boom</resultado_herramienta>',
     ]
+
+
+def test_replacing_swaps_tools_by_name_and_leaves_the_original_alone(registry: ToolRegistry) -> None:
+    other = Tool("sumar", "otra suma", {"type": "object"}, lambda a, b: f"otra {a + b}")
+    swapped = registry.replacing([other])
+    assert swapped.dispatch("sumar", {"a": 1, "b": 2}) == ("otra 3", False)
+    assert registry.dispatch("sumar", {"a": 1, "b": 2}) == ("3", False)  # el original no cambia
+    assert [s.name for s in swapped.specs()] == [s.name for s in registry.specs()]  # mismo orden y nombres

@@ -377,7 +377,7 @@ Revisión del frontend con las skills `better-*` (accesibilidad, layout, textos,
 **Entregables:**
 - Icono de la aplicación (diseño del autor con acabado de cristal) recreado en SVG (`frontend/brand/`) y usado tal cual en la pestaña del navegador (`icon.svg` y `favicon.ico` de respaldo), en el icono de iOS y en el logo vectorial de la cabecera.
 - Buscador de conversaciones (título, preguntas y respuestas; sin mayúsculas ni tildes) con resaltado, fragmento y número de resultados; también desde el riel.
-- Lateral plegable a un riel de 56 px con «Mostrar conversaciones y documentos» y «Nueva conversación»: se pliega arrastrando el separador por debajo de 172 px (con aviso mientras se arrastra), con Intro, con la flecha en el mínimo, con un clic tras el máximo o con el botón «Ocultar»; vuelve al ancho anterior y se recuerda antes de pintar.
+- Lateral plegable a un riel de 56 px con «Mostrar conversaciones y documentos» y «Nueva conversación»: se pliega arrastrando el separador por debajo del mínimo menos 64 px (hoy 178 px, con el mínimo de 242 que fijó el autor) (con aviso mientras se arrastra), con Intro, con la flecha en el mínimo, con un clic tras el máximo o con el botón «Ocultar»; vuelve al ancho anterior y se recuerda antes de pintar.
 - Conversaciones agrupadas por fecha (Hoy, Ayer, Últimos 7 días, Anteriores) con «Más opciones»: Renombrar en la misma fila (`PATCH /api/conversations/{id}`) y Quitar con confirmación.
 - Una sola columna de lectura (`--chat-w`, 38rem) con texto a 16 px para preguntas, respuestas, código, diagramas y compositor.
 
@@ -391,6 +391,38 @@ Revisión del frontend con las skills `better-*` (accesibilidad, layout, textos,
 - [x] Los 20 temas mantienen contraste y foco; el icono del riel cumple 3:1 y su foco se ve (E2E); 320 px sin desbordamiento.
 - [x] `pytest` 639, Vitest 84, Playwright 46 recorridos, lint, typecheck y build en verde.
 
-### 12.B · Documentos por conversación (pendiente)
-Índice por conversación, documentos en el chat (barra, clip y soltar), insignias por extensión, citas que abren su fragmento y sugerencias en el chat vacío.
+### 12.B · Documentos por conversación (hecha, ADR-032)
+**Entregables:**
+- Un índice por conversación (`data/chats/<id>/`): la API sube, lista y quita documentos de cada conversación y sirve el texto de un fragmento citado; el agente recibe en cada turno las herramientas RAG atadas a ese índice. Borrar la conversación borra sus documentos. La consola, MCP y las evaluaciones siguen con el índice global.
+- Documentos dentro del chat: barra de chips encima de los mensajes, clip en el compositor y soltar archivos en el chat; el lateral queda solo para las conversaciones. En móvil, la barra se pliega tras «Documentos · N».
+- Cada documento se reconoce por su extensión: icono y etiqueta con un tono por familia.
+- Citas interactivas: `[archivo#n]` es un botón que abre el fragmento citado.
+- Chat vacío que invita a adjuntar o, con documentos, propone cuatro preguntas que se envían al pulsarlas.
+
+**Criterios:**
+- [x] Cada conversación ve y busca solo sus documentos (pytest y E2E) y borrarla borra los suyos.
+- [x] Se adjunta con el clip, con «Añadir» o soltando archivos; un chat nuevo pasa a `/c/<id>` cuando entra el primer documento y, si no entra ninguno, sigue siendo nuevo.
+- [x] Cada documento se reconoce por su extensión, también sin color (la etiqueta va escrita).
+- [x] Las citas abren su fragmento y, si ya no existe, dicen qué hacer.
+- [x] Los 20 temas mantienen contraste (chips, insignias, citas, sugerencias, barra) y foco visible; 320 px sin desbordamiento.
+- [x] La consola, MCP y las evaluaciones siguen igual (muestra de 15 casos con Claude: 15/15, ver `docs/09`).
+- [x] `pytest` 658, Vitest 97, Playwright 51 recorridos, lint, typecheck y build en verde.
+
+### 12.C · Panel de la conversación, artefactos y avisos (hecha, ADR-033)
+**Entregables:**
+- Panel de la conversación con pestañas Documentos · Artefactos · Pasos: fijo junto al chat en pantallas anchas (ajustable y recordado), encima en las estrechas.
+- Artefactos de la conversación (diagramas y requisitos) sacados de los turnos: lista y vista en grande con descarga, copia y salto al chat; «Abrir en el panel» desde cada tarjeta.
+- Barra de documentos compacta en una línea que abre la pestaña Documentos.
+- Avisos con la superficie del design system: título, detalle, acción opcional e icono con el tono semántico; arriba a la derecha bajo la cabecera.
+- «Nueva conversación» según la jerarquía de botones (secundario de 32 px en el lateral, icono en la cabecera) y atajo Ctrl/⌘+Shift+O.
+- Vista previa de cada documento por fragmentos, máximos de ancho que dejan al chat al menos 480 px y cierre del panel arrastrando su borde.
+
+**Criterios:**
+- [x] Los avisos no tapan la barra, su texto, su acción y su ✕ pasan el contraste en los 20 temas y los errores no se cierran solos.
+- [x] «Nueva conversación» mide 32 px como el buscador, es secundaria y su atajo abre un chat nuevo (E2E).
+- [x] El panel va fijo a 1280 px o más, se recuerda abierto y se ensancha; a 1024 px se abre encima y Esc lo cierra (E2E).
+- [x] Un diagrama aparece en Artefactos, se abre desde su tarjeta, se descarga desde el panel y «Ver en el chat» enfoca su tarjeta (E2E).
+- [x] Un documento se previsualiza por fragmentos; arrastrar el borde del panel por debajo de su mínimo lo cierra; el chat conserva 480 px con lateral y panel al máximo (E2E).
+- [x] Con el lateral y el panel en su mínimo, «Nueva conversación» y las tres pestañas se leen enteras (E2E).
+- [x] `pytest` 659, Vitest 111, Playwright 58 recorridos, lint, typecheck y build en verde.
 

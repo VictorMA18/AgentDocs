@@ -8,6 +8,7 @@ beforeEach(() => {
   localStorage.clear();
   useLayoutStore.setState(DEFAULT_LAYOUT);
   document.documentElement.removeAttribute("data-sidebar");
+  document.documentElement.removeAttribute("data-panel");
 });
 
 describe("useLayoutStore", () => {
@@ -15,7 +16,12 @@ describe("useLayoutStore", () => {
     useLayoutStore.getState().setWidth("sidebar", 10_000);
     expect(useLayoutStore.getState().sidebar).toBe(PANEL_LIMITS.sidebar.max);
     expect(document.documentElement.style.getPropertyValue("--sidebar-w")).toBe(`${PANEL_LIMITS.sidebar.max}px`);
-    expect(JSON.parse(localStorage.getItem(LAYOUT_KEY)!)).toEqual({ sidebar: PANEL_LIMITS.sidebar.max, trace: 384, collapsed: false });
+    expect(JSON.parse(localStorage.getItem(LAYOUT_KEY)!)).toEqual({
+      sidebar: PANEL_LIMITS.sidebar.max,
+      trace: 384,
+      collapsed: false,
+      panelOpen: false,
+    });
   });
 
   it("plegar conserva el ancho para volver a él y lo marca en <html>", () => {
@@ -32,5 +38,13 @@ describe("useLayoutStore", () => {
     localStorage.setItem(LAYOUT_KEY, JSON.stringify({ sidebar: 300, trace: 500 }));
     useLayoutStore.getState().load();
     expect(useLayoutStore.getState()).toMatchObject({ sidebar: 300, trace: 500 });
+  });
+
+  it("abrir el panel de la conversación lo marca en <html> y lo guarda", () => {
+    useLayoutStore.getState().setPanelOpen(true);
+    expect(document.documentElement.dataset.panel).toBe("open");
+    expect(JSON.parse(localStorage.getItem(LAYOUT_KEY)!)).toMatchObject({ panelOpen: true });
+    useLayoutStore.getState().setPanelOpen(false);
+    expect(document.documentElement.dataset.panel).toBeUndefined();
   });
 });

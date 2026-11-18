@@ -33,3 +33,12 @@ def build_agent(
     prompt = build_system_prompt(skill)
     tools = ToolRegistry([*rag_tools(store, embedder), *output_tools(outputs_dir), *skill_tools(skill)])
     return Agent(llm, tools, memory if memory is not None else Memory(), prompt)
+
+
+def conversation_tools(agent: Agent, store: VectorStore, embedder: Embedder) -> ToolRegistry:
+    """Las herramientas del agente con las RAG atadas a otro almacén (el de una conversación, ADR-032).
+
+    Las de salida y la de la skill son las mismas; ``buscar_documentos`` y ``listar_documentos`` solo
+    ven los documentos de ese almacén. Se pasan al agente en cada turno (``Agent.run(tools=...)``).
+    """
+    return agent.tools.replacing(rag_tools(store, embedder))

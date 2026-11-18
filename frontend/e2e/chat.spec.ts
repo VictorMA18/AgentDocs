@@ -2,6 +2,8 @@ import path from "node:path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { PANEL_LIMITS } from "../src/lib/layout";
+
 import { contrastRatio } from "./contrast";
 
 // Recorridos principales contra el backend real con LLM guionizado (ver playwright.config.ts).
@@ -22,32 +24,63 @@ test.beforeEach(({ page }) => {
 });
 test.afterEach(() => expect(consoleErrors).toEqual([]));
 
+/** Panel de la conversación (Fase 12.C): fijo junto al chat en pantallas anchas o en un Sheet en las estrechas. */
+function conversationPanel(page: Page) {
+  return page
+    .getByRole("complementary", { name: "Panel de la conversación" })
+    .or(page.getByRole("dialog", { name: "Panel de la conversación" }));
+}
+
+/** Abre el panel (si no está a la vista) en una de sus pestañas. */
+async function openPanelTab(page: Page, tab: "Documentos" | "Artefactos" | "Pasos") {
+  const panel = conversationPanel(page);
+  if (!(await panel.isVisible())) await page.getByRole("button", { name: "Panel de la conversación" }).click();
+  await panel.getByRole("tab", { name: tab }).click();
+  return panel;
+}
+
+/** El aviso (toast) que contiene un texto. */
+const toast = (page: Page, text: string | RegExp) => page.locator("[data-sonner-toast]").filter({ hasText: text });
+
 test("subir un documento, preguntar y ver la respuesta con cita y los pasos", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("API conectada")).toBeVisible();
 
-  // Subir: el input está dentro de la zona de subida (el visible es el de escritorio).
-  await page.locator("aside input[type=file]").first().setInputFiles(SAMPLE);
-  await expect(page.getByText(/taskflow\.md indexado: \d+ fragmentos/)).toBeVisible();
-  await expect(page.getByRole("list", { name: "Documentos indexados" }).getByText("taskflow.md")).toBeVisible();
+  // Adjuntar con el clip del compositor en un chat nuevo: crea la conversación (la URL pasa a /c/<id>),
+  // el aviso lo confirma y su acción abre la pestaña Documentos del panel; la barra resume los
+  // documentos en una línea y el chat vacío propone preguntas sobre ellos (ADR-032, ADR-033).
+  await page.locator("form [data-attach-input]").setInputFiles(SAMPLE);
+  const added = toast(page, "Documento añadido");
+  await expect(added).toContainText(/taskflow\.md · \d+ fragmentos/);
+  await expect(page).toHaveURL(/\/c\/[0-9a-f]{32}$/);
+  await expect(page.getByRole("button", { name: "Ver los documentos de esta conversación (1)" })).toContainText("MD");
+  await added.getByRole("button", { name: "Ver documentos" }).click();
+  const panel = conversationPanel(page);
+  await expect(panel.getByRole("tab", { name: "Documentos" })).toHaveAttribute("aria-selected", "true");
+  await expect(panel.getByRole("list", { name: "Documentos de esta conversación" }).getByText("taskflow.md")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Preguntas sugeridas" }).getByRole("button")).toHaveCount(4);
 
-  // Preguntar con Enter: la URL pasa a /c/<id> y llega la respuesta en Markdown con la cita.
+  // Preguntar con Enter: llega la respuesta en Markdown con la cita.
   const box = page.getByLabel("Mensaje");
   await box.fill("¿Qué es TaskFlow?");
   await box.press("Enter");
-  await expect(page).toHaveURL(/\/c\/[0-9a-f]{32}$/);
   const answer = page.getByTestId("agent-message").last();
   await expect(answer).toContainText("Fuente: taskflow.md");
+
+  // La cita abre el texto del fragmento citado.
+  const cite = answer.getByRole("button", { name: /Ver el fragmento \d+ de taskflow\.md/ });
+  await cite.click();
+  await expect(page.locator("[data-slot=popover-content]")).toContainText("taskflow.md");
+  await expect(page.locator("[data-slot=popover-content] .prose-chat")).toContainText("TaskFlow");
+  await page.keyboard.press("Escape");
   await expect(answer.locator("pre code")).toContainText("print('hola')");
   await expect(answer.getByRole("button", { name: "Copiar" })).toBeVisible();
 
-  // Pasos del agente (ocultos a primera vista, en un panel que abre la cabecera) y conversación guardada.
-  await expect(page.getByRole("list", { name: "Pasos del agente" })).toBeHidden();
-  await page.getByRole("button", { name: "Ver los pasos del agente" }).click();
-  const trace = page.getByRole("dialog", { name: "Pasos del agente" });
-  await expect(trace.getByText("buscar_documentos")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(trace).toBeHidden();
+  // Pasos del agente: la pestaña Pasos del panel; el botón de la cabecera lo cierra.
+  await openPanelTab(page, "Pasos");
+  await expect(panel.getByText("buscar_documentos").first()).toBeVisible();
+  await page.getByRole("button", { name: "Panel de la conversación" }).click();
+  await expect(panel).toBeHidden();
   await expect(page.getByRole("list", { name: "Conversaciones de hoy" }).getByText("¿Qué es TaskFlow?")).toBeVisible();
 
   // Recargar reabre la misma conversación desde el servidor.
@@ -85,7 +118,7 @@ test("renombrar una conversación desde «Más opciones» y que el título se gu
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText("Qué es TaskFlow (renombrada)");
   await page.keyboard.press("Enter");
-  await expect(page.getByText("Conversación renombrada a «Qué es TaskFlow (renombrada)».")).toBeVisible();
+  await expect(toast(page, "Conversación renombrada")).toContainText("Ahora se llama «Qué es TaskFlow (renombrada)».");
   await expect(row.getByRole("button", { name: /Más opciones de la conversación Qué es TaskFlow \(renombrada\)/ })).toBeFocused();
 
   // la pestaña lleva el título completo de la conversación abierta (en el lateral puede cortarse)
@@ -111,7 +144,7 @@ test("buscar conversaciones por su contenido, también desde el riel", async ({ 
   await expect(search).toHaveValue("");
 
   // desde el riel: despliega el lateral y deja el foco en el buscador
-  await page.getByRole("button", { name: "Ocultar conversaciones y documentos" }).click();
+  await page.getByRole("button", { name: "Ocultar conversaciones" }).click();
   await page.getByRole("button", { name: "Buscar conversaciones" }).click();
   await expect(search).toBeFocused();
 });
@@ -121,14 +154,14 @@ test.describe("lateral en móvil", () => {
 
   test("al abrirlo el foco va al panel, no al buscador (no saca el teclado)", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Abrir conversaciones y documentos" }).click();
+    await page.getByRole("button", { name: "Abrir conversaciones" }).click();
     const sheet = page.getByRole("dialog", { name: "TechDoc Agent" });
     await expect(sheet).toBeFocused();
     await expect(sheet.getByRole("searchbox", { name: "Buscar conversaciones" })).not.toBeFocused();
   });
 });
 
-test("quitar una conversación y un documento con confirmación", async ({ page }) => {
+test("quitar una conversación con confirmación", async ({ page }) => {
   await page.goto("/");
   const conversations = page.getByRole("list", { name: "Conversaciones de hoy" });
   const first = conversations.getByRole("listitem").first();
@@ -136,20 +169,60 @@ test("quitar una conversación y un documento con confirmación", async ({ page 
   await first.getByRole("button", { name: /Más opciones de la conversación/ }).click();
   await page.getByRole("menuitem", { name: "Quitar" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Quitar conversación" }).click();
-  await expect(page.getByText(`Conversación «${title}» quitada.`)).toBeVisible();
+  await expect(toast(page, "Conversación quitada")).toContainText(`«${title}»`);
 
-  const docs = page.getByRole("list", { name: "Documentos indexados" });
-  await docs.getByRole("button", { name: "Quitar taskflow.md" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Quitar documento" }).click();
-  await expect(page.getByText("Aún no hay documentos indexados.")).toBeVisible();
 });
 
-test("un tipo de archivo no permitido muestra el error legible del backend", async ({ page }) => {
+test("quitar un documento de una conversación con confirmación", async ({ page }) => {
   await page.goto("/");
-  await page.locator("aside input[type=file]").first().setInputFiles({
+  await page.locator("form [data-attach-input]").setInputFiles({ name: "quitar.md", mimeType: "text/markdown", buffer: Buffer.from("# Quitar\n\nTexto.") });
+  // la barra resume y abre la pestaña Documentos, donde se quita
+  await page.getByRole("button", { name: "Ver los documentos de esta conversación (1)" }).click();
+  const list = conversationPanel(page).getByRole("list", { name: "Documentos de esta conversación" });
+  await list.getByRole("button", { name: "Quitar quitar.md" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Quitar documento" }).click();
+  await expect(toast(page, "Documento quitado")).toContainText("quitar.md ya no está en esta conversación.");
+  await expect(conversationPanel(page).getByText("Esta conversación no tiene documentos")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Ver los documentos de esta conversación/ })).toHaveCount(0); // la barra no ocupa sitio
+});
+
+test("cada conversación ve solo sus documentos", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("form [data-attach-input]").setInputFiles({ name: "solo-a.md", mimeType: "text/markdown", buffer: Buffer.from("# Solo A\n\nTexto de la conversación A.") });
+  await expect(page.getByRole("button", { name: "Ver los documentos de esta conversación (1)" })).toBeVisible();
+  await page.getByRole("link", { name: "Nueva conversación", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("button", { name: /Ver los documentos de esta conversación/ })).toHaveCount(0);
+  await expect(page.locator("main").getByText("solo-a.md")).toHaveCount(0); // en el lateral sí: es el título de la otra
+});
+
+test("soltar un archivo en el chat lo adjunta y una sugerencia se envía al pulsarla", async ({ page }) => {
+  await page.goto("/");
+  const chat = page.locator("main > div").first();
+  const transfer = await page.evaluateHandle(() => {
+    const data = new DataTransfer();
+    data.items.add(new File(["# Soltado\n\nTaskFlow reintenta tres veces."], "soltado.md", { type: "text/markdown" }));
+    return data;
+  });
+  await chat.dispatchEvent("dragenter", { dataTransfer: transfer });
+  await expect(page.getByText("Suelta para añadir a esta conversación")).toBeVisible();
+  await chat.dispatchEvent("drop", { dataTransfer: transfer });
+  await expect(page.getByText("Suelta para añadir a esta conversación")).toBeHidden();
+  await expect(toast(page, "Documento añadido")).toContainText("soltado.md");
+  await expect(page).toHaveURL(/\/c\/[0-9a-f]{32}$/);
+
+  await page.getByRole("button", { name: "Resume soltado.md" }).click();
+  await expect(page.getByTestId("agent-message").last()).toContainText("Según la documentación");
+  await expect(page.locator("main").getByText("Resume soltado.md", { exact: true })).toBeVisible();
+});
+
+test("un tipo de archivo no permitido muestra el error legible del backend y no crea conversación", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("form [data-attach-input]").setInputFiles({
     name: "malo.exe", mimeType: "application/octet-stream", buffer: Buffer.from("MZ"),
   });
   await expect(page.getByText("Tipo de archivo no permitido: .exe")).toBeVisible();
+  await expect(page).toHaveURL(/\/$/); // sin ningún documento, el chat nuevo sigue siendo nuevo
 });
 
 test.describe("con el sistema en modo oscuro", () => {
@@ -171,41 +244,42 @@ test.describe("con el sistema en modo oscuro", () => {
 });
 
 test.describe("accesibilidad (auditoría de interfaz)", () => {
-  test("la zona de subida muestra el foco del teclado y un nombre largo se lee entero", async ({ page }) => {
+  test("el clip muestra el foco del teclado y un nombre largo se lee entero", async ({ page }) => {
     await page.goto("/");
-    const input = page.locator("aside input[type=file]").first();
-    const shadow = () => input.evaluate((el) => getComputedStyle(el.closest("label")!).boxShadow);
-    const before = await shadow();
-    await input.focus();
-    await page.keyboard.press("Shift+Tab");
-    await page.keyboard.press("Tab"); // foco por teclado, no programático: activa :focus-visible
-    await expect(input).toBeFocused();
-    expect(await shadow()).not.toBe(before); // aparece el anillo en la zona (el input es invisible)
+    const clip = page.locator("form").getByRole("button", { name: "Adjuntar documentos" });
+    await page.getByLabel("Mensaje").focus();
+    await page.keyboard.press("Tab"); // del texto al clip (enviar está desactivado sin texto), por teclado
+    await expect(clip).toBeFocused();
+    expect(await clip.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
 
     const long = "guia-de-integracion-del-sistema-de-colas-distribuidas-version-2-con-ejemplos.md";
-    await input.setInputFiles({ name: long, mimeType: "text/markdown", buffer: Buffer.from("# Colas\n\nTexto de prueba.") });
-    const success = page.getByText(`${long} indexado`, { exact: false });
-    await expect(success).toBeVisible();
-    expect(await contrastRatio(success)).toBeGreaterThanOrEqual(4.5);
-    const name = page.getByRole("list", { name: "Documentos indexados" }).getByText(long, { exact: true });
+    await page.locator("form [data-attach-input]").setInputFiles({ name: long, mimeType: "text/markdown", buffer: Buffer.from("# Colas\n\nTexto de prueba.") });
+    const success = toast(page, "Documento añadido");
+    await expect(success).toContainText(long);
+    // aviso del design system: título y detalle legibles sobre su superficie
+    expect(await contrastRatio(success.locator(".app-toast-title"))).toBeGreaterThanOrEqual(4.5);
+    expect(await contrastRatio(success.locator(".app-toast-description"))).toBeGreaterThanOrEqual(4.5);
+    expect(await contrastRatio(success.locator(".app-toast-action"))).toBeGreaterThanOrEqual(4.5);
+    const panel = await openPanelTab(page, "Documentos");
+    const name = panel.getByRole("list", { name: "Documentos de esta conversación" }).getByText(long, { exact: true });
     await expect(name).toBeVisible();
-    expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-    await page.getByRole("button", { name: `Quitar ${long}` }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Quitar documento" }).click();
+    expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true); // se parte, no se corta
+    expect(await contrastRatio(page.locator(".file-badge").first())).toBeGreaterThanOrEqual(4.5);
   });
 
   test("un error de subida no desaparece solo", async ({ page }) => {
     await page.goto("/");
-    await page.locator("aside input[type=file]").first().setInputFiles({
+    await page.locator("form [data-attach-input]").setInputFiles({
       name: "malo.exe", mimeType: "application/octet-stream", buffer: Buffer.from("MZ"),
     });
-    const toast = page.getByText("Tipo de archivo no permitido: .exe");
-    await expect(toast).toBeVisible();
-    await page.waitForTimeout(5_000); // sonner cierra los avisos normales a los 4 s
-    await expect(toast).toBeVisible();
-    expect(await contrastRatio(toast)).toBeGreaterThanOrEqual(4.5);
-    await page.getByRole("button", { name: "Cerrar aviso" }).click();
-    await expect(toast).toBeHidden();
+    const error = toast(page, "No se pudo añadir malo.exe");
+    await expect(error).toContainText("Tipo de archivo no permitido: .exe");
+    await page.waitForTimeout(6_000); // los avisos de éxito se cierran a los 5 s; los errores no
+    await expect(error).toBeVisible();
+    expect(await contrastRatio(error.locator(".app-toast-title"))).toBeGreaterThanOrEqual(4.5);
+    expect(await contrastRatio(error.locator(".app-toast-description"))).toBeGreaterThanOrEqual(4.5);
+    await error.getByRole("button", { name: "Cerrar aviso" }).click();
+    await expect(error).toBeHidden();
   });
 
   test.describe("en una ventana baja", () => {
@@ -250,7 +324,7 @@ test.describe("accesibilidad (auditoría de interfaz)", () => {
 
     test("el panel lateral aparece sin deslizarse", async ({ page }) => {
       await page.goto("/");
-      await page.getByRole("button", { name: "Abrir conversaciones y documentos" }).click();
+      await page.getByRole("button", { name: "Abrir conversaciones" }).click();
       const shift = await page
         .locator("[data-slot=sheet-content]")
         .evaluate((el) => getComputedStyle(el).getPropertyValue("--tw-enter-translate-x").trim());
@@ -326,15 +400,29 @@ for (const { name, look } of THEMES) {
     await page.getByRole("button", { name: "Apariencia" }).hover();
     await atLeast(page.getByRole("tooltip"));
 
-    // texto de éxito al subir un documento (verde sobre su tinte); se quita al final
+    // texto de éxito al adjuntar un documento (verde sobre su tinte), su chip con el tipo y una sugerencia
     const file = `tema-${look.style}-${look.tint}-${look.theme}.md`;
-    await page.locator("aside input[type=file]").first().setInputFiles({ name: file, mimeType: "text/markdown", buffer: Buffer.from("# Tema\n\nTexto.") });
-    const indexed = page.getByText(`${file} indexado`, { exact: false });
-    await expect(indexed).toBeVisible();
-    await atLeast(indexed);
-    await page.getByRole("button", { name: `Quitar ${file}` }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Quitar documento" }).click();
-    await expect(page.getByRole("list", { name: "Documentos indexados" }).getByText(file, { exact: true })).toBeHidden();
+    await page.locator("form [data-attach-input]").setInputFiles({ name: file, mimeType: "text/markdown", buffer: Buffer.from("# Tema\n\n¿Qué es TaskFlow? TaskFlow organiza el trabajo en tareas.") });
+    // aviso del design system: título, detalle y acción sobre su superficie (en Glass, cristal)
+    const indexed = toast(page, "Documento añadido");
+    await expect(indexed).toContainText(file);
+    await atLeast(indexed.locator(".app-toast-title"));
+    await atLeast(indexed.locator(".app-toast-description"));
+    await atLeast(indexed.locator(".app-toast-action"));
+    // la ✕ del aviso: icono legible (3:1, WCAG 1.4.11) y sin el fondo propio de sonner en oscuro
+    expect(await contrastRatio(indexed.getByRole("button", { name: "Cerrar aviso" }))).toBeGreaterThanOrEqual(3);
+    expect(await indexed.getByRole("button", { name: "Cerrar aviso" }).evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
+    // tras la primera subida la vista pasa a /c/<id> y se vuelve a montar: se mide cuando se estabiliza
+    await expect(page).toHaveURL(/\/c\/[0-9a-f]{32}$/);
+    const summary = page.getByRole("button", { name: "Ver los documentos de esta conversación (1)" });
+    await expect.poll(() => contrastRatio(summary)).toBeGreaterThanOrEqual(4.5);
+    await expect.poll(() => contrastRatio(summary.locator(".file-badge"))).toBeGreaterThanOrEqual(4.5);
+    // las sugerencias entran con GSAP (fundido): se mide cuando ya son opacas
+    const suggestions = page.getByRole("list", { name: "Preguntas sugeridas" });
+    await expect(suggestions).toHaveCSS("opacity", "1");
+    await atLeast(suggestions.getByRole("button").first());
 
     // foco del teclado en la caja de texto: se marca el contorno de todo el compositor
     const box = page.getByLabel("Mensaje");
@@ -352,6 +440,28 @@ for (const { name, look } of THEMES) {
     await expect(answer).toContainText("Según la documentación");
     await atLeast(answer.locator("p").first());
     await atLeast(answer.getByTestId("answered-by"));
+    // la cita (chip con su tipo) y su número de fragmento en gris; con el teclado se ve el foco
+    const cite = answer.getByRole("button", { name: /Ver el fragmento/ });
+    await atLeast(cite.locator("span.break-all"));
+    await atLeast(cite.locator(".text-muted-foreground"));
+    await atLeast(cite.locator(".file-badge"));
+    // «Añadir» de la barra y el panel de la conversación: documento, fragmentos y pestañas (también la no
+    // elegida, en gris); el foco del teclado en las pestañas se ve
+    await atLeast(page.getByRole("button", { name: "Añadir documentos" }).first());
+    const convPanel = await openPanelTab(page, "Documentos");
+    const item = convPanel.getByRole("list", { name: "Documentos de esta conversación" }).getByRole("listitem").first();
+    await atLeast(item.getByText(file, { exact: true }));
+    await atLeast(item.locator(".text-muted-foreground"));
+    await atLeast(item.locator(".file-badge"));
+    await atLeast(convPanel.getByRole("tab", { name: "Artefactos" }));
+    await atLeast(convPanel.getByRole("tab", { name: "Documentos" }));
+    await convPanel.getByRole("tab", { name: "Documentos" }).focus();
+    await page.keyboard.press("ArrowRight"); // por teclado: se ve el foco y cambia de pestaña (APG)
+    const artifactsTab = convPanel.getByRole("tab", { name: "Artefactos" });
+    await expect(artifactsTab).toBeFocused();
+    expect(await artifactsTab.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
+    await atLeast(convPanel.getByText("Aún no hay artefactos en esta conversación"));
+    await page.getByRole("button", { name: "Panel de la conversación" }).click(); // se cierra para seguir
     // la burbuja del usuario lleva el acento del color elegido (texto sobre --primary)
     await atLeast(page.locator("main").getByText("¿Qué es TaskFlow?", { exact: true }));
     // el compositor va pegado abajo y los mensajes pasan por detrás, pero al final el último queda encima
@@ -373,9 +483,9 @@ for (const { name, look } of THEMES) {
     await page.keyboard.press("Escape");
 
     // riel del lateral plegado: icono legible (3:1, WCAG 1.4.11) y foco visible
-    await page.getByRole("button", { name: "Ocultar conversaciones y documentos" }).focus();
+    await page.getByRole("button", { name: "Ocultar conversaciones" }).focus();
     await page.keyboard.press("Enter"); // con el teclado: el foco que pasa al riel se ve (:focus-visible)
-    const expand = page.getByRole("button", { name: "Mostrar conversaciones y documentos" });
+    const expand = page.getByRole("button", { name: "Mostrar conversaciones" });
     await expect(expand).toBeFocused();
     expect(await contrastRatio(expand)).toBeGreaterThanOrEqual(3);
     expect(await expand.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
@@ -517,6 +627,12 @@ test("cambiar de proveedor a mitad de una conversación y que la recuerde al rec
   await expect(answers).toHaveCount(1);
   await expect(answers.nth(0).getByTestId("answered-by")).toHaveText(`Respondió Claude · ${claudeModel}`);
 
+  // El primer mensaje pasa a /c/<id>; en desarrollo esa ruta se compila la primera vez y la vista se
+  // vuelve a montar segundos después. Se espera a que termine antes de abrir el selector (con él abierto,
+  // el montaje nuevo dejaba la opción tapada y la prueba fallaba de vez en cuando).
+  await expect(page).toHaveURL(/\/c\/[0-9a-f]{32}$/);
+  await expect(answers.nth(0).getByTestId("answered-by")).toBeVisible();
+
   await select.click();
   await page.getByRole("option", { name: /Gemini/ }).click();
   await expect(select).toContainText("Gemini");
@@ -527,11 +643,10 @@ test("cambiar de proveedor a mitad de una conversación y que la recuerde al rec
   await expect(answers.nth(1)).toContainText("[gemini] Según la documentación");
   await expect(answers.nth(1).getByTestId("answered-by")).toHaveText(`Respondió Gemini · ${geminiModel}`);
   expect(await contrastRatio(answers.nth(1).getByTestId("answered-by"))).toBeGreaterThanOrEqual(4.5);
-  await page.getByRole("button", { name: "Ver los pasos del agente" }).click();
-  const trace = page.getByRole("dialog", { name: "Pasos del agente" });
+  const trace = await openPanelTab(page, "Pasos");
   await expect(trace.getByText("Claude", { exact: true })).toBeVisible();
   await expect(trace.getByText("Gemini", { exact: true })).toBeVisible();
-  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Panel de la conversación" }).click();
   await expect(trace).toBeHidden();
 
   // la conversación recuerda el último proveedor
@@ -541,7 +656,7 @@ test("cambiar de proveedor a mitad de una conversación y que la recuerde al rec
   await expect(page.getByRole("combobox", { name: "Modelo" })).toContainText("Gemini");
 
   // una conversación nueva vuelve al proveedor por defecto
-  await page.getByRole("link", { name: "Nueva conversación" }).click();
+  await page.getByRole("link", { name: "Nueva conversación", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Modelo" })).toContainText("Claude");
 });
 
@@ -573,25 +688,25 @@ test.describe("paneles ajustables", () => {
   test("el lateral se ensancha arrastrando, con el teclado y con un clic, y recuerda el ancho", async ({ page }) => {
     await page.goto("/");
     const sidebar = page.locator("#sidebar");
-    const handle = page.getByRole("separator", { name: "Ancho del panel de conversaciones y documentos" });
+    const handle = page.getByRole("separator", { name: "Ancho del panel de conversaciones" });
     const width = async () => Math.round((await sidebar.boundingBox())!.width);
     expect(await width()).toBe(288);
 
-    // arrastrar 80 px a la derecha
+    // arrastrar 40 px a la derecha
     const box = (await handle.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 5 });
     await page.mouse.up();
-    expect(await width()).toBe(368);
-    await expect(handle).toHaveAttribute("aria-valuenow", "368");
+    expect(await width()).toBe(328);
+    await expect(handle).toHaveAttribute("aria-valuenow", "328");
 
     // teclado
     await handle.focus();
     await page.keyboard.press("ArrowLeft");
-    expect(await width()).toBe(352);
+    expect(await width()).toBe(312);
     await page.keyboard.press("Home");
-    expect(await width()).toBe(236);
+    expect(await width()).toBe(PANEL_LIMITS.sidebar.min); // el autor ajusta este mínimo en lib/layout.ts
 
     // un clic sin arrastrar pasa al tamaño siguiente (alternativa sin arrastre, WCAG 2.5.7)
     await handle.click();
@@ -600,17 +715,18 @@ test.describe("paneles ajustables", () => {
     // se recuerda al recargar, sin aviso de hidratación (lo vigila el afterEach)
     await page.keyboard.press("End");
     await page.reload();
-    expect(await width()).toBe(448);
-    await expect(handle).toHaveAttribute("aria-valuenow", "448");
+    // el máximo deja sitio al chat (PANEL_LIMITS en lib/layout.ts)
+    expect(await width()).toBe(PANEL_LIMITS.sidebar.max);
+    await expect(handle).toHaveAttribute("aria-valuenow", String(PANEL_LIMITS.sidebar.max));
   });
 
   test("el lateral se pliega a un riel arrastrando, con Intro y con su botón, y lo recuerda", async ({ page }) => {
     await page.goto("/");
     const sidebar = page.locator("#sidebar");
-    const handle = page.getByRole("separator", { name: "Ancho del panel de conversaciones y documentos" });
+    const handle = page.getByRole("separator", { name: "Ancho del panel de conversaciones" });
     const width = async () => Math.round((await sidebar.boundingBox())!.width);
     const settled = () => sidebar.evaluate((el) => Promise.allSettled(el.getAnimations().map((a) => a.finished)));
-    const expand = page.getByRole("button", { name: "Mostrar conversaciones y documentos" });
+    const expand = page.getByRole("button", { name: "Mostrar conversaciones" });
 
     // arrastrar por debajo del umbral avisa (se atenúa) y pliega al soltar
     const box = (await handle.boundingBox())!;
@@ -642,7 +758,7 @@ test.describe("paneles ajustables", () => {
     await page.keyboard.press("Enter");
     await settled();
     expect(await width()).toBe(288);
-    await expect(page.getByRole("button", { name: "Ocultar conversaciones y documentos" })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Ocultar conversaciones" })).toBeFocused();
 
     // Intro en el separador lo pliega y lo restaura (patrón Window Splitter de ARIA APG)
     await handle.focus();
@@ -658,23 +774,39 @@ test.describe("paneles ajustables", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     const sidebar = page.locator("#sidebar");
-    await page.getByRole("button", { name: "Ocultar conversaciones y documentos" }).click();
+    await page.getByRole("button", { name: "Ocultar conversaciones" }).click();
     expect(await sidebar.evaluate((el) => [getComputedStyle(el).transitionDuration, el.getAnimations().length])).toEqual(["0s", 0]);
     expect(Math.round((await sidebar.boundingBox())!.width)).toBe(56);
   });
 
-  test("el panel de pasos se ensancha desde su borde izquierdo", async ({ page }) => {
+  test("el panel de la conversación va fijo junto al chat, se ensancha desde su borde y se recuerda abierto", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Ver los pasos del agente" }).click();
-    const panel = page.getByRole("dialog", { name: "Pasos del agente" });
-    await expect(panel).toBeVisible();
-    await panel.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    const panel = await openPanelTab(page, "Pasos");
+    await expect(page.getByRole("complementary", { name: "Panel de la conversación" })).toBeVisible(); // fijo, no encima
+    await expect(page.getByRole("button", { name: "Panel de la conversación" })).toHaveAttribute("aria-expanded", "true");
     const width = async () => Math.round((await panel.boundingBox())!.width);
     expect(await width()).toBe(384);
-    const handle = panel.getByRole("separator", { name: "Ancho del panel de pasos del agente" });
+    const handle = page.getByRole("separator", { name: "Ancho del panel de la conversación" });
     await handle.focus();
     await page.keyboard.press("ArrowLeft");
     expect(await width()).toBe(400);
+    // se recuerda abierto (y su ancho) al recargar, sin aviso de hidratación (lo vigila el afterEach)
+    await page.reload();
+    await expect(conversationPanel(page)).toBeVisible();
+    expect(await width()).toBe(400);
+  });
+
+  test.describe("en una pantalla estrecha", () => {
+    test.use({ viewport: { width: 1024, height: 800 } });
+
+    test("el panel se abre encima del chat y Esc lo cierra", async ({ page }) => {
+      await page.goto("/");
+      await page.getByRole("button", { name: "Panel de la conversación" }).click();
+      const sheet = page.getByRole("dialog", { name: "Panel de la conversación" });
+      await expect(sheet.getByRole("tab", { name: "Documentos" })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(sheet).toBeHidden();
+    });
   });
 });
 
@@ -716,5 +848,172 @@ test.describe("animaciones de los momentos clave (GSAP)", () => {
       expect(styles).toMatch(/opacity/);
       expect(styles).not.toMatch(/translate|blur/);
     });
+  });
+});
+
+test.describe("documentos en el chat (Fase 12.B)", () => {
+  test("la cita y los botones de los chips muestran el foco del teclado", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("form [data-attach-input]").setInputFiles({ name: "foco.md", mimeType: "text/markdown", buffer: Buffer.from("# Foco\n\nTaskFlow reintenta tres veces.") });
+    await expect(page.getByRole("button", { name: "Ver los documentos de esta conversación (1)" })).toBeVisible();
+    const box = page.getByLabel("Mensaje");
+    await box.fill("¿Cuántas veces reintenta TaskFlow?");
+    await box.press("Enter");
+    const cite = page.getByTestId("agent-message").last().getByRole("button", { name: /Ver el fragmento/ });
+    await expect(cite).toBeVisible();
+    await openPanelTab(page, "Documentos");
+    for (const control of [cite, page.getByRole("button", { name: "Quitar foco.md" })]) {
+      await control.focus();
+      await page.keyboard.press("Shift+Tab");
+      await page.keyboard.press("Tab"); // por teclado: activa :focus-visible
+      await expect(control).toBeFocused();
+      expect(await control.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
+    }
+    // Intro abre la cita y Esc la cierra devolviendo el foco
+    await cite.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("[data-slot=popover-content]")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(cite).toBeFocused();
+  });
+
+  test.describe("en móvil", () => {
+    test.use({ viewport: { width: 320, height: 700 } });
+
+    test("la barra resume los documentos en una línea, abre el panel encima y nada desborda", async ({ page }) => {
+      await page.goto("/");
+      await page.locator("form [data-attach-input]").setInputFiles([
+        { name: "uno.md", mimeType: "text/markdown", buffer: Buffer.from("# Uno\n\nTexto.") },
+        { name: "dos.md", mimeType: "text/markdown", buffer: Buffer.from("# Dos\n\nTexto.") },
+      ]);
+      await expect(toast(page, "2 documentos añadidos")).toBeVisible();
+      const summary = page.getByRole("button", { name: "Ver los documentos de esta conversación (2)" });
+      await expect(summary).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+      await summary.click();
+      const sheet = page.getByRole("dialog", { name: "Panel de la conversación" });
+      await expect(sheet.getByRole("list", { name: "Documentos de esta conversación" }).getByText("uno.md")).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    });
+  });
+});
+
+test.describe("artefactos y «Nueva conversación» (Fase 12.C)", () => {
+  test("un diagrama aparece en Artefactos, se abre desde su tarjeta, se descarga desde el panel y lleva de vuelta al chat", async ({ page }) => {
+    await page.goto("/");
+    const box = page.getByLabel("Mensaje");
+    await box.fill("Hazme un diagrama de secuencia del login");
+    await box.press("Enter");
+    const card = page.getByTestId("artifact");
+    await expect(card.locator(".mermaid-diagram svg")).toBeVisible({ timeout: 30_000 });
+
+    await card.getByRole("button", { name: "Abrir en el panel: Flujo de login" }).click();
+    const panel = conversationPanel(page);
+    await expect(panel.getByRole("tab", { name: "Artefactos" })).toHaveAttribute("aria-selected", "true");
+    const view = panel.getByRole("article", { name: "Flujo de login" });
+    await expect(view.locator(".mermaid-diagram svg")).toBeVisible();
+    await expect(view).toContainText("Pedido con «Hazme un diagrama de secuencia del login»");
+    const download = page.waitForEvent("download");
+    await view.getByRole("link", { name: "Descargar" }).click();
+    expect((await download).suggestedFilename()).toMatch(/^diagrama-flujo-de-login-.*\.mmd$/);
+
+    await view.getByRole("button", { name: "Ver en el chat" }).click();
+    await expect(card).toBeFocused();
+    await view.getByRole("button", { name: "Todos los artefactos" }).click();
+    await expect(panel.getByRole("list", { name: "Artefactos de esta conversación" }).getByText("Flujo de login")).toBeVisible();
+  });
+
+  test("«Nueva conversación» es secundario de 32 px como el buscador, y su atajo abre un chat nuevo", async ({ page }) => {
+    await page.goto("/");
+    const box = page.getByLabel("Mensaje");
+    await box.fill("¿Qué es TaskFlow?");
+    await box.press("Enter");
+    await expect(page).toHaveURL(/\/c\/[0-9a-f]{32}$/);
+    await expect(page.getByTestId("answered-by")).toBeVisible();
+    const button = page.locator("#sidebar").getByRole("link", { name: "Nueva conversación", exact: true });
+    const search = page.getByRole("searchbox", { name: "Buscar conversaciones" });
+    expect(Math.round((await button.boundingBox())!.height)).toBe(32);
+    expect(Math.round((await search.boundingBox())!.height)).toBe(32);
+    expect(await button.getAttribute("data-variant")).toBe("secondary");
+    await page.keyboard.press("ControlOrMeta+Shift+O");
+    await expect(page).toHaveURL(/\/$/);
+  });
+});
+
+test.describe("panel de la conversación: cerrar arrastrando y vista previa (Fase 12.C)", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("arrastrar el borde del panel por debajo de su mínimo lo cierra y el foco vuelve al botón «Panel»", async ({ page }) => {
+    await page.goto("/");
+    const panel = await openPanelTab(page, "Documentos");
+    const handle = page.getByRole("separator", { name: "Ancho del panel de la conversación" });
+    const box = (await handle.boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 300, y, { steps: 6 }); // borde izquierdo: hacia la derecha estrecha
+    await expect(handle).toHaveAttribute("data-collapse", "armed");
+    await expect.poll(() => panel.evaluate((el) => getComputedStyle(el).opacity)).toBe("0.5");
+    await page.mouse.up();
+    await expect(panel).toBeHidden();
+    await expect(page.getByRole("button", { name: "Panel de la conversación" })).toHaveAttribute("aria-expanded", "false");
+    // al reabrirlo vuelve al ancho que tenía, no al mínimo
+    await page.getByRole("button", { name: "Panel de la conversación" }).click();
+    expect(Math.round((await panel.boundingBox())!.width)).toBe(384);
+  });
+
+  test("un documento se previsualiza por fragmentos desde la pestaña Documentos", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("form [data-attach-input]").setInputFiles(SAMPLE);
+    await expect(toast(page, "Documento añadido")).toBeVisible();
+    const panel = await openPanelTab(page, "Documentos");
+    await panel.getByRole("button", { name: "Ver taskflow.md" }).click();
+    const fragments = panel.getByRole("list", { name: "Fragmentos de taskflow.md" });
+    await expect(fragments.getByText("Fragmento 1", { exact: false }).first()).toBeVisible();
+    await expect(fragments).toContainText("TaskFlow");
+    expect(await contrastRatio(fragments.locator("li").first().locator("p").first())).toBeGreaterThanOrEqual(4.5);
+    await panel.getByRole("button", { name: "Todos los documentos" }).click();
+    await expect(panel.getByRole("button", { name: "Ver taskflow.md" })).toBeVisible();
+  });
+
+  test("el chat conserva su ancho mínimo aunque se ensanchen el lateral y el panel", async ({ page }) => {
+    await page.goto("/");
+    await openPanelTab(page, "Pasos");
+    await page.getByRole("separator", { name: "Ancho del panel de conversaciones" }).focus();
+    await page.keyboard.press("End");
+    await page.getByRole("separator", { name: "Ancho del panel de la conversación" }).focus();
+    await page.keyboard.press("End");
+    expect(Math.round((await page.locator("main").boundingBox())!.width)).toBeGreaterThanOrEqual(480);
+  });
+});
+
+
+test.describe("anchos mínimos sin cortes (revisión del autor)", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("con el panel y el lateral en su mínimo, las pestañas caben y «Nueva conversación» se lee entero", async ({ page }) => {
+    await page.goto("/");
+    const panel = await openPanelTab(page, "Documentos");
+    await page.getByRole("separator", { name: "Ancho del panel de la conversación" }).focus();
+    await page.keyboard.press("Home");
+    expect(Math.round((await panel.boundingBox())!.width)).toBe(PANEL_LIMITS.trace.min);
+    const list = (await panel.getByRole("tablist").boundingBox())!;
+    for (const name of ["Documentos", "Artefactos", "Pasos"]) {
+      const tab = panel.getByRole("tab", { name });
+      const box = (await tab.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(list.x + list.width + 0.5); // dentro de la lista
+      expect(await tab.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true); // texto entero
+    }
+
+    await page.getByRole("separator", { name: "Ancho del panel de conversaciones" }).focus();
+    await page.keyboard.press("Home");
+    const label = page.locator("#sidebar").getByRole("link", { name: "Nueva conversación", exact: true }).locator("span.truncate");
+    expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true); // «Nueva conversación» entero
+    const button = (await page.locator("#sidebar").getByRole("link", { name: "Nueva conversación", exact: true }).boundingBox())!;
+    const collapse = (await page.getByRole("button", { name: "Ocultar conversaciones" }).boundingBox())!;
+    expect(collapse.y).toBeGreaterThanOrEqual(button.y + button.height); // el de ocultar va en la fila del título: no se tocan
+    expect(await page.getByRole("button", { name: "Ocultar conversaciones" }).evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
   });
 });

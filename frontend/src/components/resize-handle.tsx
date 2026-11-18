@@ -1,14 +1,16 @@
 "use client";
 
 import { cn } from "cn";
-import { useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
 
-import { COLLAPSE_AT, nextCollapsibleStep, nextPreset, PANEL_LIMITS, RAIL_WIDTH, type PanelId } from "@/lib/layout";
+import { COLLAPSE_AT, maxWidth, nextCollapsibleStep, nextPreset, PANEL_LIMITS, RAIL_WIDTH, type PanelId } from "@/lib/layout";
 import { useLayoutStore } from "@/stores/layout-store";
 
+const noop = () => () => {};
 const KEY_STEP = 16; // px por pulsación de flecha
 const CLICK_SLOP = 3; // px que se toleran antes de considerar que se está arrastrando
 const HINT = "Arrastra o usa las flechas para cambiar el ancho; un clic pasa al tamaño siguiente";
+const CLOSABLE_HINT = "Arrastra o usa las flechas para cambiar el ancho; Intro o arrastrar del todo cierra el panel; un clic pasa al tamaño siguiente";
 const COLLAPSIBLE_HINT = "Arrastra o usa las flechas para cambiar el ancho; Intro o arrastrar del todo lo pliega; un clic pasa al tamaño siguiente";
 
 /**
@@ -32,6 +34,7 @@ export function ResizeHandle({
   label,
   edge,
   collapsible = false,
+  closable = false,
   className,
 }: {
   panel: PanelId;
@@ -41,6 +44,12 @@ export function ResizeHandle({
   edge: "start" | "end";
   /** Se puede plegar a un riel (solo el lateral). */
   collapsible?: boolean;
+  /**
+   * Se cierra al llevarlo por debajo del mínimo (el panel de la conversación fijo, Fase 12.C): mismo
+   * gesto que plegar el lateral, pero el panel desaparece y se vuelve a abrir con el botón de la cabecera,
+   * que recibe el foco.
+   */
+  closable?: boolean;
   className?: string;
 }) {
   const value = useLayoutStore((state) => state[panel]);
@@ -50,7 +59,20 @@ export function ResizeHandle({
   const drag = useRef<{ x: number; start: number; moved: boolean } | null>(null);
   const [armed, setArmed] = useState(false); // soltar ahora plegaría el lateral (estado para pintar)
   const armedRef = useRef(false); // y ref para leerlo al soltar sin esperar a un render
-  const { min, max } = PANEL_LIMITS[panel];
+  const { min } = PANEL_LIMITS[panel];
+  // El máximo del panel depende del ancho de la ventana: en el servidor (y al hidratar) vale el fijo, así
+  // el HTML coincide; después, el que deja sitio al chat.
+  const hydrated = useSyncExternalStore(noop, () => true, () => false);
+  const dynamicMax = useLayoutStore((state) => maxWidth(panel, state));
+  const max = hydrated ? dynamicMax : PANEL_LIMITS[panel].max;
+  const setPanelOpen = useLayoutStore((state) => state.setPanelOpen);
+  const hideAt = min - 64; // por debajo, soltar cierra el panel
+
+  /** Cierra el panel de la conversación y deja el foco en el botón que lo vuelve a abrir. */
+  function close() {
+    setPanelOpen(false);
+    requestAnimationFrame(() => document.getElementById("panel-toggle")?.focus());
+  }
   const sign = edge === "end" ? 1 : -1;
   const hint = useId();
   const now = collapsed ? RAIL_WIDTH : value;
@@ -58,8 +80,9 @@ export function ResizeHandle({
   function arm(on: boolean) {
     armedRef.current = on;
     setArmed(on);
-    if (on) document.documentElement.dataset.sidebarArmed = "";
-    else delete document.documentElement.dataset.sidebarArmed;
+    const key = closable ? "panelArmed" : "sidebarArmed"; // atenúa el panel que se va a plegar o cerrar
+    if (on) document.documentElement.dataset[key] = "";
+    else delete document.documentElement.dataset[key];
   }
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -76,6 +99,10 @@ export function ResizeHandle({
     if (!current.moved && Math.abs(delta) < CLICK_SLOP) return;
     current.moved = true;
     const target = current.start + delta;
+    if (closable && target < hideAt) {
+      arm(true);
+      return;
+    }
     if (collapsible && target < COLLAPSE_AT) {
       arm(!useLayoutStore.getState().collapsed); // si ya está plegado, no hay nada que avisar
       return;
@@ -96,9 +123,10 @@ export function ResizeHandle({
   function onPointerUp(event: PointerEvent<HTMLDivElement>) {
     const current = endDrag(event);
     if (armedRef.current && current) {
-      // al desplegarlo vuelve al ancho que tenía antes de arrastrar, no al mínimo por el que pasó
+      // al desplegarlo (o reabrirlo) vuelve al ancho que tenía antes de arrastrar, no al mínimo
       setWidth(panel, current.start);
-      setCollapsed(true);
+      if (closable) close();
+      else setCollapsed(true);
     }
     arm(false);
     if (!current || current.moved) return;
@@ -114,9 +142,11 @@ export function ResizeHandle({
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const steps: Record<string, number> = { ArrowRight: KEY_STEP * sign, ArrowLeft: -KEY_STEP * sign };
     if (collapsible && event.key === "Enter") setCollapsed(!collapsed);
+    else if (closable && event.key === "Enter") close();
     else if (event.key in steps) {
       const step = steps[event.key];
-      if (collapsible && collapsed) {
+      if (closable && step < 0 && value <= min) close();
+      else if (collapsible && collapsed) {
         if (step > 0) setCollapsed(false); // vuelve al ancho que tenía
       } else if (collapsible && step < 0 && value <= min) setCollapsed(true);
       else setWidth(panel, value + step);
@@ -142,7 +172,7 @@ export function ResizeHandle({
         aria-valuemin={collapsible ? RAIL_WIDTH : min}
         aria-valuemax={max}
         aria-describedby={hint}
-        title={collapsible ? COLLAPSIBLE_HINT : HINT}
+        title={collapsible ? COLLAPSIBLE_HINT : closable ? CLOSABLE_HINT : HINT}
         data-collapse={armed ? "armed" : undefined}
         tabIndex={0}
         data-testid={`resize-${panel}`}
@@ -165,7 +195,7 @@ export function ResizeHandle({
         )}
       />
       <span id={hint} hidden>
-        {collapsible ? COLLAPSIBLE_HINT : HINT}
+        {collapsible ? COLLAPSIBLE_HINT : closable ? CLOSABLE_HINT : HINT}
       </span>
     </>
   );

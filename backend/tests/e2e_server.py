@@ -79,7 +79,8 @@ class ScriptedLLM:
         if wants_diagram:
             return _reply(f"{self.prefix}He generado el diagrama de secuencia del login.")
         sources = sorted(set(re.findall(r"[\w-]+\.(?:md|txt)", last)))
-        cite = f"Fuente: {sources[0]}" if sources else "No encontré fragmentos relevantes."
+        chunks = re.findall(r'fuente="([\w.-]+#\d+)"', last)  # cita el primer fragmento, como el agente real
+        cite = f"Fuente: {sources[0]} [{chunks[0]}]" if sources and chunks else "No encontré fragmentos relevantes."
         return _reply(f"{self.prefix}Según la documentación, TaskFlow organiza el trabajo en tareas.\n\n"
                       f"```python\nprint('hola')\n```\n\n{cite}")
 

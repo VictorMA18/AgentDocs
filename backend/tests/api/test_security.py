@@ -15,7 +15,7 @@ SRC = Path(techdoc_agent.__file__).parent
 
 
 def test_security_headers_on_every_response(api: Api) -> None:
-    for path in ("/", "/healthz", "/api/documents", "/api/artifacts/../x", "/no-existe"):
+    for path in ("/", "/healthz", "/api/conversations/conversacion-1/documents", "/api/artifacts/../x", "/no-existe"):
         headers = api.client.get(path).headers
         assert headers["content-security-policy"].startswith("default-src 'none'"), path
         assert headers["x-content-type-options"] == "nosniff"
@@ -77,18 +77,18 @@ def test_configured_frontend_origin_gets_cors_headers(api: Api) -> None:
 
 
 def test_preflight_allows_the_methods_the_frontend_uses(api: Api) -> None:
-    response = api.client.options("/api/documents/x.md", headers={
+    response = api.client.options("/api/conversations/conversacion-1/documents/x.md", headers={
         "Origin": FRONT, "Access-Control-Request-Method": "DELETE", "Access-Control-Request-Headers": "content-type"})
     assert response.status_code == 200 and response.headers["access-control-allow-origin"] == FRONT
     assert "DELETE" in response.headers["access-control-allow-methods"]
-    put = api.client.options("/api/documents", headers={"Origin": FRONT, "Access-Control-Request-Method": "PUT"})
+    put = api.client.options("/api/conversations/conversacion-1/documents", headers={"Origin": FRONT, "Access-Control-Request-Method": "PUT"})
     assert put.status_code == 400  # método no permitido
 
 
 def test_early_413_is_readable_by_the_frontend(api: Api) -> None:
     """CORS va por fuera del guard: el rechazo por Content-Length también lleva su cabecera."""
     huge = str(config.settings.max_upload_mb * 1024 * 1024 * 2)
-    response = api.client.post("/api/documents", headers={"Origin": FRONT, "Content-Length": huge,
+    response = api.client.post("/api/conversations/conversacion-1/documents", headers={"Origin": FRONT, "Content-Length": huge,
                                                            "Content-Type": "multipart/form-data; boundary=x"}, content=b"")
     assert response.status_code == 413 and response.headers["access-control-allow-origin"] == FRONT
 

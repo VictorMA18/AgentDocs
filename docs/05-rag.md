@@ -86,6 +86,9 @@ class VectorStore(Protocol):
 ### Selección del almacén (`rag/factory.py`)
 `build_store()` lee `VECTOR_STORE` (`json` por defecto, o `chroma`) y devuelve un `VectorStore`. `cli.py` e `ingest.py` lo usan; el agente y las herramientas solo ven la interfaz. `chromadb` se importa únicamente si se elige Chroma. **No hay migración automática**: al cambiar de almacén (como al cambiar de modelo de embeddings) hay que reindexar con `/ingestar`.
 
+### Un índice por conversación (Fase 12.B, ADR-032)
+La web no usa el índice global: cada conversación tiene el suyo en `data/chats/<id>/index/` (con el mismo `VECTOR_STORE`), creado con `build_store(index_dir=...)`. La API guarda abiertos los 8 últimos (`Core.store_for`) y, en cada turno, da al agente herramientas RAG atadas a ese índice. Así el agente solo busca y cita los documentos de la conversación en la que se le pregunta, y las citas `[archivo#n]` no chocan aunque dos conversaciones suban el mismo nombre. Borrar la conversación borra su carpeta. La consola, MCP y las evaluaciones siguen con el índice global (`data/index/`).
+
 ### Migración (Fase 4)
 Los tests del almacén son un contrato parametrizado (`tests/rag/test_store_contract.py`) que corre contra ambas implementaciones; además hay un test de paridad (mismo corpus → mismos fragmentos y scores). La comparación medida (resultados, latencia, tamaño) está en `docs/09` (ADR-013).
 

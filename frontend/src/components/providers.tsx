@@ -18,10 +18,12 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <TooltipProvider>
           {children}
+          {/* arriba a la derecha, bajo la cabecera (56 px + márgenes): no tapa la barra de documentos */}
           <Toaster
-            richColors
             closeButton
-            position="top-center"
+            position="top-right"
+            offset={{ top: 72, right: 16 }}
+            mobileOffset={{ top: 64, left: 8, right: 8 }}
             containerAriaLabel="Avisos"
             toastOptions={{ closeButtonAriaLabel: "Cerrar aviso" }}
           />

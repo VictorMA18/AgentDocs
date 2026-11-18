@@ -21,6 +21,7 @@ MULTIPART_OVERHEAD = 64 * 1024  # margen de cabeceras del multipart al comparar 
 CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 SOURCE_NAME = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 ARTIFACT_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+UPLOAD_PATH = re.compile(r"^/api/conversations/[^/]+/documents$")  # subida de documentos (ADR-032)
 
 # Sin scripts inline: la página carga sus propios archivos y las tres librerías fijadas por CDN.
 # API pura (solo JSON y texto): nada que cargar ni ejecutar. Si alguien abre una respuesta en el
@@ -36,7 +37,7 @@ def add_security_middleware(app: FastAPI) -> None:
     async def guard(request: Request, call_next: Any) -> Response:
         limit = config.settings.max_upload_mb * 1024 * 1024 + MULTIPART_OVERHEAD
         declared = request.headers.get("content-length", "")
-        if request.method == "POST" and request.url.path == "/api/documents" and declared.isdigit() \
+        if request.method == "POST" and UPLOAD_PATH.fullmatch(request.url.path) and declared.isdigit() \
                 and int(declared) > limit:
             response: Response = JSONResponse(
                 {"detail": f"El archivo supera el máximo de {config.settings.max_upload_mb} MB"}, 413)

@@ -84,7 +84,9 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | Anchos de los paneles ajustables y lateral plegado a un riel (límites, umbral, script antes de pintar) · store · separador | `frontend/src/lib/layout.ts` · `src/stores/layout-store.ts` · `src/components/resize-handle.tsx` |
 | Animaciones de los momentos clave (GSAP, movimiento reducido) | `frontend/src/lib/motion.ts` (+ `motion-script.ts`, el script de la primera carga) |
 | Chat: vista, mensajes, compositor, selector de proveedor, progreso, Markdown seguro, Mermaid, artefactos | `frontend/src/features/chat/` (`provider-select.tsx`: Fase 10) |
-| Documentos (subir, listar, quitar) · conversaciones · pasos del agente | `frontend/src/features/documents/`, `conversations/`, `trace/` |
+| Documentos de cada conversación (barra, botón de adjuntar) · subida compartida (clip, barra, soltar) y su store · tipo por extensión · conversaciones · pasos del agente | `frontend/src/features/documents/` · `src/hooks/use-attach-documents.ts`, `src/stores/upload-store.ts` · `src/components/file-type.tsx` · `features/conversations/`, `trace/` |
+| Citas interactivas (plugin de remark y popover con el fragmento) | `frontend/src/features/chat/citations.tsx` |
+| Panel de la conversación (pestañas Documentos · Artefactos · Pasos) · artefactos de la conversación (lista y vista en grande) · avisos (API y estilo) | `frontend/src/components/conversation-panel.tsx` · `src/features/artifacts/` · `src/lib/notify.ts`, `src/components/ui/sonner.tsx` y `.app-toast` en `globals.css` |
 | **Schemas Zod** de cada respuesta y evento SSE (contrato con la API) | `frontend/src/lib/api/schemas.ts` |
 | Cliente HTTP (`ApiError`), lector SSE sobre POST, hooks de TanStack Query | `frontend/src/lib/api/client.ts`, `sse.ts`, `queries.ts` |
 | Hook del chat (envía y vuelca el progreso en el store) | `frontend/src/hooks/use-chat-stream.ts` |
@@ -100,7 +102,8 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 | **Skill del agente** (método general y guías de diagramas y requisitos) | `backend/skills/documentacion-tecnica/SKILL.md` y `backend/skills/documentacion-tecnica/guias/*.md` | Se inserta en el system prompt. Cambiar el comportamiento del agente = editar este archivo. **No** es documentación del proyecto. |
 | Skill activa | variable `ACTIVE_SKILL` en `.env` | |
 | Documentos de ejemplo para probar el RAG | `backend/data/sample_docs/taskflow.md` | Documentación ficticia, versionada en git |
-| Documentos subidos por el usuario | `backend/data/documents/` | En `.gitignore`; nombres saneados por el sistema (ADR-014) |
+| Documentos subidos desde la web y su índice, por conversación | `backend/data/chats/<id>/` (`documents/`, `index/`) | En `.gitignore`; nombres saneados por el sistema (ADR-014, ADR-032) |
+| Documentos del índice global (consola, MCP, evaluaciones) | `backend/data/documents/` y `backend/data/index/` | En `.gitignore` |
 | Conversaciones guardadas (web) | `backend/data/conversations/` | En `.gitignore`; contienen texto de las conversaciones |
 | Índice vectorial | `backend/data/index/` (`index.json` + `vectors.npy`, o `chroma/`) | En `.gitignore` |
 | Artefactos generados (diagramas `.mmd`, requisitos `.md`) | `backend/outputs/` | En `.gitignore`; nombres generados (slug + id) |
@@ -154,7 +157,7 @@ Este proyecto es de **aprendizaje y portafolio**. El objetivo no es solo que fun
 ### Evita estas confusiones
 - **"Documentos"** puede significar tres cosas distintas:
   1. `docs/` → documentación **del proyecto** (para desarrolladores).
-  2. `data/sample_docs/` y `data/documents/` → documentos que el agente **indexa** (conocimiento del RAG).
+  2. `data/sample_docs/`, `data/documents/` y `data/chats/<id>/documents/` → documentos que el agente **indexa** (conocimiento del RAG).
   3. `skills/` → instrucciones que el agente **carga** (comportamiento).
   Ante la duda, pregunta cuál se pretende.
 - **Skill ≠ conocimiento.** La skill dice *cómo* trabajar; el conocimiento vive en los documentos indexados.
@@ -240,7 +243,7 @@ backend/
                routers/  chat.py  conversations.py  documents.py  artifacts.py  health.py
   tests/
   evals/       dataset.example.jsonl  dataset.jsonl  dataset.py  rules.py  run.py  retrieval.py  fixtures/  results/
-  data/        sample_docs/  documents/  index/  conversations/
+  data/        sample_docs/  documents/  index/  conversations/  chats/
   outputs/     # artefactos generados (runtime)
   logs/        # JSONL (runtime)
 frontend/      # Next.js (Fase 9.B): package.json  next.config.ts  components.json  .env.example

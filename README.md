@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-green)
-![Tests](https://img.shields.io/badge/tests-639%20%2B%2084%20%2B%2046%20E2E-brightgreen)
+![Tests](https://img.shields.io/badge/tests-659%20%2B%20111%20%2B%2058%20E2E-brightgreen)
 ![Next.js](https://img.shields.io/badge/frontend-Next.js%2016-black?logo=nextdotjs)
 ![Evaluación](https://img.shields.io/badge/evaluaci%C3%B3n-46%2F46-brightgreen)
 ![LLM](https://img.shields.io/badge/LLM-Claude%20%7C%20Gemini-8A2BE2)
@@ -85,7 +85,7 @@ Herramientas que puede usar el modelo:
 | Interfaz web | Next.js 16 + TypeScript, Tailwind 4 y shadcn/ui; TanStack Query (estado del servidor), Zustand (estado de la interfaz), Zod (valida lo que llega de la API); GSAP (animaciones) | Aplicación aparte que solo habla con la API; progreso del agente en vivo, estilos Clásico y Glass (glassmorphism) con cinco colores en HSL, Geist o DM Sans, paneles ajustables y diseño responsive |
 | Integración | `mcp` 2.x (SDK oficial) | Usa el agente desde Claude Code, Claude Desktop u otros clientes MCP |
 | Diagramas | Mermaid; validación real opcional con `mermaid-cli` | Comprueba que el diagrama se dibuja de verdad |
-| Pruebas | `pytest` (639 tests), Vitest + MSW (84) y Playwright (46 recorridos E2E) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; la interfaz contra el backend real con un LLM guionizado; comportamiento con el modelo real |
+| Pruebas | `pytest` (659 tests), Vitest + MSW (111) y Playwright (58 recorridos E2E) + evaluaciones propias (`backend/evals/`) | Lógica sin red ni modelo; la interfaz contra el backend real con un LLM guionizado; comportamiento con el modelo real |
 | Registros | JSONL en `logs/` | Cada paso del agente queda registrado (herramienta, argumentos, tokens, duración) |
 
 ## Arquitectura
@@ -223,9 +223,10 @@ cd frontend && pnpm dev                                      # interfaz en http:
 
 
 La interfaz tiene tres zonas (en móvil, los laterales se abren como paneles):
-- **Conversaciones y documentos:** subir (clic o arrastrar), listar y quitar documentos; las conversaciones se guardan, sobreviven a reinicios, se agrupan por fecha (Hoy, Ayer, Últimos 7 días, Anteriores), se pueden renombrar y se buscan por lo que se dijo en ellas, no solo por el título. El lateral se pliega a un riel de iconos arrastrando su borde, con Intro en el separador o con su botón «Ocultar», y recuerda cómo lo dejaste.
-- **Chat:** Markdown saneado, botón para copiar código, diagramas Mermaid dibujados (su código queda plegado bajo «Código Mermaid» para no repetirlo) y artefactos descargables. Mientras el agente trabaja muestra su progreso en vivo ("Buscando en la documentación…").
-- **Pasos del agente:** qué herramientas usó cada respuesta, con argumentos, duración y tokens; están ocultos a primera vista y se abren con el botón «Pasos del agente» de la cabecera.
+- **Conversaciones:** se guardan, sobreviven a reinicios, se agrupan por fecha (Hoy, Ayer, Últimos 7 días, Anteriores), se pueden renombrar y se buscan por lo que se dijo en ellas, no solo por el título. El lateral se pliega a un riel de iconos arrastrando su borde, con Intro en el separador o con su botón «Ocultar», y recuerda cómo lo dejaste.
+- **Documentos de cada conversación:** cada chat tiene los suyos y el agente solo busca y cita esos. Se adjuntan con el clip del compositor, con «Añadir» o soltándolos en el chat (varios a la vez) y aparecen en una barra encima de los mensajes, cada uno con su tipo (MD, PDF, PY…). Un chat sin mensajes propone preguntas sobre ellos.
+- **Chat:** Markdown saneado, citas que abren el fragmento citado, botón para copiar código, diagramas Mermaid dibujados (su código queda plegado bajo «Código Mermaid» para no repetirlo) y artefactos descargables. Mientras el agente trabaja muestra su progreso en vivo ("Buscando en la documentación…").
+- **Panel de la conversación** (botón «Panel» de la cabecera): pestañas Documentos (con vista previa de cada uno, fragmento a fragmento), Artefactos (los diagramas y requisitos del chat, en grande, para descargar o copiar) y Pasos (qué herramientas usó cada respuesta, con argumentos, duración y tokens). En pantallas anchas queda fijo junto al chat.
 
 Cada conversación tiene su URL (`/c/<id>`): recargar o compartir el enlace la reabre. El menú **Apariencia** elige el estilo (Clásico o Glass, este con toda la interfaz de cristal y una mancha de fondo que se mueve despacio y se puede parar), el tema (Claro, Oscuro o Sistema), el color (Neutro, Rojo, Azul, Verde o Naranja) y la fuente (Geist o DM Sans), y recuerda la elección; el cambio se funde sin saltos. El lateral y el panel de pasos se ensanchan arrastrando su borde (o con las flechas del teclado). El selector de modelo muestra el logo de cada proveedor (trazados de [Simple Icons](https://simpleicons.org), CC0; Claude es marca de Anthropic y Gemini de Google, y se usan solo para identificar el proveedor). Los errores del backend se muestran en avisos (*toasts*). Tests de la interfaz: `pnpm test` (Vitest) y `pnpm e2e` (Playwright).
 
@@ -374,6 +375,8 @@ docs/                        documentación del proyecto (01-09) · img/ captura
 
 - **Fase 10:** elegir el proveedor del LLM (Claude o Gemini) desde la interfaz, en cualquier turno y sin reiniciar; cada conversación recuerda el suyo, cada respuesta dice quién la dio y los errores de cuota o de sesión explican qué hacer (ADR-028).
 - **Fase 11:** apariencia por ejes con el estilo Glass en toda la interfaz, tema Claro/Oscuro/Sistema, cinco colores en HSL con muestras, Geist o DM Sans, logos de los proveedores, paneles ajustables con el ratón o el teclado y animaciones con GSAP en los momentos clave; contraste, foco y movimiento reducido medidos en los 20 temas (ADR-029, ADR-030).
+- **Fase 12.C:** panel de la conversación con pestañas Documentos · Artefactos · Pasos (fijo junto al chat en pantallas anchas), artefactos de cada chat con vista en grande, avisos con la superficie del design system y «Nueva conversación» según la jerarquía de botones, con atajo (ADR-033).
+- **Fase 12.B:** documentos por conversación (un índice por chat y herramientas RAG por turno), documentos dentro del chat con barra, clip y soltar, tipo por extensión, citas interactivas y sugerencias en el chat vacío (ADR-032).
 - **Fase 12.A:** icono propio de la aplicación (SVG), lateral plegable a un riel de iconos, conversaciones agrupadas por fecha, renombrables y con buscador, y una sola columna de lectura (~72 caracteres por línea) para texto, código y diagramas (ADR-031).
 - **Arreglos tras la Fase 11:** se repara el texto que el modelo escapa dos veces (los `\n` visibles), el código Mermaid se pliega cuando el diagrama ya se dibuja y la guía de diagramas pide una búsqueda por pieza para no omitir clases ni miembros.
 

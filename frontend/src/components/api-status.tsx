@@ -4,9 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { errorMessage } from "@/lib/api/client";
 import { useHealth } from "@/lib/api/queries";
-import { plural } from "@/lib/labels";
 
-/** Estado de la API (/healthz): conectada con N documentos, o sin conexión. */
+/**
+ * Estado de la API (/healthz): conectada o sin conexión, y por qué. No muestra los documentos que cuenta
+ * /healthz: son los del índice global (consola, MCP), no los de las conversaciones de la web (ADR-032).
+ */
 export function ApiStatus() {
   const { data, error, isPending } = useHealth();
   if (isPending) return null;
@@ -20,9 +22,7 @@ export function ApiStatus() {
         </Badge>
       </TooltipTrigger>
       <TooltipContent>
-        {ok
-          ? `${plural(data.documents, "documento", "documentos")} · ${plural(data.chunks, "fragmento", "fragmentos")}`
-          : errorMessage(error)}
+        {ok ? "El servidor del agente responde." : errorMessage(error)}
       </TooltipContent>
     </Tooltip>
   );
