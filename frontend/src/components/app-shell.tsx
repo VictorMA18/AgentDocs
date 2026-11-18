@@ -1,25 +1,23 @@
 "use client";
 
-import { ListTreeIcon, MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PanelRightIcon, PlusIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ComponentProps, type ReactNode } from "react";
 
 import { ApiStatus } from "@/components/api-status";
+import { ConversationPanel } from "@/components/conversation-panel";
 import { AppLogo } from "@/components/app-logo";
 import { AppearanceMenu } from "@/components/appearance-menu";
 import { ResizeHandle } from "@/components/resize-handle";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConversationList } from "@/features/conversations/conversation-list";
-import { DocumentList } from "@/features/documents/document-list";
-import { UploadDropzone } from "@/features/documents/upload-dropzone";
-import { AgentTrace } from "@/features/trace/agent-trace";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { enter, finishFirstEnter, useGSAP } from "@/lib/motion";
 import { useChatStore } from "@/stores/chat-store";
 import { useLayoutStore } from "@/stores/layout-store";
-import { useUiStore } from "@/stores/ui-store";
+import { DOCKED_PANEL_QUERY, useUiStore } from "@/stores/ui-store";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -30,18 +28,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/** Lateral: las conversaciones. Los documentos son de cada conversación y viven en el chat (ADR-032). */
 function Sidebar() {
   return (
-    <div className="space-y-6">
-      <Section title="Conversaciones">
-        <ConversationList />
-      </Section>
-      <Separator />
-      <Section title="Documentos">
-        <UploadDropzone />
-        <DocumentList />
-      </Section>
-    </div>
+    <Section title="Conversaciones">
+      <ConversationList />
+    </Section>
   );
 }
 
@@ -84,6 +76,27 @@ function NewChatButton({ place }: { place: "header" | "sidebar" | "rail" }) {
   );
 }
 
+/** Botón de la cabecera que abre y cierra el panel de la conversación (fijo en pantallas anchas). */
+function PanelButton() {
+  const docked = useMediaQuery(DOCKED_PANEL_QUERY);
+  const panelOpen = useLayoutStore((state) => state.panelOpen);
+  const sheetOpen = useUiStore((state) => state.panelSheetOpen);
+  const open = docked ? panelOpen : sheetOpen;
+  return (
+    <Button
+      id="panel-toggle"
+      variant="ghost"
+      size="sm"
+      aria-label="Panel de la conversación"
+      aria-expanded={open}
+      aria-controls={docked ? "conversation-panel" : undefined}
+      onClick={() => useUiStore.getState().togglePanel()}
+    >
+      <PanelRightIcon aria-hidden /> <span className="hidden lg:inline">Panel</span>
+    </Button>
+  );
+}
+
 /**
  * Pliega o despliega el lateral. El botón pulsado desaparece, así que el foco pasa al que hace lo
  * contrario o, si se indica, al control que se quiere usar (p. ej. el buscador).
@@ -117,7 +130,7 @@ function SidebarRail() {
     <nav aria-label="Lateral plegado" className="hidden w-full flex-col items-center gap-1 py-2 sidebar-collapsed:flex">
       <RailButton
         id="sidebar-expand"
-        label="Mostrar conversaciones y documentos"
+        label="Mostrar conversaciones"
         aria-controls="sidebar"
         aria-expanded={false}
         onClick={() => toggleSidebar(false)}
@@ -133,10 +146,10 @@ function SidebarRail() {
 }
 
 /**
- * Dos columnas en escritorio (conversaciones y documentos · chat). Los pasos del agente son detalle
+ * Dos columnas en escritorio (conversaciones · chat). Los pasos del agente son detalle
  * técnico que no hace falta a primera vista: se abren en un panel deslizante (Sheet) con el botón
  * «Pasos del agente» de la cabecera, en todas las anchuras. En pantallas pequeñas el lateral de
- * conversaciones y documentos también se abre así.
+ * conversaciones también se abre así.
  *
  * Cada zona es un panel flotante con un hueco entre ellos. La geometría es la misma en todos los
  * estilos (al cambiar de Clásico a Glass nada se mueve): Glass solo cambia el relleno de los paneles
@@ -146,7 +159,7 @@ function SidebarRail() {
  * variables CSS --sidebar-w y --trace-w, que un script pone antes de pintar (src/lib/layout.ts).
  */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { sidebarOpen, traceOpen, setSidebarOpen, setTraceOpen } = useUiStore();
+  const { sidebarOpen, panelSheetOpen, setSidebarOpen, setPanelSheetOpen } = useUiStore();
 
   // Anchos guardados en el store (el CSS ya los tiene desde antes de pintar; esto pone aria-valuenow).
   useEffect(() => useLayoutStore.getState().load(), []);
@@ -165,7 +178,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div ref={shell} className="flex h-dvh flex-col gap-2 p-2">
       <header data-surface="bar" data-enter-item className="flex h-14 shrink-0 items-center gap-2 rounded-xl border bg-card px-3 shadow-xs">
-        <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)} aria-label="Abrir conversaciones y documentos">
+        <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)} aria-label="Abrir conversaciones">
           <MenuIcon aria-hidden />
         </Button>
         <h1 className="flex items-center gap-2 font-heading text-base font-semibold whitespace-nowrap">
@@ -179,9 +192,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           <NewChatButton place="header" />
           <AppearanceMenu />
-          <Button variant="ghost" size="sm" onClick={() => setTraceOpen(true)} aria-label="Ver los pasos del agente">
-            <ListTreeIcon aria-hidden /> <span className="hidden lg:inline">Pasos del agente</span>
-          </Button>
+          <PanelButton />
         </div>
       </header>
 
@@ -193,7 +204,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           data-surface="bar"
           data-enter-item
           className="hidden w-(--sidebar-w) shrink-0 overflow-hidden rounded-xl border bg-card shadow-xs lg:flex sidebar-collapsed:w-14"
-          aria-label="Conversaciones y documentos"
+          aria-label="Conversaciones"
         >
           <SidebarRail />
           <div className="flex w-(--sidebar-w) min-w-(--sidebar-w) flex-col sidebar-collapsed:hidden">
@@ -205,7 +216,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     id="sidebar-collapse"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label="Ocultar conversaciones y documentos"
+                    aria-label="Ocultar conversaciones"
                     aria-controls="sidebar"
                     aria-expanded
                     onClick={() => toggleSidebar(true)}
@@ -213,7 +224,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <PanelLeftCloseIcon aria-hidden />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Ocultar conversaciones y documentos</TooltipContent>
+                <TooltipContent>Ocultar conversaciones</TooltipContent>
               </Tooltip>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -227,12 +238,31 @@ export function AppShell({ children }: { children: ReactNode }) {
           controls="sidebar"
           edge="end"
           collapsible
-          label="Ancho del panel de conversaciones y documentos"
+          label="Ancho del panel de conversaciones"
           className="-mx-2 hidden lg:block"
         />
         <main data-surface="bar" className="min-w-0 flex-1 overflow-hidden rounded-xl border bg-card shadow-xs">
           {children}
         </main>
+        {/* Panel de la conversación fijo (pantallas anchas y data-panel="open" en <html>, ver lib/layout.ts).
+            Es hermano del chat, no antecesor del compositor: su superficie no apaga el cristal. */}
+        <ResizeHandle
+          panel="trace"
+          controls="conversation-panel"
+          edge="start"
+          closable
+          label="Ancho del panel de la conversación"
+          className="-mx-2 hidden xl:panel-open:block"
+        />
+        <aside
+          id="conversation-panel"
+          data-surface="bar"
+          aria-label="Panel de la conversación"
+          // max-w: también al encoger la ventana, el chat conserva 480 px (CHAT_MIN en lib/layout.ts)
+          className="hidden w-(--trace-w) max-w-[calc(100vw-var(--sidebar-w)-33rem)] shrink-0 flex-col overflow-hidden rounded-xl border bg-card p-4 shadow-xs xl:panel-open:flex"
+        >
+          <ConversationPanel />
+        </aside>
       </div>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -248,32 +278,33 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <SheetHeader>
             <SheetTitle>TechDoc Agent</SheetTitle>
-            <SheetDescription>Conversaciones y documentos</SheetDescription>
+            <SheetDescription>Conversaciones</SheetDescription>
           </SheetHeader>
           <div className="px-4 pb-4">
             <Sidebar />
           </div>
         </SheetContent>
       </Sheet>
-      <Sheet open={traceOpen} onOpenChange={setTraceOpen}>
+      {/* En pantallas estrechas el mismo panel se abre encima del chat */}
+      <Sheet open={panelSheetOpen} onOpenChange={setPanelSheetOpen}>
         <SheetContent
-          id="trace-panel"
+          id="conversation-panel-sheet"
           side="right"
-          className="overflow-y-auto data-[side=right]:w-(--trace-w) data-[side=right]:max-w-[calc(100vw-3rem)] data-[side=right]:sm:max-w-[calc(100vw-3rem)]"
+          className="flex flex-col data-[side=right]:w-(--trace-w) data-[side=right]:max-w-[calc(100vw-3rem)] data-[side=right]:sm:max-w-[calc(100vw-3rem)]"
         >
           <ResizeHandle
             panel="trace"
-            controls="trace-panel"
+            controls="conversation-panel-sheet"
             edge="start"
-            label="Ancho del panel de pasos del agente"
+            label="Ancho del panel de la conversación"
             className="absolute inset-y-0 -left-1 hidden sm:block"
           />
-          <SheetHeader>
-            <SheetTitle>Pasos del agente</SheetTitle>
-            <SheetDescription>Herramientas que usó en cada respuesta</SheetDescription>
+          <SheetHeader className="pb-0">
+            <SheetTitle>Panel de la conversación</SheetTitle>
+            <SheetDescription>Documentos, artefactos y pasos del agente de este chat</SheetDescription>
           </SheetHeader>
-          <div className="px-4 pb-4">
-            <AgentTrace />
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+            <ConversationPanel />
           </div>
         </SheetContent>
       </Sheet>

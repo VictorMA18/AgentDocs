@@ -1,16 +1,16 @@
 import { z } from "zod";
 
 // Anchos ajustables de los paneles (Fase 11.B, ADR-030) y lateral plegado a un riel (Fase 12.A). Se
-// guardan en localStorage y se aplican en <html>: variables CSS (--sidebar-w, --trace-w) y el atributo
-// data-sidebar="collapsed". React no pinta ni el ancho ni el plegado, así que lo guardado no provoca
-// desajustes de hidratación ni un salto al cargar.
+// guardan en localStorage y se aplican en <html>: variables CSS (--sidebar-w, --trace-w) y los atributos
+// data-sidebar="collapsed" y data-panel="open" (panel de la conversación fijo, Fase 12.C). React no pinta
+// ni los anchos ni esos estados, así que lo guardado no provoca desajustes de hidratación ni saltos.
 
 export type PanelId = "sidebar" | "trace";
 
 /** Límites en px: el mínimo deja leer los nombres y el máximo no ahoga el chat. */
 export const PANEL_LIMITS: Record<PanelId, { min: number; default: number; max: number; cssVar: string }> = {
-  sidebar: { min: 236, default: 288, max: 448, cssVar: "--sidebar-w" },
-  trace: { min: 320, default: 384, max: 720, cssVar: "--trace-w" },
+  sidebar: { min: 242, default: 288, max: 360, cssVar: "--sidebar-w" },
+  trace: { min: 360, default: 384, max: 720, cssVar: "--trace-w" }, // 360: caben las tres pestañas del panel con su icono
 };
 
 export const LAYOUT_KEY = "techdoc-layout";
@@ -27,9 +27,27 @@ export const layoutSchema = z.object({
   sidebar: width("sidebar"),
   trace: width("trace"),
   collapsed: z.boolean().catch(false).default(false),
+  /** Panel de la conversación abierto junto al chat (solo se ve fijo en pantallas anchas). */
+  panelOpen: z.boolean().catch(false).default(false),
 });
 export type Layout = z.infer<typeof layoutSchema>;
 export const DEFAULT_LAYOUT: Layout = layoutSchema.parse({});
+
+/** Ancho mínimo que se le deja siempre al chat (la columna del chat mide como mucho 38rem). */
+export const CHAT_MIN = 480;
+/** Huecos entre paneles, márgenes y separadores alrededor del chat. */
+const CHROME = 48;
+
+/**
+ * Ancho máximo de un panel ahora mismo. El del lateral es fijo; el del panel de la conversación además
+ * deja al chat al menos CHAT_MIN junto al lateral (o su riel). Nunca baja del mínimo del panel.
+ */
+export function maxWidth(id: PanelId, layout: Pick<Layout, "sidebar" | "collapsed">): number {
+  const { min, max } = PANEL_LIMITS[id];
+  if (id === "sidebar" || typeof window === "undefined") return max;
+  const sidebar = layout.collapsed ? RAIL_WIDTH : layout.sidebar;
+  return Math.max(min, Math.min(max, window.innerWidth - sidebar - CHAT_MIN - CHROME));
+}
 
 export function clampWidth(id: PanelId, value: number): number {
   const { min, max } = PANEL_LIMITS[id];
@@ -61,10 +79,12 @@ export function applyLayout(layout: Layout, root: HTMLElement = document.documen
   }
   if (layout.collapsed) root.dataset.sidebar = "collapsed";
   else delete root.dataset.sidebar;
+  if (layout.panelOpen) root.dataset.panel = "open";
+  else delete root.dataset.panel;
 }
 
-/** Script previo a pintar (como el de apariencia): pone los anchos guardados (solo números en límites) y el plegado. */
+/** Script previo a pintar (como el de apariencia): pone los anchos guardados (solo números en límites), el plegado y el panel. */
 export function layoutScript(): string {
   const limits = JSON.stringify(PANEL_LIMITS);
-  return `(function(){try{var l=${limits};var r=document.documentElement;var s=JSON.parse(localStorage.getItem(${JSON.stringify(LAYOUT_KEY)})||"{}");for(var k in l){var v=s[k];if(typeof v==="number"&&v>=l[k].min&&v<=l[k].max)r.style.setProperty(l[k].cssVar,Math.round(v)+"px")}if(s.collapsed===true)r.setAttribute("data-sidebar","collapsed")}catch(e){}})()`;
+  return `(function(){try{var l=${limits};var r=document.documentElement;var s=JSON.parse(localStorage.getItem(${JSON.stringify(LAYOUT_KEY)})||"{}");for(var k in l){var v=s[k];if(typeof v==="number"&&v>=l[k].min&&v<=l[k].max)r.style.setProperty(l[k].cssVar,Math.round(v)+"px")}if(s.collapsed===true)r.setAttribute("data-sidebar","collapsed");if(s.panelOpen===true)r.setAttribute("data-panel","open")}catch(e){}})()`;
 }

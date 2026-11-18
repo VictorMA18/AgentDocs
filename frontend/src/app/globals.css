@@ -5,6 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 /* lateral plegado a un riel (Fase 12.A): lo pone lib/layout.ts en <html>, también antes de pintar */
 @custom-variant sidebar-collapsed (&:where([data-sidebar="collapsed"] *));
+/* panel de la conversación abierto junto al chat (Fase 12.C): lo pone lib/layout.ts, también antes de pintar */
+@custom-variant panel-open (&:where([data-panel="open"] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -552,6 +554,13 @@
   }
 }
 :root[data-sidebar-armed] #sidebar {
+  opacity: 0.5;
+}
+/* el panel de la conversación arrastrado por debajo de su mínimo: al soltar se cierra (Fase 12.C) */
+#conversation-panel {
+  transition: opacity 150ms ease-out;
+}
+:root[data-panel-armed] #conversation-panel {
   opacity: 0.5;
 }
 

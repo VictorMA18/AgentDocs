@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { applyLayout, clampWidth, DEFAULT_LAYOUT, LAYOUT_KEY, layoutSchema, type Layout, type PanelId } from "@/lib/layout";
+import { applyLayout, clampWidth, DEFAULT_LAYOUT, LAYOUT_KEY, layoutSchema, maxWidth, type Layout, type PanelId } from "@/lib/layout";
 
 type LayoutState = Layout & {
   /** Lee lo guardado. Se llama después de hidratar: el primer render usa los valores por defecto, como el servidor. */
@@ -8,16 +8,18 @@ type LayoutState = Layout & {
   setWidth: (id: PanelId, value: number) => void;
   /** Pliega el lateral a un riel o lo restaura a su ancho anterior (que se conserva mientras está plegado). */
   setCollapsed: (collapsed: boolean) => void;
+  /** Abre o cierra el panel de la conversación fijo (pantallas anchas). */
+  setPanelOpen: (open: boolean) => void;
 };
 
 let animating = 0;
 
 export const useLayoutStore = create<LayoutState>()((set, get) => {
   function persist() {
-    const { sidebar, trace, collapsed } = get();
-    applyLayout({ sidebar, trace, collapsed });
+    const { sidebar, trace, collapsed, panelOpen } = get();
+    applyLayout({ sidebar, trace, collapsed, panelOpen });
     try {
-      localStorage.setItem(LAYOUT_KEY, JSON.stringify({ sidebar, trace, collapsed }));
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify({ sidebar, trace, collapsed, panelOpen }));
     } catch {
       // almacenamiento lleno o bloqueado: vale para esta visita
     }
@@ -32,7 +34,8 @@ export const useLayoutStore = create<LayoutState>()((set, get) => {
       }
     },
     setWidth: (id, value) => {
-      set({ [id]: clampWidth(id, value) } as Pick<Layout, PanelId>);
+      // además del máximo fijo, el panel de la conversación deja sitio al chat (maxWidth)
+      set({ [id]: Math.min(clampWidth(id, value), maxWidth(id, get())) } as Pick<Layout, PanelId>);
       persist();
     },
     setCollapsed: (collapsed) => {
@@ -43,6 +46,10 @@ export const useLayoutStore = create<LayoutState>()((set, get) => {
       window.clearTimeout(animating);
       animating = window.setTimeout(() => delete root.dataset.sidebarAnimating, 300);
       set({ collapsed });
+      persist();
+    },
+    setPanelOpen: (panelOpen) => {
+      set({ panelOpen });
       persist();
     },
   };

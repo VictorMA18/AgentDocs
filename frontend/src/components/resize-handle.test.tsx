@@ -120,3 +120,40 @@ describe("ResizeHandle plegable (lateral)", () => {
     expect(handle).toHaveAttribute("aria-valuenow", "288");
   });
 });
+
+describe("ResizeHandle que cierra el panel de la conversación", () => {
+  function renderPanelHandle() {
+    window.innerWidth = 1600; // ventana ancha: el máximo dinámico (deja sitio al chat) no recorta los 384 px
+    useLayoutStore.setState({ ...DEFAULT_LAYOUT, panelOpen: true });
+    render(
+      <TooltipProvider>
+        <ResizeHandle panel="trace" controls="conversation-panel" edge="start" label="Ancho del panel" closable />
+      </TooltipProvider>,
+    );
+    const handle = screen.getByRole("separator", { name: "Ancho del panel" });
+    handle.setPointerCapture = () => {};
+    handle.hasPointerCapture = () => false;
+    return handle;
+  }
+
+  it("arrastrarlo por debajo del mínimo avisa y lo cierra al soltar, conservando el ancho de antes", () => {
+    const handle = renderPanelHandle();
+    fireEvent.pointerDown(handle, { button: 0, clientX: 1000, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 1000 + 384, pointerId: 1 }); // borde izquierdo: a la derecha estrecha
+    expect(handle).toHaveAttribute("data-collapse", "armed");
+    fireEvent.pointerUp(handle, { clientX: 1000 + 384, pointerId: 1 });
+    expect(useLayoutStore.getState()).toMatchObject({ panelOpen: false, trace: 384 });
+  });
+
+  it("Intro lo cierra, y la flecha que lo estrecha ya en el mínimo también", async () => {
+    const handle = renderPanelHandle();
+    handle.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(useLayoutStore.getState().panelOpen).toBe(false);
+    act(() => useLayoutStore.setState({ panelOpen: true, trace: PANEL_LIMITS.trace.min }));
+    handle.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(useLayoutStore.getState().panelOpen).toBe(false);
+  });
+});
+

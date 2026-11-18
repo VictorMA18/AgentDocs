@@ -12,6 +12,19 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 };
 
+// jsdom tampoco trae matchMedia: se responde «no coincide» (pantalla estrecha y sin preferencias).
+globalThis.matchMedia ??= (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList;
+
 // MSW intercepta las peticiones de red: los tests no saben que la API es falsa. Una petición sin
 // handler falla (en MSW 3 la opción se llama onUnhandledFrame).
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
