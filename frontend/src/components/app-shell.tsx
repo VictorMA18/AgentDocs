@@ -14,47 +14,94 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConversationList } from "@/features/conversations/conversation-list";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useNewChatShortcut, useNewChatShortcutLabel } from "@/hooks/use-new-chat-shortcut";
 import { enter, finishFirstEnter, useGSAP } from "@/lib/motion";
 import { useChatStore } from "@/stores/chat-store";
 import { useLayoutStore } from "@/stores/layout-store";
 import { DOCKED_PANEL_QUERY, useUiStore } from "@/stores/ui-store";
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{title}</h2>
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   );
 }
 
-/** Lateral: las conversaciones. Los documentos son de cada conversación y viven en el chat (ADR-032). */
-function Sidebar() {
+/**
+ * Lateral: las conversaciones. Los documentos son de cada conversación y viven en el chat (ADR-032).
+ * `action` va a la derecha del título (en escritorio, el botón de ocultar el lateral).
+ */
+function Sidebar({ action }: { action?: ReactNode }) {
   return (
-    <Section title="Conversaciones">
+    <Section title="Conversaciones" action={action}>
       <ConversationList />
     </Section>
   );
 }
 
 /**
- * «Nueva conversación» en sus tres sitios: la cabecera (solo en pantallas sin lateral fijo), la cabecera
- * del lateral (con texto) y el riel (icono con tooltip). Desactivada mientras hay un turno en curso.
+ * Pliega el lateral. Va junto al título «Conversaciones» y no junto a «Nueva conversación»: en el ancho
+ * mínimo del lateral los dos no caben en una fila sin recortar el texto.
+ */
+function CollapseSidebarButton() {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          id="sidebar-collapse"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Ocultar conversaciones"
+          aria-controls="sidebar"
+          aria-expanded
+          // sin el fondo de «desplegado» de shadcn: es una acción, no un estado que haya que señalar
+          className="-mr-1 aria-expanded:bg-transparent"
+          onClick={() => toggleSidebar(true)}
+        >
+          <PanelLeftCloseIcon aria-hidden />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Ocultar conversaciones</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * «Nueva conversación» en sus tres sitios, con la jerarquía de botones del design system (ADR-033): el
+ * acento queda para Enviar, la acción principal. En el lateral es un botón secundario relleno de 32 px
+ * (la altura del buscador) con su atajo; en la cabecera (pantallas sin lateral fijo) y en el riel, un
+ * botón de icono como sus vecinos, con tooltip. Desactivada mientras hay un turno en curso.
  */
 function NewChatButton({ place }: { place: "header" | "sidebar" | "rail" }) {
   const busy = useChatStore((state) => state.busy);
+  const shortcut = useNewChatShortcutLabel();
   const content =
-    place === "rail" ? (
-      <PlusIcon aria-hidden />
-    ) : (
+    place === "sidebar" ? (
       <>
-        <PlusIcon aria-hidden /> <span className={place === "header" ? "hidden sm:inline" : undefined}>Nueva conversación</span>
+        <PlusIcon aria-hidden /> <span className="truncate">Nueva conversación</span>
+        {shortcut && (
+          // solo si cabe (el lateral ancho; container query de la fila) y con ratón; si no, va en el tooltip del riel
+          <kbd
+            className="ml-auto hidden font-sans text-xs font-normal text-muted-foreground @min-[17rem]:[@media(hover:hover)]:inline"
+            aria-hidden
+          >
+            {shortcut}
+          </kbd>
+        )}
       </>
+    ) : (
+      <PlusIcon aria-hidden />
     );
   const props = {
-    variant: place === "rail" ? ("ghost" as const) : ("outline" as const),
-    size: place === "rail" ? ("icon" as const) : ("sm" as const),
-    className: place === "header" ? "lg:hidden" : place === "sidebar" ? "flex-1 justify-start" : undefined,
+    variant: place === "sidebar" ? ("secondary" as const) : ("ghost" as const),
+    size: place === "sidebar" ? ("default" as const) : ("icon" as const),
+    className: place === "header" ? "lg:hidden" : place === "sidebar" ? "min-w-0 flex-1 justify-start" : undefined,
+    "aria-keyshortcuts": "Control+Shift+O Meta+Shift+O",
   };
   const button = busy ? (
     <Button {...props} disabled aria-label="Nueva conversación">
@@ -67,11 +114,13 @@ function NewChatButton({ place }: { place: "header" | "sidebar" | "rail" }) {
       </Link>
     </Button>
   );
-  if (place !== "rail" || busy) return button;
+  if (place === "sidebar" || busy) return button;
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right">Nueva conversación</TooltipContent>
+      <TooltipContent side={place === "rail" ? "right" : "bottom"}>
+        Nueva conversación{shortcut && ` · ${shortcut}`}
+      </TooltipContent>
     </Tooltip>
   );
 }
@@ -160,6 +209,7 @@ function SidebarRail() {
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { sidebarOpen, panelSheetOpen, setSidebarOpen, setPanelSheetOpen } = useUiStore();
+  useNewChatShortcut();
 
   // Anchos guardados en el store (el CSS ya los tiene desde antes de pintar; esto pone aria-valuenow).
   useEffect(() => useLayoutStore.getState().load(), []);
@@ -208,27 +258,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <SidebarRail />
           <div className="flex w-(--sidebar-w) min-w-(--sidebar-w) flex-col sidebar-collapsed:hidden">
-            <div className="flex items-center gap-2 px-4 pt-3">
+            <div className="@container flex px-4 pt-3">
               <NewChatButton place="sidebar" />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    id="sidebar-collapse"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Ocultar conversaciones"
-                    aria-controls="sidebar"
-                    aria-expanded
-                    onClick={() => toggleSidebar(true)}
-                  >
-                    <PanelLeftCloseIcon aria-hidden />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Ocultar conversaciones</TooltipContent>
-              </Tooltip>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <Sidebar />
+              <Sidebar action={<CollapseSidebarButton />} />
             </div>
           </div>
         </aside>
