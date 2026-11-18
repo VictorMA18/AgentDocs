@@ -320,6 +320,23 @@
 }
 /* Markdown de las respuestas (sin el plugin de tipografía: solo lo que produce el agente). */
 @layer components {
+  /* Tipo de documento (Fase 12.B, components/file-type.tsx): un tono OKLCH por familia, a ≥ 15° del
+     rojo de error (H ≈ 25). Texto oscuro sobre el mismo tono al 14 % en claro; claro sobre él en oscuro. */
+  .file-badge {
+    --file-h: 250;
+    @apply inline-flex shrink-0 items-center gap-1 rounded-sm px-1 py-px text-[0.6875rem] leading-4 font-semibold tracking-wide whitespace-nowrap;
+    color: oklch(0.37 0.12 var(--file-h)); /* 0,42 daba 4,26:1 sobre el cristal con tinte (Glass claro rojo) */
+    background-color: oklch(0.55 0.12 var(--file-h) / 0.14);
+  }
+  .dark .file-badge {
+    color: oklch(0.86 0.09 var(--file-h));
+    background-color: oklch(0.7 0.1 var(--file-h) / 0.18);
+  }
+  .file-badge[data-file="pdf"] { --file-h: 70; }
+  .file-badge[data-file="code"] { --file-h: 300; }
+  .file-badge[data-file="data"] { --file-h: 175; }
+  .file-badge[data-file="other"] { --file-h: 250; color: var(--muted-foreground); background-color: var(--muted); }
+
   /* Una sola columna para todo el chat (Fase 12.A): texto, código, tablas, diagramas, la pregunta y el
      compositor miden lo mismo (--chat-w, en :root). El texto va a 16 px y la línea queda en ~72
      caracteres con las dos fuentes (medido en el navegador; con 42rem y 15 px salían ~90). */
