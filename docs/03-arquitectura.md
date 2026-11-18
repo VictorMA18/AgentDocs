@@ -120,9 +120,10 @@ Detalle en `AGENTS.md`, secciones "Mapa de ubicaciones" y "Estructura objetivo".
 ## Datos en disco
 ```
 data/
-  documents/      # archivos originales subidos
+  chats/<id>/     # una carpeta por conversación de la web (ADR-032): documents/ (archivos subidos) e index/ (su índice)
   conversations/  # <id>.memory.json (memoria del agente) y <id>.turns.json (lo que muestra la página)
-  index/          # índice vectorial (index.json + vectors.npy, o chroma/ según VECTOR_STORE)
+  documents/      # archivos del índice global (los indexa la consola; la web ya no sube aquí)
+  index/          # índice global (index.json + vectors.npy, o chroma/ según VECTOR_STORE): consola, MCP y evaluaciones
 outputs/          # diagramas y documentos de requisitos generados
 logs/             # agent-YYYYMMDD.jsonl
 ```
