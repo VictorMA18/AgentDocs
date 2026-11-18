@@ -9,6 +9,7 @@ export const queryKeys = {
   health: ["health"] as const,
   providers: ["providers"] as const,
   documents: ["documents"] as const,
+  fragment: (conversationId: string, chunkId: string) => ["fragment", conversationId, chunkId] as const,
   conversations: ["conversations"] as const,
   conversation: (id: string) => ["conversation", id] as const,
   artifact: (name: string) => ["artifact", name] as const,
@@ -100,6 +101,17 @@ export function useArtifactText(name: string) {
   return useQuery({
     queryKey: queryKeys.artifact(name),
     queryFn: () => api.artifactText(name),
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+/** Texto de un fragmento citado; se pide al abrir la cita y no caduca mientras el documento siga. */
+export function useFragment(conversationId: string | null, chunkId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.fragment(conversationId ?? "", chunkId),
+    queryFn: () => api.fragment(conversationId!, chunkId),
+    enabled: enabled && conversationId !== null,
     staleTime: Infinity,
     retry: false,
   });

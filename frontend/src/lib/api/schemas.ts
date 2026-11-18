@@ -66,6 +66,8 @@ export const uploadResultSchema = z.object({
 });
 
 export const deletedDocumentSchema = z.object({ source: z.string(), chunks_removed: z.number() });
+/** Fragmento citado (`taskflow.md#4`) de un documento de la conversación: texto no confiable (ADR-032). */
+export const fragmentSchema = z.object({ id: z.string(), source: z.string(), text: z.string() });
 
 export const conversationSummarySchema = z.object({
   id: z.string(),
@@ -126,6 +128,7 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
 export type Artifact = z.infer<typeof artifactSchema>;
 export type TurnResult = z.infer<typeof turnResultSchema>;
 export type DocumentInfo = z.infer<typeof documentSchema>;
+export type Fragment = z.infer<typeof fragmentSchema>;
 export type UploadResult = z.infer<typeof uploadResultSchema>;
 export type ConversationSummary = z.infer<typeof conversationSummarySchema>;
 export type Conversation = z.infer<typeof conversationSchema>;

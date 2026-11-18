@@ -8,6 +8,7 @@ import {
   deletedConversationSchema,
   deletedDocumentSchema,
   documentListSchema,
+  fragmentSchema,
   healthSchema,
   providerListSchema,
   renamedConversationSchema,
@@ -80,6 +81,8 @@ export const api = {
   },
   deleteDocument: (source: string) =>
     getJson(`/api/documents/${enc(source)}`, deletedDocumentSchema, { method: "DELETE" }),
+  fragment: (conversationId: string, chunkId: string) =>
+    getJson(`/api/conversations/${enc(conversationId)}/fragments/${enc(chunkId)}`, fragmentSchema),
 
   /** Con `query`, solo las que la contienen (título, preguntas o respuestas; sin mayúsculas ni tildes). */
   conversations: (query = "") =>

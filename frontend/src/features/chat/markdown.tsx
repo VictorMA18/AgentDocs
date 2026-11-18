@@ -2,14 +2,22 @@
 
 import type { ComponentProps } from "react";
 import Markdown, { type Components, type ExtraProps } from "react-markdown";
-import rehypeSanitize from "rehype-sanitize";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 import { Button } from "@/components/ui/button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
+import { Citation, remarkCitations } from "./citations";
+
 // La salida del modelo es texto de un desconocido: react-markdown construye elementos de React
 // (nunca innerHTML) y rehype-sanitize quita lo que no esté en la lista de GitHub (scripts, on*=, style…).
+// A esa lista solo se añade el <cite data-chunk> de las citas (lo genera remarkCitations, no el modelo).
+const schema = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames ?? []), "cite"],
+  attributes: { ...defaultSchema.attributes, cite: ["dataChunk"] },
+};
 
 type HastNode = { type: string; value?: string; children?: HastNode[]; properties?: { className?: unknown } };
 
@@ -62,13 +70,29 @@ function FoldedMermaid(props: ComponentProps<"pre"> & ExtraProps) {
 }
 
 const link: Components["a"] = ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />;
-const components: Components = { pre: CodeBlock, a: link };
-const foldingMermaid: Components = { pre: FoldedMermaid, a: link };
+const cite: Components["cite"] = ({ node: _node, children, ...props }) => {
+  const chunk = (props as Record<string, unknown>)["data-chunk"];
+  return typeof chunk === "string" ? <Citation chunk={chunk} /> : <cite>{children}</cite>;
+};
+const components: Components = { pre: CodeBlock, a: link, cite };
+const foldingMermaid: Components = { pre: FoldedMermaid, a: link, cite };
 
-export function RichText({ text, foldMermaid = false }: { text: string; foldMermaid?: boolean }) {
+export function RichText({
+  text,
+  foldMermaid = false,
+  className,
+}: {
+  text: string;
+  foldMermaid?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="prose-chat">
-      <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={foldMermaid ? foldingMermaid : components}>
+    <div className={className ? `prose-chat ${className}` : "prose-chat"}>
+      <Markdown
+        remarkPlugins={[remarkGfm, remarkCitations]}
+        rehypePlugins={[[rehypeSanitize, schema]]}
+        components={foldMermaid ? foldingMermaid : components}
+      >
         {text}
       </Markdown>
     </div>
