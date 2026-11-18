@@ -134,11 +134,14 @@ class Agent:
         user_message: str,
         on_event: EventCallback | None = None,
         llm: LLMClient | None = None,
+        tools: ToolRegistry | None = None,
     ) -> AgentResult:
         """Un turno completo. ``llm`` permite que el adaptador elija el proveedor de este turno
-        (ADR-028); sin él se usa el del constructor. El núcleo no sabe de dónde viene la elección."""
+        (ADR-028) y ``tools``, las herramientas (p. ej. las RAG sobre los documentos de esa
+        conversación, ADR-032); sin ellos se usan los del constructor. El núcleo no sabe de dónde
+        vienen ni qué almacén hay detrás."""
         try:
-            return self._run(session_id, user_message, on_event, llm or self.llm)
+            return self._run(session_id, user_message, on_event, llm or self.llm, tools or self.tools)
         finally:  # también tras un error o el tope de iteraciones: el disco refleja el estado final
             self._persist(session_id)
 
@@ -150,7 +153,12 @@ class Agent:
             log_event(session=session_id, event="memory_save_error", error=str(exc))
 
     def _run(
-        self, session_id: str, user_message: str, on_event: EventCallback | None, llm: LLMClient
+        self,
+        session_id: str,
+        user_message: str,
+        on_event: EventCallback | None,
+        llm: LLMClient,
+        tools: ToolRegistry,
     ) -> AgentResult:
         self._maybe_compact(session_id, llm)
         history = self.memory.get(session_id)
@@ -166,7 +174,7 @@ class Agent:
             _emit(on_event, {"tipo": "pensando", "iter": iteration})
             try:
                 system = with_summary(self.system_prompt, self.memory.summary(session_id))
-                reply = llm.complete(system, history, self.tools.specs())
+                reply = llm.complete(system, history, tools.specs())
             except LLMProtocolError as exc:
                 # Recuperable: se lo devolvemos al modelo para que se corrija.
                 log_event(session=session_id, iter=iteration, event="llm_protocol_error",
@@ -203,7 +211,7 @@ class Agent:
             tool_results: list[ToolResult] = []
             for call in reply.tool_calls:
                 tool_started = perf_counter()
-                content, is_error = self.tools.dispatch(call.name, call.args)
+                content, is_error = tools.dispatch(call.name, call.args)
                 duration = _ms(tool_started)
                 tool_results.append(ToolResult(call.id, content, is_error))
                 result.tool_calls.append(ToolTrace(call.name, call.args, is_error, duration, content))

@@ -50,6 +50,13 @@ class ToolRegistry:
             raise ValueError(f"Herramienta duplicada: {tool.name}")
         self._tools[tool.name] = tool
 
+    def replacing(self, tools: list[Tool]) -> ToolRegistry:
+        """Copia del registro con esas herramientas sustituidas por nombre (p. ej. las RAG atadas al
+        índice de una conversación, ADR-032). Las que no existían se añaden; el original no cambia."""
+        new = ToolRegistry()
+        new._tools = {**self._tools, **{t.name: t for t in tools}}
+        return new
+
     def specs(self) -> list[ToolSpec]:
         return [ToolSpec(t.name, t.description, t.input_schema) for t in self._tools.values()]
 

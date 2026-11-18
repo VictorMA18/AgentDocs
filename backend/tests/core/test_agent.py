@@ -9,7 +9,7 @@ from fakes import FakeLLMClient, calls, final, toy_tools
 from techdoc_agent.core.agent import Agent
 from techdoc_agent.core.llm import LLMError, LLMProtocolError
 from techdoc_agent.core.memory import Memory
-from techdoc_agent.core.tools import ToolRegistry
+from techdoc_agent.core.tools import Tool, ToolRegistry
 
 
 @pytest.fixture(autouse=True)
@@ -215,3 +215,13 @@ def test_run_uses_the_turn_llm_when_given_and_the_constructor_one_otherwise() ->
     assert agent.run("s1", "otra").text == "por defecto"
     assert len(other.seen) == 1 and len(default.seen) == 1
     assert [m["content"] for m in default.seen[0] if m["role"] == "user"] == ["hola", "otra"]  # misma memoria
+
+
+def test_tools_of_the_turn_replace_the_constructor_ones() -> None:
+    """ADR-032: el adaptador pasa las herramientas del turno (p. ej. las RAG de una conversación)."""
+    agent, llm = make_agent([calls(("c1", "sumar", {"a": 1, "b": 2})), final("listo")])
+    turn_tools = ToolRegistry([Tool("sumar", "suma del turno", {"type": "object"}, lambda a, b: "del turno")])
+    result = agent.run("s1", "suma", tools=turn_tools)
+    assert result.text == "listo"
+    assert "del turno" in str(llm.seen[-1][-1]["content"])
+    assert [s.name for s in agent.tools.specs()] != ["sumar"]  # el agente conserva las suyas
