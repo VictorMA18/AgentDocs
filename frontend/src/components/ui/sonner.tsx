@@ -2,9 +2,14 @@
 
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon, XIcon } from "lucide-react"
 
-const Toaster = ({ ...props }: ToasterProps) => {
+/**
+ * Avisos con la superficie del design system (Fase 12.C, ADR-033). Sonner va «sin estilo» y pone solo el
+ * apilado, la entrada y la ✕; el aspecto es de globals.css (`.app-toast`): tarjeta (o cristal en Glass),
+ * título, detalle en gris y el color semántico solo en el círculo del icono.
+ */
+const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
 
   return (
@@ -12,37 +17,24 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
-        success: (
-          <CircleCheckIcon className="size-4" />
-        ),
-        info: (
-          <InfoIcon className="size-4" />
-        ),
-        warning: (
-          <TriangleAlertIcon className="size-4" />
-        ),
-        error: (
-          <OctagonXIcon className="size-4" />
-        ),
-        loading: (
-          <Loader2Icon className="size-4 animate-spin" />
-        ),
+        success: <CircleCheckIcon />,
+        info: <InfoIcon />,
+        warning: <TriangleAlertIcon />,
+        error: <OctagonXIcon />,
+        loading: <Loader2Icon className="animate-spin" />,
+        close: <XIcon />,
       }}
-      style={
-        {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-          // Texto de los avisos con los tokens del proyecto: los de sonner sobre su fondo tintado daban
-          // 4,35:1 (error) y 4,26:1 (éxito); WCAG 1.4.3 pide 4,5:1.
-          "--error-text": "var(--destructive)",
-          "--success-text": "var(--success)",
-        } as React.CSSProperties
-      }
       toastOptions={{
+        ...toastOptions, // p. ej. el nombre accesible de la ✕; sin pisar el estilo propio
+        unstyled: true,
         classNames: {
-          toast: "cn-toast",
+          toast: "app-toast",
+          icon: "app-toast-icon",
+          content: "app-toast-content",
+          title: "app-toast-title",
+          description: "app-toast-description",
+          actionButton: "app-toast-action",
+          closeButton: "app-toast-close",
         },
       }}
       {...props}

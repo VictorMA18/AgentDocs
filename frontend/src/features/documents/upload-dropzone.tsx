@@ -20,9 +20,9 @@ export function UploadDropzone() {
     upload.mutate(file, {
       onSuccess: (result) => {
         const warnings = result.warnings.length ? ` Avisos: ${result.warnings.join("; ")}` : "";
-        notifySuccess(`${result.source} indexado: ${plural(result.chunks, "fragmento", "fragmentos")}.${warnings}`);
+        notifySuccess({ title: "Documento indexado", description: `${result.source} · ${plural(result.chunks, "fragmento", "fragmentos")}${warnings}` });
       },
-      onError: (error) => notifyError(errorMessage(error)),
+      onError: (error) => notifyError({ title: "No se pudo subir el documento", description: errorMessage(error) }),
       onSettled: () => {
         if (input.current) input.current.value = "";
       },

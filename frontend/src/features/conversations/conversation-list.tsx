@@ -161,13 +161,13 @@ function ConversationRow({
   function onDelete() {
     remove.mutate(conv.id, {
       onSuccess: () => {
-        notifySuccess(`Conversación «${conv.title}» quitada.`);
+        notifySuccess({ title: "Conversación quitada", description: `«${conv.title}» y sus documentos ya no están.` });
         if (current) {
           useChatStore.getState().reset();
           router.push("/");
         }
       },
-      onError: (err) => notifyError(errorMessage(err)),
+      onError: (err) => notifyError({ title: "No se pudo quitar la conversación", description: errorMessage(err) }),
     });
   }
 
@@ -184,8 +184,8 @@ function ConversationRow({
             rename.mutate(
               { id: conv.id, title },
               {
-                onSuccess: (result) => notifySuccess(`Conversación renombrada a «${result.title}».`),
-                onError: (err) => notifyError(errorMessage(err)),
+                onSuccess: (result) => notifySuccess({ title: "Conversación renombrada", description: `Ahora se llama «${result.title}».` }),
+                onError: (err) => notifyError({ title: "No se pudo renombrar", description: errorMessage(err) }),
               },
             );
           }}

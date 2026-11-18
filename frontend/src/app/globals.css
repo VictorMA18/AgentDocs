@@ -554,3 +554,121 @@
 :root[data-sidebar-armed] #sidebar {
   opacity: 0.5;
 }
+
+/* Avisos (Fase 12.C, components/ui/sonner.tsx). Fuera de @layer y con [data-sonner-toaster] delante: el CSS de
+   sonner no está en ninguna capa y, si no, sus reglas ganarían a las de una capa. Aspecto: tarjeta del design system (en Glass la regla de
+   [data-sonner-toast] la vuelve cristal). Icono en un círculo con el tono semántico al 15 %; el fondo
+   no se tiñe. Título, detalle en gris y acción debajo; la ✕ dentro de la tarjeta, arriba a la derecha. */
+[data-sonner-toaster] .app-toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0.75rem;
+  row-gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.4);
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+  font-family: var(--font-sans);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px -8px rgb(0 0 0 / 0.18);
+}
+[data-sonner-toaster] .app-toast-icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  color: var(--muted-foreground);
+  background-color: var(--muted);
+}
+[data-sonner-toaster] .app-toast-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+[data-sonner-toaster] .app-toast[data-type="success"] .app-toast-icon {
+  color: var(--success);
+  background-color: color-mix(in oklab, var(--success) 15%, transparent);
+}
+[data-sonner-toaster] .app-toast[data-type="error"] .app-toast-icon {
+  color: var(--destructive);
+  background-color: color-mix(in oklab, var(--destructive) 15%, transparent);
+}
+[data-sonner-toaster] .app-toast-content {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-top: 0.25rem; /* alinea la primera línea con el centro del icono */
+}
+[data-sonner-toaster] .app-toast-title {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+[data-sonner-toaster] .app-toast-description {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+[data-sonner-toaster] .app-toast-action {
+  grid-column: 2;
+  justify-self: start;
+  height: 1.75rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 0.8);
+  background-color: var(--background);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+/* sonner pinta la ✕ con su fondo y su color en el tema oscuro, con una regla de especificidad 0,4,0 que
+   inyecta después: esta (0,5,0) la anula */
+[data-sonner-toaster] [data-sonner-toast].app-toast .app-toast-close[data-close-button] {
+  border: 0;
+  color: var(--muted-foreground);
+  background-color: transparent;
+}
+[data-sonner-toaster] .app-toast-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: calc(var(--radius) * 0.6);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+[data-sonner-toaster] .app-toast-close svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+@media (hover: hover) {
+  [data-sonner-toaster] .app-toast-action:hover,
+  [data-sonner-toaster] [data-sonner-toast].app-toast .app-toast-close[data-close-button]:hover {
+    background-color: var(--muted);
+    color: var(--foreground);
+  }
+}
+[data-sonner-toaster] .app-toast-action:focus-visible,
+[data-sonner-toaster] [data-sonner-toast].app-toast .app-toast-close[data-close-button]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+/* en Glass, el aviso es cristal como el resto de superficies (borde y sombras de --surface-shadow) */
+[data-style="glass"] [data-sonner-toaster] .app-toast {
+  border-color: transparent;
+  box-shadow: var(--surface-shadow);
+  -webkit-backdrop-filter: var(--surface-filter);
+  backdrop-filter: var(--surface-filter);
+}

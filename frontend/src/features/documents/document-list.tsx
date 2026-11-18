@@ -17,8 +17,8 @@ export function DocumentList() {
 
   function onDelete(source: string) {
     remove.mutate(source, {
-      onSuccess: () => notifySuccess(`${source} quitado del índice.`),
-      onError: (err) => notifyError(errorMessage(err)),
+      onSuccess: () => notifySuccess({ title: "Documento quitado", description: `${source} ya no está en el índice.` }),
+      onError: (err) => notifyError({ title: `No se pudo quitar ${source}`, description: errorMessage(err) }),
     });
   }
 
