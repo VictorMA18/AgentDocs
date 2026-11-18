@@ -1,4 +1,4 @@
-"""Conversaciones guardadas: listar, abrir, renombrar y borrar (transcripción + memoria del agente)."""
+"""Conversaciones guardadas: listar, abrir, renombrar y borrar (transcripción, memoria del agente y documentos)."""
 
 from __future__ import annotations
 
@@ -47,6 +47,7 @@ def delete_conversation(conversation_id: str, core: Core = Depends(get_core)) ->
     with core.lock:
         existed = core.transcripts.delete(valid_conversation_id(conversation_id))
         core.agent.memory.clear(conversation_id)  # la memoria del agente, en RAM y en disco
+        core.forget(conversation_id)  # sus documentos y su índice (ADR-032)
     if not existed:
         raise HTTPException(404, "Conversación no encontrada")
     return {"id": conversation_id}

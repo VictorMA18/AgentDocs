@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from techdoc_agent.core.transcripts import MAX_LISTED, MAX_TITLE_CHARS, TITLE_CHARS, Transcripts
+from techdoc_agent.core.transcripts import MAX_LISTED, MAX_TITLE_CHARS, NEW_TITLE, TITLE_CHARS, Transcripts
 
 
 @pytest.fixture(autouse=True)
@@ -154,3 +154,18 @@ def test_search_snippet_is_short_and_starts_at_a_word(transcripts: Transcripts) 
     [hit] = transcripts.list("objetivo")
     assert hit["snippet"].startswith("…palabra") and hit["snippet"].endswith("…")
     assert "objetivo" in hit["snippet"] and len(hit["snippet"]) <= 92
+
+
+def test_ensure_creates_an_empty_conversation_and_the_first_message_titles_it(transcripts: Transcripts) -> None:
+    transcripts.ensure("sesion-1")
+    transcripts.ensure("sesion-1")  # idempotente
+    assert transcripts.get("sesion-1")["title"] == NEW_TITLE and transcripts.get("sesion-1")["turns"] == []
+    transcripts.append("sesion-1", turn("¿Qué es TaskFlow?"))
+    assert transcripts.get("sesion-1")["title"] == "¿Qué es TaskFlow?"
+
+
+def test_a_renamed_empty_conversation_keeps_its_title(transcripts: Transcripts) -> None:
+    transcripts.ensure("sesion-1")
+    transcripts.rename("sesion-1", "Manual de TaskFlow")
+    transcripts.append("sesion-1", turn("¿Qué es TaskFlow?"))
+    assert transcripts.get("sesion-1")["title"] == "Manual de TaskFlow"

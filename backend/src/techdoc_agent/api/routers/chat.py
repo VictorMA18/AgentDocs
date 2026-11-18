@@ -43,7 +43,9 @@ def run_turn(core: Core, body: ChatRequest, on_event: Any = None) -> dict[str, A
     provider = resolve_provider(core, body)
     with core.lock:
         try:
-            result = core.agent.run(body.session_id, body.message, on_event=on_event, llm=core.get_llm(provider))
+            # Las herramientas RAG del turno buscan solo en los documentos de esta conversación (ADR-032).
+            result = core.agent.run(body.session_id, body.message, on_event=on_event, llm=core.get_llm(provider),
+                                    tools=core.tools_for(body.session_id))
         except LLMUnavailableError as exc:  # cuota, clave, CLI sin sesión: el mensaje dice qué hacer
             log_event(session=body.session_id, event="llm_unavailable", provider=provider, error=str(exc))
             raise HTTPException(503, str(exc)) from None
