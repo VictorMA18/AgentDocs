@@ -166,3 +166,14 @@ def test_the_agent_only_searches_the_documents_of_the_conversation(make_api) -> 
     first = [str(m["content"]) for m in api.llm.seen[1] if "<resultado_herramienta" in str(m["content"])]
     assert "nota.md" in first[-1]  # la conversación con el documento lo ve
     assert "nota.md" not in results[-1]  # la otra no
+
+
+def test_document_preview_returns_its_fragments_in_order_only_in_that_conversation(api: Api) -> None:
+    upload(api, "taskflow.md", SAMPLE.read_bytes())
+    preview = api.client.get(f"{docs_url()}/taskflow.md").json()
+    assert preview["source"] == "taskflow.md"
+    assert [c["n"] for c in preview["chunks"]] == list(range(len(preview["chunks"]))) and len(preview["chunks"]) > 3
+    assert preview["chunks"][0]["id"] == "taskflow.md#0" and preview["chunks"][0]["text"]
+    assert api.client.get(f"{docs_url(OTHER)}/taskflow.md").status_code == 404
+    assert api.client.get(f"{docs_url()}/no-esta.md").status_code == 404
+    assert api.client.get(f"{docs_url()}/.env").status_code == 400

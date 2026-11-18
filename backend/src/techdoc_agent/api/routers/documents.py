@@ -99,6 +99,26 @@ def delete_document(conversation_id: str, source: str, core: Core = Depends(get_
     return {"source": source, "chunks_removed": removed}
 
 
+@router.get("/api/conversations/{conversation_id}/documents/{source}")
+def get_document(conversation_id: str, source: str, core: Core = Depends(get_core)) -> dict[str, Any]:
+    """Vista previa de un documento: sus fragmentos en orden, tal como los indexó el agente (sirve igual
+    para un PDF que para un Markdown). Es contenido de un documento: la interfaz lo muestra saneado."""
+    conversation_id = valid_conversation_id(conversation_id)
+    valid_source_name(source)
+    with core.lock:
+        chunks = core.store_for(conversation_id).all_chunks(source) if core.has_documents(conversation_id) else []
+    if not chunks:
+        raise HTTPException(404, "Este documento ya no está en esta conversación. Vuelve a adjuntarlo para verlo.")
+
+    def number(chunk_id: str) -> int:
+        tail = chunk_id.rsplit("#", 1)[-1]
+        return int(tail) if tail.isdigit() else 0
+
+    ordered = sorted(chunks, key=lambda c: number(c.id))
+    return {"source": source, "chunks": [
+        {"id": c.id, "n": number(c.id), "section": str(c.metadata.get("section", "")), "text": c.text} for c in ordered]}
+
+
 @router.get("/api/conversations/{conversation_id}/fragments/{chunk_id}")
 def get_fragment(conversation_id: str, chunk_id: str, core: Core = Depends(get_core)) -> dict[str, Any]:
     """Texto de un fragmento citado (``taskflow.md#4``) de los documentos de esa conversación.
