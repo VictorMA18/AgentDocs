@@ -22,10 +22,19 @@ type ChatState = {
   busy: boolean;
   /** Proveedor elegido para el próximo turno; `null` = el de por defecto del backend. */
   provider: ProviderId | null;
+  /**
+   * Lo escrito en el compositor y aún no enviado, por conversación (`""` = el chat nuevo). Vive aquí y
+   * no en el compositor porque adjuntar en un chat nuevo pasa de `/` a `/c/<id>` y la vista se vuelve
+   * a montar: sin esto se perdería lo que se estaba escribiendo (Fase 12.B).
+   */
+  drafts: Record<string, string>;
 
   reset: () => void;
   load: (sessionId: string, turns: StoredTurn[], provider?: ProviderId | null) => void;
   setProvider: (provider: ProviderId) => void;
+  setDraft: (text: string) => void;
+  /** El chat nuevo acaba de recibir id: su borrador pasa a esa conversación. */
+  adoptDraft: (sessionId: string) => void;
   start: (sessionId: string, text: string) => void;
   advance: (sessionId: string, event: ProgressEvent) => void;
   finish: (sessionId: string, turn: TurnResult) => void;
@@ -55,10 +64,19 @@ export const useChatStore = create<ChatState>()((set, get) => {
     progress: null,
     busy: false,
     provider: null,
+    drafts: {},
 
     reset: () => set({ sessionId: null, messages: [], progress: null, busy: false, provider: null }),
 
     setProvider: (provider) => set({ provider }),
+
+    setDraft: (text) => set((state) => ({ drafts: { ...state.drafts, [state.sessionId ?? ""]: text } })),
+
+    adoptDraft: (sessionId) =>
+      set((state) => {
+        const { [""]: pending = "", ...rest } = state.drafts;
+        return { drafts: pending ? { ...rest, [sessionId]: pending } : rest };
+      }),
 
     load: (sessionId, turns, provider = null) =>
       set({

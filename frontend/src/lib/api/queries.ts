@@ -8,8 +8,9 @@ import { api } from "./client";
 export const queryKeys = {
   health: ["health"] as const,
   providers: ["providers"] as const,
-  documents: ["documents"] as const,
+  documents: (conversationId: string) => ["documents", conversationId] as const,
   fragment: (conversationId: string, chunkId: string) => ["fragment", conversationId, chunkId] as const,
+  documentPreview: (conversationId: string, source: string) => ["document-preview", conversationId, source] as const,
   conversations: ["conversations"] as const,
   conversation: (id: string) => ["conversation", id] as const,
   artifact: (name: string) => ["artifact", name] as const,
@@ -24,17 +25,23 @@ export function useProviders() {
   return useQuery({ queryKey: queryKeys.providers, queryFn: api.providers, staleTime: 60_000 });
 }
 
-export function useDocuments() {
-  return useQuery({ queryKey: queryKeys.documents, queryFn: api.documents });
+/** Documentos de una conversación; sin conversación (chat nuevo) no se pide nada y la lista está vacía. */
+export function useDocuments(conversationId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.documents(conversationId ?? ""),
+    queryFn: () => api.documents(conversationId!),
+    enabled: conversationId !== null,
+  });
 }
 
+/** Sube un documento a una conversación. La primera subida la crea, así que también se refresca la lista. */
 export function useUploadDocument() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: api.uploadDocument,
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.documents });
-      void client.invalidateQueries({ queryKey: queryKeys.health });
+    onSettled: (_data, _error, { conversationId }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.documents(conversationId) });
+      void client.invalidateQueries({ queryKey: queryKeys.conversations });
     },
   });
 }
@@ -43,10 +50,34 @@ export function useDeleteDocument() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: api.deleteDocument,
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.documents });
-      void client.invalidateQueries({ queryKey: queryKeys.health });
+    onSettled: (_data, _error, { conversationId }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.documents(conversationId) });
+      // Un fragmento de un documento quitado ya no existe: las citas lo pedirán de nuevo.
+      void client.invalidateQueries({ queryKey: ["fragment", conversationId] });
+      void client.invalidateQueries({ queryKey: ["document-preview", conversationId] });
     },
+  });
+}
+
+/** Vista previa de un documento (sus fragmentos); no caduca mientras siga en la conversación. */
+export function useDocumentPreview(conversationId: string | null, source: string) {
+  return useQuery({
+    queryKey: queryKeys.documentPreview(conversationId ?? "", source),
+    queryFn: () => api.documentPreview(conversationId!, source),
+    enabled: conversationId !== null,
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+/** Texto de un fragmento citado; se pide al abrir la cita y no caduca mientras el documento siga. */
+export function useFragment(conversationId: string | null, chunkId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.fragment(conversationId ?? "", chunkId),
+    queryFn: () => api.fragment(conversationId!, chunkId),
+    enabled: enabled && conversationId !== null,
+    staleTime: Infinity,
+    retry: false,
   });
 }
 
@@ -101,17 +132,6 @@ export function useArtifactText(name: string) {
   return useQuery({
     queryKey: queryKeys.artifact(name),
     queryFn: () => api.artifactText(name),
-    staleTime: Infinity,
-    retry: false,
-  });
-}
-
-/** Texto de un fragmento citado; se pide al abrir la cita y no caduca mientras el documento siga. */
-export function useFragment(conversationId: string | null, chunkId: string, enabled: boolean) {
-  return useQuery({
-    queryKey: queryKeys.fragment(conversationId ?? "", chunkId),
-    queryFn: () => api.fragment(conversationId!, chunkId),
-    enabled: enabled && conversationId !== null,
     staleTime: Infinity,
     retry: false,
   });

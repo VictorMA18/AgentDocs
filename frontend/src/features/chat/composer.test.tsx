@@ -1,10 +1,26 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { useChatStore } from "@/stores/chat-store";
 
 import { Composer } from "./composer";
 
+beforeEach(() => useChatStore.setState({ sessionId: null, drafts: {} }));
+
 describe("Composer", () => {
+  it("lo escrito sobrevive a que el compositor se vuelva a montar y pasa a la conversación que se crea", async () => {
+    const { unmount } = render(<Composer onSend={vi.fn()} disabled={false} />);
+    await userEvent.type(screen.getByLabelText("Mensaje"), "a medio escribir");
+    unmount(); // p. ej. al pasar de / a /c/<id> tras adjuntar el primer documento
+    useChatStore.getState().load("conversacion-1", []);
+    useChatStore.getState().adoptDraft("conversacion-1");
+    render(<Composer onSend={vi.fn()} disabled={false} />);
+    expect(screen.getByLabelText("Mensaje")).toHaveValue("a medio escribir");
+    act(() => useChatStore.getState().load("conversacion-2", [])); // otra conversación tiene su propio borrador
+    expect(screen.getByLabelText("Mensaje")).toHaveValue("");
+  });
+
   it("Enter envía el texto recortado y vacía la caja", async () => {
     const onSend = vi.fn();
     render(<Composer onSend={onSend} disabled={false} />);

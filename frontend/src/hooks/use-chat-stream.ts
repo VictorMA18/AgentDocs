@@ -26,7 +26,9 @@ export function useChatStream() {
       if (store.busy) return;
       const sessionId = store.sessionId ?? newSessionId();
       store.start(sessionId, text);
-      if (store.sessionId === null) router.replace(`/c/${sessionId}`); // la conversación vive en la URL
+      // La conversación vive en la URL. Se mira la ruta real: un chat nuevo puede tener ya id (se está
+      // adjuntando un documento) sin haber pasado aún a /c/<id>.
+      if (window.location.pathname !== `/c/${sessionId}`) router.replace(`/c/${sessionId}`);
 
       try {
         const provider = store.provider ?? undefined;

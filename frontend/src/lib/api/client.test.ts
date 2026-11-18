@@ -30,22 +30,24 @@ describe("api", () => {
   });
 
   it("rechaza una respuesta con forma inesperada", async () => {
-    server.use(http.get(`${API}/api/documents`, () => HttpResponse.json([{ source: 1 }])));
-    await expect(api.documents()).rejects.toThrow(UNEXPECTED_MESSAGE);
+    server.use(http.get(`${API}/api/conversations/conversacion-1/documents`, () => HttpResponse.json([{ source: 1 }])));
+    await expect(api.documents("conversacion-1")).rejects.toThrow(UNEXPECTED_MESSAGE);
   });
 
   it("usa el detail del backend (413, 415…) y el código de estado", async () => {
     server.use(
-      http.post(`${API}/api/documents`, () => HttpResponse.json({ detail: "Tipo de archivo no permitido: .exe" }, { status: 415 })),
+      http.post(`${API}/api/conversations/conversacion-1/documents`, () => HttpResponse.json({ detail: "Tipo de archivo no permitido: .exe" }, { status: 415 })),
     );
-    const error = await api.uploadDocument(new File(["x"], "a.exe")).catch((e: unknown) => e);
+    const error = await api
+      .uploadDocument({ conversationId: "conversacion-1", file: new File(["x"], "a.exe") })
+      .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ message: "Tipo de archivo no permitido: .exe", status: 415 });
   });
 
   it("los 422 de FastAPI (detail en lista) dan un mensaje con el código y qué hacer", async () => {
-    server.use(http.get(`${API}/api/documents`, () => HttpResponse.json({ detail: [{ msg: "x" }] }, { status: 422 })));
-    await expect(api.documents()).rejects.toThrow("La API respondió con un error (422). Vuelve a intentarlo en unos segundos.");
+    server.use(http.get(`${API}/api/conversations/conversacion-1/documents`, () => HttpResponse.json({ detail: [{ msg: "x" }] }, { status: 422 })));
+    await expect(api.documents("conversacion-1")).rejects.toThrow("La API respondió con un error (422). Vuelve a intentarlo en unos segundos.");
   });
 
   it("un fallo de red da un mensaje legible", async () => {
@@ -55,11 +57,17 @@ describe("api", () => {
 
   it("codifica los nombres en la URL", async () => {
     server.use(
-      http.delete(`${API}/api/documents/:source`, ({ params }) =>
-        HttpResponse.json({ source: params.source, chunks_removed: 2 }),
+      http.delete(`${API}/api/conversations/conversacion-1/documents/:source`, ({ params }) => HttpResponse.json({ source: params.source, chunks_removed: 2 })),
+      http.get(`${API}/api/conversations/conversacion-1/fragments/:chunk`, ({ params }) =>
+        HttpResponse.json({ id: params.chunk, source: "guía v2.md", text: "Texto citado." }),
       ),
     );
-    await expect(api.deleteDocument("guía v2.md")).resolves.toEqual({ source: "guía v2.md", chunks_removed: 2 });
+    await expect(api.deleteDocument({ conversationId: "conversacion-1", source: "guía v2.md" })).resolves.toEqual({
+      source: "guía v2.md",
+      chunks_removed: 2,
+    });
+    // el «#» del fragmento viaja codificado (si no, el navegador lo tomaría por un ancla)
+    await expect(api.fragment("conversacion-1", "guía v2.md#3")).resolves.toMatchObject({ id: "guía v2.md#3" });
     expect(api.artifactUrl("a b.mmd")).toBe(`${API}/api/artifacts/a%20b.mmd`);
   });
 });

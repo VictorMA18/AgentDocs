@@ -8,6 +8,7 @@ import {
   deletedConversationSchema,
   deletedDocumentSchema,
   documentListSchema,
+  documentPreviewSchema,
   fragmentSchema,
   healthSchema,
   providerListSchema,
@@ -73,14 +74,20 @@ export const api = {
   health: () => getJson("/healthz", healthSchema),
   providers: () => getJson("/api/providers", providerListSchema),
 
-  documents: () => getJson("/api/documents", documentListSchema),
-  uploadDocument: (file: File) => {
+  // Documentos de cada conversación (ADR-032): el agente solo busca en los de la conversación abierta.
+  documents: (conversationId: string) =>
+    getJson(`/api/conversations/${enc(conversationId)}/documents`, documentListSchema),
+  uploadDocument: ({ conversationId, file }: { conversationId: string; file: File }) => {
     const body = new FormData();
     body.append("file", file);
-    return getJson("/api/documents", uploadResultSchema, { method: "POST", body });
+    return getJson(`/api/conversations/${enc(conversationId)}/documents`, uploadResultSchema, { method: "POST", body });
   },
-  deleteDocument: (source: string) =>
-    getJson(`/api/documents/${enc(source)}`, deletedDocumentSchema, { method: "DELETE" }),
+  deleteDocument: ({ conversationId, source }: { conversationId: string; source: string }) =>
+    getJson(`/api/conversations/${enc(conversationId)}/documents/${enc(source)}`, deletedDocumentSchema, {
+      method: "DELETE",
+    }),
+  documentPreview: (conversationId: string, source: string) =>
+    getJson(`/api/conversations/${enc(conversationId)}/documents/${enc(source)}`, documentPreviewSchema),
   fragment: (conversationId: string, chunkId: string) =>
     getJson(`/api/conversations/${enc(conversationId)}/fragments/${enc(chunkId)}`, fragmentSchema),
 

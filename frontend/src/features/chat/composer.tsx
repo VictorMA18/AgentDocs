@@ -1,11 +1,12 @@
 "use client";
 
 import { SendHorizontalIcon } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MAX_MESSAGE_CHARS, messageSchema } from "@/lib/api/schemas";
+import { useChatStore } from "@/stores/chat-store";
 
 type Props = {
   onSend: (text: string) => void;
@@ -21,13 +22,24 @@ type Props = {
  * inferior con el selector de proveedor a la izquierda y el contador, siempre visible, a la derecha.
  */
 export function Composer({ onSend, disabled, footer }: Props) {
-  const [text, setText] = useState("");
+  // El borrador vive en el store, por conversación: sobrevive a que la vista se vuelva a montar.
+  const text = useChatStore((state) => state.drafts[state.sessionId ?? ""] ?? "");
+  const setText = useChatStore((state) => state.setDraft);
+  const box = useRef<HTMLTextAreaElement>(null);
   const nearLimit = text.length > MAX_MESSAGE_CHARS * 0.9;
   const dock = useRef<HTMLFormElement>(null);
 
   // El compositor va pegado abajo sobre los mensajes: la zona que se desplaza reserva su alto como
   // scroll-padding para que un control enfocado con el teclado nunca quede tapado por él (WCAG 2.4.11).
   // Se mide en vivo porque la caja de texto crece al escribir.
+  // Si al montarse ya hay borrador (la vista se volvió a montar mientras se escribía) y nada tiene el
+  // foco, vuelve a la caja de texto para seguir escribiendo.
+  useEffect(() => {
+    if (useChatStore.getState().drafts[useChatStore.getState().sessionId ?? ""] && document.activeElement === document.body) {
+      box.current?.focus();
+    }
+  }, []);
+
   useEffect(() => {
     const form = dock.current;
     const scroller = form?.closest<HTMLElement>("[data-chat-scroll]");
@@ -66,6 +78,7 @@ export function Composer({ onSend, disabled, footer }: Props) {
             Mensaje
           </label>
           <Textarea
+            ref={box}
             id="message"
             value={text}
             onChange={(event) => setText(event.target.value)}
